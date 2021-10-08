@@ -1,5 +1,5 @@
-use std::time::Duration;
 use hannibal::{message, Actor, Context, Handler};
+use std::time::Duration;
 
 #[derive(Debug, Default)]
 pub struct PingLater;

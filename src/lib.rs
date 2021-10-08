@@ -54,6 +54,7 @@
 //! | [Xactor](https://github.com/sunli829/xactor)       | original version of this |
 
 #![allow(clippy::type_complexity)]
+#![warn(clippy::doc_markdown)]
 
 mod actor;
 mod addr;
@@ -78,10 +79,12 @@ pub use anyhow as error;
 #[cfg(feature = "eyre")]
 pub use eyre as error;
 
-/// Alias of error::Result
+#[cfg_attr(feature = "eyre", doc = "Alias of [`eyre::Result`]")]
+#[cfg_attr(not(feature = "eyre"), doc = "Alias of [`anyhow::Result`]")]
 pub type Result<T> = error::Result<T>;
 
-/// Alias of error::Error
+#[cfg_attr(feature = "eyre", doc = "Alias of [`eyre::Error`]")]
+#[cfg_attr(not(feature = "eyre"), doc = "Alias of [`anyhow::Error`]")]
 pub type Error = error::Error;
 
 pub type ActorId = u64;
