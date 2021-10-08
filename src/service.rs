@@ -1,5 +1,5 @@
-use crate::actor::ActorManager;
 use crate::error::Result;
+use crate::lifecycle::ActorManager;
 use crate::{Actor, Addr};
 use fnv::FnvHasher;
 use futures::lock::Mutex;

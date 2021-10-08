@@ -44,7 +44,7 @@ struct Shutdown;
 
 #[async_trait::async_trait]
 impl Handler<Shutdown> for PingTimer {
-    async fn handle(&mut self, ctx: &mut Context<Self>, _msg: Shutdown) {
+    async fn handle(&mut self, _ctx: &mut Context<Self>, _msg: Shutdown) {
         println!("PingTimer :: received Shutdown");
         // ctx.stop_supervisor(None);
     }
