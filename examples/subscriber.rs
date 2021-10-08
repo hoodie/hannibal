@@ -1,5 +1,5 @@
-use std::time::Duration;
 use hannibal::*;
+use std::time::Duration;
 
 // This is a basic subscriber example to demonstrate usage of Sender
 // We have actor A - SubscriberParent, manages a vec of child subscribers and in this example, sets up the message producer

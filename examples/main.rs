@@ -1,5 +1,5 @@
-use std::time::Duration;
 use hannibal::*;
+use std::time::Duration;
 
 #[message]
 struct Die;
