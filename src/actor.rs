@@ -1,6 +1,7 @@
 use crate::error::Result;
-use crate::lifecycle::ActorManager;
 use crate::{Addr, Context};
+
+use crate::lifecycle::LifeCycle;
 
 /// Represents a message that can be handled by the actor.
 pub trait Message: 'static + Send {
@@ -105,6 +106,6 @@ pub trait Actor: Sized + Send + 'static {
     /// }
     /// ```
     async fn start(self) -> Result<Addr<Self>> {
-        ActorManager::new().start_actor(self).await
+        LifeCycle::new().start_actor(self).await
     }
 }
