@@ -1,9 +1,5 @@
-use crate::error::Result;
-use crate::{Addr, Context};
+use crate::{error::Result, lifecycle::LifeCycle, Addr, Context};
 
-use crate::lifecycle::LifeCycle;
-
-/// Represents a message that can be handled by the actor.
 pub trait Message: 'static + Send {
     /// The return value type of the message
     /// This type can be set to () if the message does not return a value, or if it is a notification message
