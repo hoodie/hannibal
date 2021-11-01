@@ -1,10 +1,10 @@
 use crate::addr::ActorEvent;
+use crate::context::Liveness::{self, Running};
+use crate::error::Result;
 use crate::runtime::spawn;
 use crate::{Addr, Context};
-use crate::error::Result;
 use futures::channel::mpsc::{UnboundedReceiver, UnboundedSender};
-use futures::channel::oneshot;
-use futures::{FutureExt, StreamExt};
+use futures::StreamExt;
 
 /// Represents a message that can be handled by the actor.
 pub trait Message: 'static + Send {
@@ -117,13 +117,12 @@ pub(crate) struct ActorManager<A: Actor> {
     ctx: Context<A>,
     tx: std::sync::Arc<UnboundedSender<ActorEvent<A>>>,
     rx: UnboundedReceiver<ActorEvent<A>>,
-    tx_exit: oneshot::Sender<()>,
+    tx_exit: tokio::sync::watch::Sender<Liveness>,
 }
 
 impl<A: Actor> ActorManager<A> {
     pub(crate) fn new() -> Self {
-        let (tx_exit, rx_exit) = oneshot::channel();
-        let rx_exit = rx_exit.shared();
+        let (tx_exit, rx_exit) = tokio::sync::watch::channel(Running);
         let (ctx, rx, tx) = Context::new(Some(rx_exit));
         Self {
             ctx,
@@ -170,7 +169,8 @@ impl<A: Actor> ActorManager<A> {
                 ctx.abort_streams();
                 ctx.abort_intervals();
 
-                tx_exit.send(()).ok();
+                tx_exit.send(Liveness::Stopped).ok();
+                println!("tx_exit should be dropped now");
             }
         });
 

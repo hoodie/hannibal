@@ -1,6 +1,6 @@
+use crate::context::Liveness;
 use crate::{Actor, ActorId, Caller, Context, Error, Handler, Message, Result, Sender};
 use futures::channel::{mpsc, oneshot};
-use futures::future::Shared;
 use futures::Future;
 use std::hash::{Hash, Hasher};
 use std::pin::Pin;
@@ -24,7 +24,17 @@ pub(crate) enum ActorEvent<A> {
 pub struct Addr<A> {
     pub(crate) actor_id: ActorId,
     pub(crate) tx: Arc<mpsc::UnboundedSender<ActorEvent<A>>>,
-    pub(crate) rx_exit: Option<Shared<oneshot::Receiver<()>>>,
+    pub(crate) rx_exit: Option<tokio::sync::watch::Receiver<Liveness>>,
+}
+
+impl<A> std::fmt::Debug for Addr<A> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Addr")
+            .field("actor_id", &self.actor_id)
+            // .field("tx", &self.tx)
+            .field("rx_exit", &self.rx_exit)
+            .finish()
+    }
 }
 
 impl<A> Clone for Addr<A> {
@@ -69,6 +79,13 @@ impl<A: Actor> Addr<A> {
     pub fn stop(&mut self, err: Option<Error>) -> Result<()> {
         mpsc::UnboundedSender::clone(&*self.tx).start_send(ActorEvent::Stop(err))?;
         Ok(())
+    }
+
+    pub fn stopped(&self) -> bool {
+        self.rx_exit
+            .as_ref()
+            .map(|x| *x.borrow() == Liveness::Stopped)
+            .unwrap_or(true)
     }
 
     /// Send a message `msg` to the actor and wait for the return value.
@@ -163,10 +180,11 @@ impl<A: Actor> Addr<A> {
 
     /// Wait for an actor to finish, and if the actor has finished, the function returns immediately.
     pub async fn wait_for_stop(self) {
-        if let Some(rx_exit) = self.rx_exit {
-            rx_exit.await.ok();
+        if let Some(mut rx_exit) = self.rx_exit {
+            rx_exit.changed().await.ok();
         } else {
-            futures::future::pending::<()>().await;
+            // futures::future::pending::<()>().await;
+            std::future::ready(()).await;
         }
     }
 }
@@ -174,7 +192,7 @@ impl<A: Actor> Addr<A> {
 pub struct WeakAddr<A> {
     pub(crate) actor_id: ActorId,
     pub(crate) tx: Weak<mpsc::UnboundedSender<ActorEvent<A>>>,
-    pub(crate) rx_exit: Option<Shared<oneshot::Receiver<()>>>,
+    pub(crate) rx_exit: Option<tokio::sync::watch::Receiver<Liveness>>,
 }
 
 impl<A> PartialEq for WeakAddr<A> {
