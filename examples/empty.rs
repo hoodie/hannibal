@@ -1,6 +1,6 @@
-use xactor::*;
+use hannibal::*;
 
-#[xactor::main]
+#[hannibal::main]
 async fn main() -> Result<()> {
     Ok(())
 }

@@ -35,7 +35,7 @@ impl<T: Message<Result = ()> + Clone> Message for Publish<T> {
 /// # Examples
 ///
 /// ```rust
-/// use xactor::*;
+/// use hannibal::*;
 /// use std::time::Duration;
 ///
 /// #[message]
@@ -70,7 +70,7 @@ impl<T: Message<Result = ()> + Clone> Message for Publish<T> {
 ///     }
 /// }
 ///
-/// #[xactor::main]
+/// #[hannibal::main]
 /// async fn main() -> Result<()> {
 ///     let mut addr1 = MyActor::start_default().await?;
 ///     let mut addr2 = MyActor::start_default().await?;

@@ -1,0 +1,21 @@
+[package]
+name = "hannibal-derive"
+version = "0.8.0"
+uthors = ["Hendrik Sollich <hendrik@hoodie.de>", "sunli <scott_s829@163.com>"]
+description = "Hannibal macros"
+edition = "2021"
+publish = true
+license = "MIT"
+documentation = "https://docs.rs/hannibal/"
+homepage = "https://github.com/hoodie/hannibal"
+repository = "https://github.com/hoodie/hannibal"
+keywords = ["actor", "futures", "async", "hannibal", "async-std"]
+categories = ["network-programming", "asynchronous"]
+
+[lib]
+proc-macro = true
+
+[dependencies]
+proc-macro2 = "1.0.6"
+syn = { version = "1.0.13", features = ["full"] }
+quote = "1.0.2"

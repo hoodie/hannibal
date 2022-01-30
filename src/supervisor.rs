@@ -16,7 +16,7 @@ impl Supervisor {
     /// # Examples
     ///
     /// ```rust
-    /// use xactor::*;
+    /// use hannibal::*;
     /// use std::time::Duration;
     ///
     /// #[message]
@@ -53,7 +53,7 @@ impl Supervisor {
     ///     }
     /// }
     ///
-    /// #[xactor::main]
+    /// #[hannibal::main]
     /// async fn main() -> Result<()> {
     ///     let mut addr = Supervisor::start(|| MyActor(0)).await?;
     ///

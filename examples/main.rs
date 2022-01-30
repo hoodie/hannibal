@@ -1,5 +1,5 @@
 use std::time::Duration;
-use xactor::*;
+use hannibal::*;
 
 #[message]
 struct Die;
@@ -23,7 +23,7 @@ impl Handler<Die> for MyActor {
     }
 }
 
-#[xactor::main]
+#[hannibal::main]
 async fn main() -> Result<()> {
     // Exit the program after 3 seconds
     let addr = MyActor.start().await?;

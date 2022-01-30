@@ -1,34 +1,37 @@
 [package]
-name = "xactor"
-version = "0.7.11"
-authors = ["sunli <scott_s829@163.com>"]
-description = "Xactor is a rust actors framework based on async-std"
-edition = "2018"
+name = "hannibal"
+version = "0.8.0"
+authors = ["Hendrik Sollich <hendrik@hoodie.de>", "sunli <scott_s829@163.com>"]
+description = "a small actor library"
+edition = "2021"
 publish = true
 license = "MIT"
-documentation = "https://docs.rs/xactor/"
-homepage = "https://github.com/sunli829/xactor"
-repository = "https://github.com/sunli829/xactor"
-keywords = ["actor", "futures", "async", "xactor", "async-std"]
+documentation = "https://docs.rs/hannibal/"
+homepage = "https://github.com/hoodie/hannibal"
+repository = "https://github.com/hoodie/hannibal"
+keywords = ["actor", "futures", "async", "hannibal", "xactor", "async-std"]
 categories = ["network-programming", "asynchronous"]
 readme = "README.md"
+rust-version = "1.56.0"
 
 [dependencies]
 futures = "0.3.8"
 async-trait = "0.1.42"
 async-std = { version = "1.8.0", features = ["attributes"], optional = true }
-tokio = { version = "1.0.1", features = ["rt-multi-thread", "macros", "time"], optional = true }
+tokio = { version = "1.0.1", features = [
+    "rt-multi-thread",
+    "macros",
+    "time",
+], optional = true }
 once_cell = "1.5.2"
-xactor-derive = { path = "xactor-derive", version = "0.7"}
+hannibal-derive = { path = "hannibal-derive", version = "0.8" }
 fnv = "1.0.7"
 slab = "0.4.2"
 anyhow = { version = "1.0.37", optional = true }
 eyre = { version = "0.6.5", optional = true }
 
 [workspace]
-members = [
-    "xactor-derive"
-]
+members = ["hannibal-derive"]
 
 [features]
 runtime-tokio = ["tokio"]

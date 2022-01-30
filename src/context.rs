@@ -91,7 +91,7 @@ impl<A> Context<A> {
     ///
     /// # Examples
     /// ```rust
-    /// use xactor::*;
+    /// use hannibal::*;
     /// use futures::stream;
     /// use std::time::Duration;
     ///
@@ -132,7 +132,7 @@ impl<A> Context<A> {
     ///     }
     /// }
     ///
-    /// #[xactor::main]
+    /// #[hannibal::main]
     /// async fn main() -> Result<()> {
     ///     let mut addr = MyActor::start_default().await?;
     ///     sleep(Duration::from_secs(1)).await; // Wait for the stream to complete

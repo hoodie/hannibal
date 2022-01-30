@@ -1,12 +1,12 @@
 use std::time::Duration;
-use xactor::*;
+use hannibal::*;
 
 // This is a basic subscriber example to demonstrate usage of Sender
 // We have actor A - SubscriberParent, manages a vec of child subscribers and in this example, sets up the message producer
 // Actor B - (Child) Subscriber
 // Actor C - Message Producer (Being subscribed to by the child subscribers) - producing a RandomMessage every few seconds to be broadcast to subscribers
 
-#[xactor::main]
+#[hannibal::main]
 async fn main() -> std::io::Result<()> {
     let parent_addr = SubscriberParent::new().await.start().await.unwrap();
     parent_addr.wait_for_stop().await;

@@ -1,10 +1,10 @@
-//! # Xactor is a rust actors framework based on async-std
+//! # Hannibal is a rust actors framework based on async-std
 //!
 //! ## Documentation
 //!
-//! * [GitHub repository](https://github.com/sunli829/xactor)
-//! * [Cargo package](https://crates.io/crates/xactor)
-//! * Minimum supported Rust version: 1.39 or later
+//! * [GitHub repository](https://github.com/hoodie/hannibal)
+//! * [Cargo package](https://crates.io/crates/hannibal)
+//! * Minimum supported Rust version: 1.56 or later
 //!
 //! ## Features
 //!
@@ -16,7 +16,7 @@
 //! ## Examples
 //!
 //! ```rust
-//! use xactor::*;
+//! use hannibal::*;
 //!
 //! #[message(result = "String")]
 //! struct ToUppercase(String);
@@ -32,7 +32,7 @@
 //!     }
 //! }
 //!
-//! #[xactor::main]
+//! #[hannibal::main]
 //! async fn main() -> Result<()> {
 //!     // Start actor and get its address
 //!     let mut addr = MyActor.start().await?;
@@ -44,21 +44,14 @@
 //! }
 //! ```
 //!
-//! ## Performance
-//!
-//! **Actix vs. Xactor**
-//!
-//! |        |Wait for response|Send only|
-//! |--------|-----------------|---------|
-//! |Actix   |          1548 ms|    14 ms|
-//! |Xactor  |           930 ms|    18 ms|
-//!
-//! [GitHub repository](https://github.com/sunli829/xactor-benchmarks)
-//!
 //! ## References
 //!
-//! * [Actix](https://github.com/actix/actix)
-//! * [Async-std](https://github.com/async-rs/async-std)
+//! |                                                    |                          |
+//! | -------------------------------------------------- | ------------------------ |
+//! | [Actix](https://github.com/actix/actix)            | the original inspiration |
+//! | [Async-std](https://github.com/async-rs/async-std) | a supported runtime      |
+//! | [Tokio](https://tokio.rs/)                         | a supported runtime      |
+//! | [Xactor](https://github.com/sunli829/xactor)       | original version of this |
 
 #![allow(clippy::type_complexity)]
 
@@ -72,15 +65,17 @@ mod service;
 mod supervisor;
 
 #[cfg(all(feature = "anyhow", feature = "eyre"))]
-compile_error!(r#"
-    features `xactor/anyhow` and `xactor/eyre` are mutually exclusive.
+compile_error!(
+    r#"
+    features `hannibal/anyhow` and `hannibal/eyre` are mutually exclusive.
     If you are trying to disable anyhow set `default-features = false`.
-"#);
+"#
+);
 
-#[cfg(feature="anyhow")]
+#[cfg(feature = "anyhow")]
 pub use anyhow as error;
 
-#[cfg(feature="eyre")]
+#[cfg(feature = "eyre")]
 pub use eyre as error;
 
 /// Alias of error::Result
@@ -96,7 +91,7 @@ pub use addr::{Addr, WeakAddr};
 pub use broker::Broker;
 pub use caller::{Caller, Sender};
 pub use context::Context;
+pub use hannibal_derive::{main, message};
 pub use runtime::{block_on, sleep, spawn, timeout};
 pub use service::{LocalService, Service};
 pub use supervisor::Supervisor;
-pub use xactor_derive::{main, message};

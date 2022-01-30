@@ -17,7 +17,7 @@ use std::hash::BuildHasherDefault;
 /// # Examples
 ///
 /// ```rust
-/// use xactor::*;
+/// use hannibal::*;
 ///
 /// #[message(result = "i32")]
 /// struct AddMsg(i32);
@@ -37,7 +37,7 @@ use std::hash::BuildHasherDefault;
 ///     }
 /// }
 ///
-/// #[xactor::main]
+/// #[hannibal::main]
 /// async fn main() -> Result<()> {
 ///     let mut addr = MyService::from_registry().await?;
 ///     assert_eq!(addr.call(AddMsg(1)).await?, 1);

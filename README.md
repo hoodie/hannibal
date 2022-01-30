@@ -1,42 +1,46 @@
-# Xactor is a rust actors framework based on async-std
-
 <div align="center">
-  <!-- CI -->
-  <img src="https://github.com/sunli829/potatonet/workflows/CI/badge.svg" />
+
+# Hannibal
+
   <!-- Crates version -->
-  <a href="https://crates.io/crates/xactor">
-    <img src="https://img.shields.io/crates/v/xactor.svg?style=flat-square"
+  <a href="https://crates.io/crates/hannibal">
+    <img src="https://img.shields.io/crates/v/hannibal.svg?style=flat-square"
     alt="Crates.io version" />
   </a>
   <!-- Downloads -->
-  <a href="https://crates.io/crates/xactor">
-    <img src="https://img.shields.io/crates/d/xactor.svg?style=flat-square"
+  <a href="https://crates.io/crates/hannibal">
+    <img src="https://img.shields.io/crates/d/hannibal.svg?style=flat-square"
       alt="Download" />
   </a>
   <!-- docs.rs docs -->
-  <a href="https://docs.rs/xactor">
+  <a href="https://docs.rs/hannibal">
     <img src="https://img.shields.io/badge/docs-latest-blue.svg?style=flat-square"
       alt="docs.rs docs" />
   </a>
+
+a small actor library
 </div>
+
+## Why
+Credit where credit is due: Hannibal is a fork of the excellent [Xactor](https://github.com/sunli829/xactor) which unfortunately received very little interest by its original maintainer.
 
 ## Documentation
 
-* [GitHub repository](https://github.com/sunli829/xactor)
-* [Cargo package](https://crates.io/crates/xactor)
-* Minimum supported Rust version: 1.39 or later
+- [GitHub repository](https://github.com/hoodie/hannibal)
+- [Cargo package](https://crates.io/crates/hannibal)
+- Minimum supported Rust version: 1.56 or later
 
 ## Features
 
-* Async actors.
-* Actor communication in a local context.
-* Using Futures for asynchronous message handling.
-* Typed messages (No `Any` type). Generic messages are allowed.
+- Async actors.
+- Actor communication in a local context.
+- Using Futures for asynchronous message handling.
+- Typed messages (No `Any` type). Generic messages are allowed.
 
 ## Examples
 
 ```rust
-use xactor::*;
+use hannibal::*;
 
 #[message(result = "String")]
 struct ToUppercase(String);
@@ -52,7 +56,7 @@ impl Handler<ToUppercase> for MyActor {
     }
 }
 
-#[xactor::main]
+#[hannibal::main]
 async fn main() -> Result<()> {
     // Start actor and get its address
     let mut addr = MyActor.start().await?;
@@ -64,32 +68,30 @@ async fn main() -> Result<()> {
 }
 ```
 
-## Performance
-
-https://github.com/sunli829/xactor-benchmarks
-
 ## Installation
 
-Xactor requires [async-trait](https://github.com/dtolnay/async-trait) on userland.
+Hannibal requires [async-trait](https://github.com/dtolnay/async-trait) on userland.
 
 With [cargo add][cargo-add] installed, run:
 
 ```sh
-$ cargo add xactor
+$ cargo add hannibal
 $ cargo add async-trait
 ```
 
 We also provide the [tokio](https://tokio.rs/) runtime instead of [async-std](https://async.rs/). To use it, you need to activate `runtime-tokio` and disable default features.
 
 You can edit your `Cargo.toml` as follows:
+
 ```toml
-xactor = { version = "x.x.x", features = ["runtime-tokio"], default-features = false }
+hannibal = { version = "x.x.x", features = ["runtime-tokio"], default-features = false }
 ```
 
 [cargo-add]: https://github.com/killercup/cargo-edit
 
 ## References
 
-* [Actix](https://github.com/actix/actix)
-* [Async-std](https://github.com/async-rs/async-std)
-* [Tokio](https://github.com/tokio-rs/tokio)
+- [Actix](https://github.com/actix/actix)
+- [Async-std](https://github.com/async-rs/async-std)
+- [Tokio](https://github.com/tokio-rs/tokio)
+- [Hannibal](https://github.com/sunli829/xactor)

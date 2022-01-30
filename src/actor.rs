@@ -81,7 +81,7 @@ pub trait Actor: Sized + Send + 'static {
     /// # Examples
     ///
     /// ```rust
-    /// use xactor::*;
+    /// use hannibal::*;
     ///
     /// struct MyActor;
     ///
@@ -97,7 +97,7 @@ pub trait Actor: Sized + Send + 'static {
     ///     }
     /// }
     ///
-    /// #[xactor::main]
+    /// #[hannibal::main]
     /// async fn main() -> Result<()> {
     ///     // Start actor and get its address
     ///     let mut addr = MyActor.start().await?;

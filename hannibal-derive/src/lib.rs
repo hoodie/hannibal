@@ -6,7 +6,7 @@ use quote::{quote, quote_spanned};
 use syn::spanned::Spanned;
 use syn::{parse_macro_input, AttributeArgs, DeriveInput, Error, Meta, NestedMeta};
 
-/// Implement an xactor message type.
+/// Implement an hannibal message type.
 ///
 /// The return value type defaults to (), and you can specify the type with the result parameter.
 ///
@@ -41,14 +41,14 @@ pub fn message(args: TokenStream, input: TokenStream) -> TokenStream {
     let ident = &input.ident;
     let expanded = quote! {
         #input
-        impl xactor::Message for #ident {
+        impl hannibal::Message for #ident {
             type Result = #result_type;
         }
     };
     expanded.into()
 }
 
-/// Implement an xactor main function.
+/// Implement an hannibal main function.
 ///
 /// Wait for all actors to exit.
 #[proc_macro_attribute]
@@ -57,7 +57,7 @@ pub fn main(_args: TokenStream, input: TokenStream) -> TokenStream {
 
     if &*input.sig.ident.to_string() != "main" {
         return TokenStream::from(quote_spanned! { input.sig.ident.span() =>
-            compile_error!("only the main function can be tagged with #[xactor::main]"),
+            compile_error!("only the main function can be tagged with #[hannibal::main]"),
         });
     }
 
@@ -74,7 +74,7 @@ pub fn main(_args: TokenStream, input: TokenStream) -> TokenStream {
         #input
 
         fn main() #ret {
-            xactor::block_on(__main())
+            hannibal::block_on(__main())
         }
     };
 

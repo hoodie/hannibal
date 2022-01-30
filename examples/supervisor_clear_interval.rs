@@ -1,5 +1,5 @@
 use std::time::{Duration, Instant};
-use xactor::{message, Actor, Context, Handler};
+use hannibal::{message, Actor, Context, Handler};
 
 #[derive(Debug)]
 pub struct PingTimer {
@@ -16,7 +16,7 @@ impl Default for PingTimer {
 
 #[async_trait::async_trait]
 impl Actor for PingTimer {
-    async fn started(&mut self, ctx: &mut Context<Self>) -> xactor::Result<()> {
+    async fn started(&mut self, ctx: &mut Context<Self>) -> hannibal::Result<()> {
         println!("PingTimer:: started()");
         ctx.send_interval(Ping, Duration::from_millis(1000));
         Ok(())
@@ -64,17 +64,17 @@ impl Handler<Panic> for PingTimer {
     }
 }
 
-#[xactor::main]
+#[hannibal::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let service_supervisor = xactor::Supervisor::start(PingTimer::default).await?;
+    let service_supervisor = hannibal::Supervisor::start(PingTimer::default).await?;
     let service_addr = service_supervisor.clone();
 
-    let supervisor_task = xactor::spawn(async {
+    let supervisor_task = hannibal::spawn(async {
         service_supervisor.wait_for_stop().await;
     });
 
     let send_halt = async {
-        xactor::sleep(Duration::from_millis(5_200)).await;
+        hannibal::sleep(Duration::from_millis(5_200)).await;
         println!("  main  :: sending Halt");
         service_addr.send(Halt).unwrap();
     };
