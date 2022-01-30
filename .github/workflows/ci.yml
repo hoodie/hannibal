@@ -3,23 +3,41 @@ name: CI
 on:
   push:
     branches:
-      - master
-  pull_request: {}
+      - main 
+  pull_request:
 
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v1
-      - name: Build with async-std
-        run: cargo build --all --verbose
+      - uses: actions/checkout@v2
+
       - name: Build with tokio
-        run: cargo build --all --features "runtime-tokio anyhow" --no-default-features --verbose
+        uses: actions-rs/cargo@v1
+        with:
+          command: build
+          args: --all --features "runtime-tokio anyhow" --no-default-features --verbose
+
       - name: Build with eyre
-        run: cargo build --all --features "runtime-tokio eyre" --no-default-features --verbose
+        uses: actions-rs/cargo@v1
+        with:
+          command: build
+          args: --all --features "runtime-tokio eyre" --no-default-features --verbose
+
       - name: Run tests with async-std
-        run: cargo test --all --verbose
+        uses: actions-rs/cargo@v1
+        with:
+          command: test 
+          args: --all --verbose
+
       - name: Run tests with tokio
-        run: cargo test --all --verbose --features "runtime-tokio anyhow" --no-default-features --verbose
+        uses: actions-rs/cargo@v1
+        with:
+          command: test 
+          args: --all --verbose --features "runtime-tokio anyhow" --no-default-features --verbose
+
       - name: Run tests with eyre
-        run: cargo test --all --verbose --features "runtime-tokio eyre" --no-default-features --verbose
+        uses: actions-rs/cargo@v1
+        with:
+          command: test 
+          args: --all --verbose --features "runtime-tokio eyre" --no-default-features --verbose
