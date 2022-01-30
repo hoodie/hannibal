@@ -93,7 +93,7 @@ impl<A> Context<A> {
                 .ok();
         }
     }
-    
+
     pub fn stopped(&self) -> bool {
         self.rx_exit
             .as_ref()

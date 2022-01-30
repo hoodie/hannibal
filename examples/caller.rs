@@ -1,4 +1,4 @@
-use xactor::*;
+use hannibal::*;
 
 /// Define `Ping` message
 #[message(result = "usize")]
@@ -21,7 +21,7 @@ impl Handler<Ping> for MyActor {
     }
 }
 
-#[xactor::main]
+#[hannibal::main]
 async fn main() -> Result<()> {
     // start new actor
     let addr = MyActor { count: 10 }.start().await?;
@@ -30,7 +30,6 @@ async fn main() -> Result<()> {
 
     let res = caller.call(Ping(10)).await?;
     println!("RESULT: {}", res == 20);
-
 
     println!("caller can upgrade: {}", caller.can_upgrade());
     std::mem::drop(addr);

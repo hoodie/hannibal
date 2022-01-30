@@ -1,17 +1,13 @@
 use crate::{
     addr::ActorEvent,
+    context::Liveness::{self, Running},
     error::Result,
     runtime::spawn,
-    Actor,
-    Addr,
-    Context,
-    context::Liveness::{self, Running}
+    Actor, Addr, Context,
 };
 
 use futures::{
-    channel::{
-        mpsc::{UnboundedReceiver, UnboundedSender},
-    },
+    channel::mpsc::{UnboundedReceiver, UnboundedSender},
     StreamExt,
 };
 
