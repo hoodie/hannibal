@@ -17,6 +17,8 @@ a small actor library
 
 ## Why
 Credit where credit is due: Hannibal is a fork of the excellent [Xactor](https://github.com/sunli829/xactor) which unfortunately received very little interest by its original maintainer recently.
+As of now there is no breaking change here, we could still merge xactor and hannibal again.
+Please reach out [via an issue](https://github.com/hoodie/hannibal/issues/new) if you are interested.
 
 ## Documentation
 
