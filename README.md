@@ -2,27 +2,21 @@
 
 # Hannibal
 
-  <!-- Crates version -->
-  <a href="https://crates.io/crates/hannibal">
-    <img src="https://img.shields.io/crates/v/hannibal.svg?style=flat-square"
-    alt="Crates.io version" />
-  </a>
-  <!-- Downloads -->
-  <a href="https://crates.io/crates/hannibal">
-    <img src="https://img.shields.io/crates/d/hannibal.svg?style=flat-square"
-      alt="Download" />
-  </a>
-  <!-- docs.rs docs -->
-  <a href="https://docs.rs/hannibal">
-    <img src="https://img.shields.io/badge/docs-latest-blue.svg?style=flat-square"
-      alt="docs.rs docs" />
-  </a>
+<!-- Crates version -->
+[![build](https://img.shields.io/github/workflow/status/hoodie/hannibal/CI)](https://github.com/hoodie/notify-rust/actions?query=workflow%3A"Continuous+Integration")
+[![version](https://img.shields.io/crates/v/hannibal)](https://crates.io/crates/hannibal/)
+[![downloads](https://img.shields.io/crates/d/hannibal.svg?style=flat-square)](https://crates.io/crates/hannibal)
+[![docs.rs docs](https://img.shields.io/badge/docs-latest-blue.svg?style=flat-square)](https://docs.rs/hannibal)
+[![contributors](https://img.shields.io/github/contributors/hoodie/notify-rust)](https://github.com/hoodie/hannibal/graphs/contributors)
+![maintenance](https://img.shields.io/maintenance/yes/2021)
+[![license](https://img.shields.io/crates/l/hannibal.svg?style=flat)](https://crates.io/crates/hannibal/)
+
 
 a small actor library
 </div>
 
 ## Why
-Credit where credit is due: Hannibal is a fork of the excellent [Xactor](https://github.com/sunli829/xactor) which unfortunately received very little interest by its original maintainer.
+Credit where credit is due: Hannibal is a fork of the excellent [Xactor](https://github.com/sunli829/xactor) which unfortunately received very little interest by its original maintainer recently.
 
 ## Documentation
 
