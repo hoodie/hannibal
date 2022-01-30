@@ -47,7 +47,6 @@ optional = true
 members = ["hannibal-derive"]
 
 [features]
-runtime-tokio = ["tokio"]
-runtime-async-std = ["async-std"]
-
-default = ["runtime-async-std", "anyhow"]
+runtime-tokio = ["tokio/rt-multi-thread", "tokio/macros", "tokio/time", "tokio/sync"]
+runtime-async-std = ["async-std", "tokio/sync"]
+default = ["runtime-async-std", "anyhow", "tokio/sync"]

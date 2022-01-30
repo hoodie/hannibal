@@ -2,27 +2,35 @@ use crate::addr::ActorEvent;
 use crate::broker::{Subscribe, Unsubscribe};
 use crate::runtime::{sleep, spawn};
 use crate::{ActorId, Addr, Broker, Error, Handler, Message, Result, Service, StreamHandler};
-use futures::channel::{mpsc, oneshot};
-use futures::future::{AbortHandle, Abortable, Shared};
-use futures::{Stream, StreamExt};
+use futures::{
+    channel::mpsc,
+    future::{AbortHandle, Abortable},
+    Stream, StreamExt,
+};
 use once_cell::sync::OnceCell;
 use slab::Slab;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Weak};
 use std::time::Duration;
 
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub(crate) enum Liveness {
+    Running,
+    Stopped,
+}
+
 ///An actor execution context.
 pub struct Context<A> {
     actor_id: ActorId,
     tx: Weak<mpsc::UnboundedSender<ActorEvent<A>>>,
-    pub(crate) rx_exit: Option<Shared<oneshot::Receiver<()>>>,
+    pub(crate) rx_exit: Option<tokio::sync::watch::Receiver<Liveness>>,
     pub(crate) streams: Slab<AbortHandle>,
     pub(crate) intervals: Slab<AbortHandle>,
 }
 
 impl<A> Context<A> {
     pub(crate) fn new(
-        rx_exit: Option<Shared<oneshot::Receiver<()>>>,
+        rx_exit: Option<tokio::sync::watch::Receiver<Liveness>>,
     ) -> (
         Self,
         mpsc::UnboundedReceiver<ActorEvent<A>>,
@@ -84,6 +92,13 @@ impl<A> Context<A> {
                 .start_send(ActorEvent::StopSupervisor(err))
                 .ok();
         }
+    }
+    
+    pub fn stopped(&self) -> bool {
+        self.rx_exit
+            .as_ref()
+            .map(|x| *x.borrow() == Liveness::Stopped)
+            .unwrap_or(true)
     }
 
     pub fn abort_intervals(&mut self) {

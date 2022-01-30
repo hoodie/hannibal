@@ -1,6 +1,4 @@
-use crate::error::Result;
-use crate::lifecycle::LifeCycle;
-use crate::{Actor, Addr};
+use crate::{error::Result, lifecycle::LifeCycle, Actor, Addr};
 
 /// Actor supervisor
 ///

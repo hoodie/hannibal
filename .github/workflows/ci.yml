@@ -8,6 +8,7 @@ on:
 
 jobs:
   build:
+    name: "Build and Test"
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
@@ -16,28 +17,28 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: build
-          args: --all --features "runtime-tokio anyhow" --no-default-features --verbose
+          args: --all --features "runtime-tokio anyhow" --no-default-features
 
       - name: Build with eyre
         uses: actions-rs/cargo@v1
         with:
           command: build
-          args: --all --features "runtime-tokio eyre" --no-default-features --verbose
+          args: --all --features "runtime-tokio eyre" --no-default-features
 
       - name: Run tests with async-std
         uses: actions-rs/cargo@v1
         with:
           command: test 
-          args: --all --verbose
+          args: --all
 
       - name: Run tests with tokio
         uses: actions-rs/cargo@v1
         with:
           command: test 
-          args: --all --verbose --features "runtime-tokio anyhow" --no-default-features --verbose
+          args: --all --features "runtime-tokio anyhow" --no-default-features
 
       - name: Run tests with eyre
         uses: actions-rs/cargo@v1
         with:
           command: test 
-          args: --all --verbose --features "runtime-tokio eyre" --no-default-features --verbose
+          args: --all --features "runtime-tokio eyre" --no-default-features

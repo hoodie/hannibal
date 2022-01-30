@@ -1,23 +1,30 @@
-use crate::{addr::ActorEvent, error::Result, runtime::spawn, Actor, Addr, Context};
+use crate::{
+    addr::ActorEvent,
+    error::Result,
+    runtime::spawn,
+    Actor,
+    Addr,
+    Context,
+    context::Liveness::{self, Running}
+};
+
 use futures::{
     channel::{
         mpsc::{UnboundedReceiver, UnboundedSender},
-        oneshot,
     },
-    FutureExt, StreamExt,
+    StreamExt,
 };
 
 pub(crate) struct LifeCycle<A: Actor> {
     ctx: Context<A>,
     tx: std::sync::Arc<UnboundedSender<ActorEvent<A>>>,
     rx: UnboundedReceiver<ActorEvent<A>>,
-    tx_exit: oneshot::Sender<()>,
+    tx_exit: tokio::sync::watch::Sender<Liveness>,
 }
 
 impl<A: Actor> LifeCycle<A> {
     pub(crate) fn new() -> Self {
-        let (tx_exit, rx_exit) = oneshot::channel();
-        let rx_exit = rx_exit.shared();
+        let (tx_exit, rx_exit) = tokio::sync::watch::channel(Running);
         let (ctx, rx, tx) = Context::new(Some(rx_exit));
         Self {
             ctx,
@@ -65,7 +72,7 @@ impl<A: Actor> LifeCycle<A> {
                 ctx.abort_streams();
                 ctx.abort_intervals();
 
-                tx_exit.send(()).ok();
+                tx_exit.send(Liveness::Stopped).ok();
             }
         });
 

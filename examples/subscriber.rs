@@ -47,7 +47,6 @@ impl Handler<InitializeChildSubscribers> for SubscriberParent {
         let message_producer_addr = self.message_producer.clone();
         let dummy_ids: Vec<i32> = vec![1, 2, 3, 4, 5];
         let children_unstarted_actors_vec = dummy_ids.into_iter().map(move |id| {
-            let id = id.clone();
             let addr = message_producer_addr.clone();
 
             Subscriber::new(id, addr)
