@@ -2,7 +2,7 @@ use crate::{ActorId, Message, Result};
 use std::future::Future;
 use std::hash::{Hash, Hasher};
 use std::pin::Pin;
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 
 pub(crate) type CallerFuture<T> =
     Pin<Box<dyn Future<Output = Result<<T as Message>::Result>> + Send + 'static>>;
@@ -10,6 +10,8 @@ pub(crate) type CallerFuture<T> =
 pub(crate) type CallerFn<T> = Box<dyn Fn(T) -> CallerFuture<T> + Send + 'static>;
 
 pub(crate) type SenderFn<T> = Box<dyn Fn(T) -> Result<()> + 'static + Send>;
+
+pub(crate) type TestFn = Box<dyn Fn() -> bool + 'static + Send>;
 
 /// Caller of a specific message type
 ///
@@ -19,12 +21,16 @@ pub(crate) type SenderFn<T> = Box<dyn Fn(T) -> Result<()> + 'static + Send>;
 pub struct Caller<T: Message> {
     /// Id of the corresponding [`Actor<A>`](crate::Actor<A>)
     pub actor_id: ActorId,
-    pub(crate) caller_fn: Mutex<CallerFn<T>>,
+    pub(crate) caller_fn: Arc<Mutex<CallerFn<T>>>,
+    pub(crate) test_fn: Arc<Mutex<TestFn>>,
 }
 
 impl<T: Message> Caller<T> {
     pub fn call(&self, msg: T) -> CallerFuture<T> {
         (self.caller_fn.lock().unwrap())(msg)
+    }
+    pub fn can_upgrade(&self) -> bool {
+        self.test_fn.lock().unwrap()()
     }
 }
 
@@ -44,17 +50,22 @@ impl<T: Message<Result = ()>> Hash for Caller<T> {
 ///
 /// Like [`Caller<T>`], Sender has a weak reference to the recipient of the message type,
 /// and so will not prevent an actor from stopping if all [`Addr`](`crate::Addr`)'s have been dropped elsewhere.
-/// This allows it to be used in the `send_later`  and`send_interval` actor functions, /// and not keep the actor alive indefinitely even after all references to it have been dropped (unless `ctx.stop()` is called from within)
+/// This allows it to be used in the `send_later` and `send_interval` actor functions,
+/// and not keep the actor alive indefinitely even after all references to it have been dropped (unless `ctx.stop()` is called from within)
 
 pub struct Sender<T: Message> {
     /// Id of the corresponding [`Actor<A>`](crate::actor::Actor)
     pub actor_id: ActorId,
-    pub(crate) sender_fn: SenderFn<T>,
+    pub(crate) sender_fn: Arc<Mutex<SenderFn<T>>>,
+    pub(crate) test_fn: Arc<Mutex<TestFn>>,
 }
 
 impl<T: Message<Result = ()>> Sender<T> {
     pub fn send(&self, msg: T) -> Result<()> {
-        (self.sender_fn)(msg)
+        (self.sender_fn.lock().unwrap())(msg)
+    }
+    pub fn can_upgrade(&self) -> bool {
+        (self.test_fn.lock().unwrap())()
     }
 }
 
