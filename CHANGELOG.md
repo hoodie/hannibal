@@ -1,6 +1,6 @@
 # Changelog
 
-## [Unreleased](https://github.com/hoodie/Hannibal/compare/v0.7.11...HEAD) (2022-01-30)
+## [v0.8.0](https://github.com/hoodie/Hannibal/compare/v0.7.11...v0.8.0) (2022-01-30)
 
 
 ### Features
