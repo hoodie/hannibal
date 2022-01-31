@@ -13,24 +13,20 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Weak};
 use std::time::Duration;
 
-#[derive(Clone, Copy, Debug, PartialEq)]
-pub(crate) enum Liveness {
-    Running,
-    Stopped,
-}
-
 ///An actor execution context.
 pub struct Context<A> {
     actor_id: ActorId,
     tx: Weak<mpsc::UnboundedSender<ActorEvent<A>>>,
-    pub(crate) rx_exit: Option<tokio::sync::watch::Receiver<Liveness>>,
+    // pub(crate) rx_exit: Option<tokio::sync::watch::Receiver<Liveness>>,
+    pub(crate) rx_exit: Option<async_broadcast::Receiver<()>>,
     pub(crate) streams: Slab<AbortHandle>,
     pub(crate) intervals: Slab<AbortHandle>,
 }
 
 impl<A> Context<A> {
     pub(crate) fn new(
-        rx_exit: Option<tokio::sync::watch::Receiver<Liveness>>,
+        // rx_exit: Option<tokio::sync::watch::Receiver<Liveness>>,
+        rx_exit: Option<async_broadcast::Receiver<()>>,
     ) -> (
         Self,
         mpsc::UnboundedReceiver<ActorEvent<A>>,
@@ -97,7 +93,7 @@ impl<A> Context<A> {
     pub fn stopped(&self) -> bool {
         self.rx_exit
             .as_ref()
-            .map(|x| *x.borrow() == Liveness::Stopped)
+            .map(|x| x.is_closed())
             .unwrap_or(true)
     }
 
