@@ -22,6 +22,8 @@ fn stop_addr() {
         addr.wait_for_stop().await;
 
         assert!(addr2.stopped(), "expected addr2 to be stopped");
+        let addr3 = addr2.clone();
+        assert!(addr3.stopped(), "expected addr3 to be stopped");
 
         Ok(())
     }

@@ -10,42 +10,6 @@ use std::{
 
 use crate::{error::Result, lifecycle::LifeCycle, Actor, Addr};
 
-/// Trait define a global service.
-///
-/// The service is a global actor.
-/// You can use `Actor::from_registry` to get the address `Addr<A>` of the service.
-///
-/// # Examples
-///
-/// ```rust
-/// use hannibal::*;
-///
-/// #[message(result = "i32")]
-/// struct AddMsg(i32);
-///
-/// #[derive(Default)]
-/// struct MyService(i32);
-///
-/// impl Actor for MyService {}
-///
-/// impl Service for MyService {}
-///
-/// #[async_trait::async_trait]
-/// impl Handler<AddMsg> for MyService {
-///     async fn handle(&mut self, ctx: &mut Context<Self>, msg: AddMsg) -> i32 {
-///         self.0 += msg.0;
-///         self.0
-///     }
-/// }
-///
-/// #[hannibal::main]
-/// async fn main() -> Result<()> {
-///     let mut addr = MyService::from_registry().await?;
-///     assert_eq!(addr.call(AddMsg(1)).await?, 1);
-///     assert_eq!(addr.call(AddMsg(5)).await?, 6);
-///     Ok(())
-/// }
-/// ```
 #[async_trait::async_trait]
 pub trait Service: Actor + Default {
     async fn from_registry() -> Result<Addr<Self>> {
@@ -73,10 +37,6 @@ thread_local! {
     static LOCAL_REGISTRY: RefCell<HashMap<TypeId, Box<dyn Any + Send>, BuildHasherDefault<FnvHasher>>> = Default::default();
 }
 
-/// Trait define a local service.
-///
-/// The service is a thread local actor.
-/// You can use `Actor::from_registry` to get the address `Addr<A>` of the service.
 #[async_trait::async_trait]
 pub trait LocalService: Actor + Default {
     async fn from_registry() -> Result<Addr<Self>> {

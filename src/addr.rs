@@ -95,7 +95,10 @@ impl<A: Actor> Addr<A> {
     pub fn stopped(&self) -> bool {
         self.rx_exit
             .as_ref()
-            .map(|x| x.is_closed())
+            .map(|x| {
+                dbg!(x.len());
+                x.is_closed()
+            })
             .unwrap_or(true)
     }
 
