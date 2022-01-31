@@ -90,4 +90,4 @@ hannibal = { version = "x.x.x", features = ["runtime-tokio"], default-features =
 - [Actix](https://github.com/actix/actix)
 - [Async-std](https://github.com/async-rs/async-std)
 - [Tokio](https://github.com/tokio-rs/tokio)
-- [Hannibal](https://github.com/sunli829/xactor)
+- [Xactor](https://github.com/sunli829/xactor)
