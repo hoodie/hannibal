@@ -21,6 +21,7 @@ once_cell = "1.5"
 fnv = "1.0"
 slab = "0.4"
 dyn-clone = "1"
+async-broadcast = "0.6"
 
 [dependencies.async-std]
 version = "1.8"
@@ -48,11 +49,11 @@ optional = true
 members = ["hannibal-derive"]
 
 [features]
-runtime-tokio = ["tokio/rt-multi-thread", "tokio/macros", "tokio/time", "tokio/sync"]
-runtime-async-std = ["async-std", "tokio/sync"]
+runtime-tokio = ["tokio/rt-multi-thread", "tokio/macros", "tokio/time"]
+runtime-async-std = ["async-std"]
 tracing = ["tokio/tracing"]
-default = ["runtime-async-std", "anyhow", "tokio/sync"]
+default = ["runtime-async-std", "anyhow"]
 
 [dev-dependencies]
-color-backtrace = "0.6.0"
-ctor = "0.2.5"
+color-backtrace = "0.6"
+ctor = "0.2"
