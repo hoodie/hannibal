@@ -1,5 +1,14 @@
 # Changelog
 
+### [v0.8.1](https://github.com/hoodie/Hannibal/compare/v0.8.0...v0.8.1) (2022-02-08)
+
+
+#### Features
+
+* add non-exhaustive debug-print for Addr and WeakAddr
+ 090913d
+
+
 ## [v0.8.0](https://github.com/hoodie/Hannibal/compare/v0.7.11...v0.8.0) (2022-01-30)
 
 
