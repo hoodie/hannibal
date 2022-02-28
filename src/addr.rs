@@ -1,5 +1,6 @@
 use crate::caller::{CallerFn, SenderFn, TestFn};
 use crate::context::Liveness;
+use crate::error::bail;
 use crate::{Actor, ActorId, Caller, Context, Error, Handler, Message, Result, Sender};
 use futures::channel::{mpsc, oneshot};
 use futures::Future;
@@ -253,6 +254,18 @@ impl<A> WeakAddr<A> {
             tx,
             rx_exit: self.rx_exit.clone(),
         })
+    }
+
+    /// Try to upgrade to [`Addr`] and call [`Addr::send`]
+    pub fn upgrade_send<T: Message<Result = ()>>(&self, msg: T) -> Result<()>
+    where
+        A: Handler<T>,
+    {
+        if let Some(addr) = self.upgrade() {
+            addr.send(msg)
+        } else {
+            bail!("cannot upgrade");
+        }
     }
 }
 
