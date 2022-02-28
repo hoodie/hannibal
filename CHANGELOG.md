@@ -1,5 +1,14 @@
 # Changelog
 
+### [v0.8.2](https://github.com/hoodie/Hannibal/compare/v0.8.1...v0.8.2) (2022-02-28)
+
+
+#### Features
+
+* add upgrade_send method to WeakAddr
+ 7ba5b27
+
+
 ### [v0.8.1](https://github.com/hoodie/Hannibal/compare/v0.8.0...v0.8.1) (2022-02-08)
 
 
