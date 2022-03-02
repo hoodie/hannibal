@@ -41,14 +41,23 @@ jobs:
           command: test 
           args: --all --features "runtime-tokio anyhow" --no-default-features
 
+      - name: Run tests with eyre
+        uses: actions-rs/cargo@v1
+        with:
+          command: test 
+          args: --all --features "runtime-tokio eyre" --no-default-features
+
+  build_experimental:
+    name: "Build with experimental flags"
+    runs-on: ubuntu-latest
+    env:
+      RUSTFLAGS: --cfg tokio_unstable
+    steps:
+      - uses: actions/checkout@v2
+
       - name: Build with tokio and tracing
         uses: actions-rs/cargo@v1
         with:
           command: build  
           args: --all --features "runtime-tokio anyhow tracing" --no-default-features
 
-      - name: Run tests with eyre
-        uses: actions-rs/cargo@v1
-        with:
-          command: test 
-          args: --all --features "runtime-tokio eyre" --no-default-features
