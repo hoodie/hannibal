@@ -1,3 +1,5 @@
+use std::borrow::Cow;
+
 use crate::{error::Result, lifecycle::LifeCycle, Addr, Context};
 
 pub trait Message: 'static + Send {
@@ -51,6 +53,8 @@ pub trait StreamHandler<T: 'static>: Actor {
 #[async_trait::async_trait]
 #[allow(unused_variables)]
 pub trait Actor: Sized + Send + 'static {
+    const NAME: &'static str = "hannibal::Actor";
+
     /// Called when the actor is first started.
     async fn started(&mut self, ctx: &mut Context<Self>) -> Result<()> {
         Ok(())
@@ -103,5 +107,10 @@ pub trait Actor: Sized + Send + 'static {
     /// ```
     async fn start(self) -> Result<Addr<Self>> {
         LifeCycle::new().start_actor(self).await
+    }
+
+    fn name(&self) -> Cow<'static, str> {
+        let x = Cow::from(Self::NAME);
+        x
     }
 }

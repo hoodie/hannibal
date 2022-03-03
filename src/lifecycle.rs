@@ -2,7 +2,6 @@ use crate::{
     addr::ActorEvent,
     context::Liveness::{self, Running},
     error::Result,
-    runtime::spawn,
     Actor, Addr, Context,
 };
 
@@ -48,29 +47,39 @@ impl<A: Actor> LifeCycle<A> {
         // Call started
         actor.started(&mut ctx).await?;
 
-        spawn({
-            async move {
-                while let Some(event) = rx.next().await {
-                    match event {
-                        ActorEvent::Exec(f) => f(&mut actor, &mut ctx).await,
-                        ActorEvent::Stop(_err) => break,
-                        ActorEvent::StopSupervisor(_err) => {}
-                        ActorEvent::RemoveStream(id) => {
-                            if ctx.streams.contains(id) {
-                                ctx.streams.remove(id);
-                            }
+        let _actor_name = actor.name();
+
+        let actor_loop = async move {
+            while let Some(event) = rx.next().await {
+                match event {
+                    ActorEvent::Exec(f) => f(&mut actor, &mut ctx).await,
+                    ActorEvent::Stop(_err) => break,
+                    ActorEvent::StopSupervisor(_err) => {}
+                    ActorEvent::RemoveStream(id) => {
+                        if ctx.streams.contains(id) {
+                            ctx.streams.remove(id);
                         }
                     }
                 }
-
-                actor.stopped(&mut ctx).await;
-
-                ctx.abort_streams();
-                ctx.abort_intervals();
-
-                tx_exit.send(Liveness::Stopped).ok();
             }
-        });
+
+            actor.stopped(&mut ctx).await;
+
+            ctx.abort_streams();
+            ctx.abort_intervals();
+
+            tx_exit.send(Liveness::Stopped).ok();
+        };
+
+        #[cfg(all(feature = "tracing", tokio_unstable))]
+        tokio::task::Builder::new()
+            //.name(<A as Actor>::NAME)
+            .name(_actor_name.as_ref())
+            .spawn(actor_loop);
+        #[cfg(any(not(tokio_unstable), not(feature = "tracing")))]
+        crate::runtime::spawn(actor_loop);
+        #[cfg(all(feature = "tracing", not(tokio_unstable)))]
+        compile_error!("you need to build with --rustflags tokio_unstable");
 
         Ok(Addr {
             actor_id,
@@ -102,35 +111,46 @@ impl<A: Actor> LifeCycle<A> {
         // Call started
         actor.started(&mut ctx).await?;
 
-        spawn({
-            async move {
-                'restart_loop: loop {
-                    'event_loop: loop {
-                        match rx.next().await {
-                            None => break 'restart_loop,
-                            Some(ActorEvent::Stop(_err)) => break 'event_loop,
-                            Some(ActorEvent::StopSupervisor(_err)) => break 'restart_loop,
-                            Some(ActorEvent::Exec(f)) => f(&mut actor, &mut ctx).await,
-                            Some(ActorEvent::RemoveStream(id)) => {
-                                if ctx.streams.contains(id) {
-                                    ctx.streams.remove(id);
-                                }
+        let _actor_name = actor.name();
+
+        let actor_loop = async move {
+            'restart_loop: loop {
+                'event_loop: loop {
+                    match rx.next().await {
+                        None => break 'restart_loop,
+                        Some(ActorEvent::Stop(_err)) => break 'event_loop,
+                        Some(ActorEvent::StopSupervisor(_err)) => break 'restart_loop,
+                        Some(ActorEvent::Exec(f)) => f(&mut actor, &mut ctx).await,
+                        Some(ActorEvent::RemoveStream(id)) => {
+                            if ctx.streams.contains(id) {
+                                ctx.streams.remove(id);
                             }
                         }
                     }
-
-                    actor.stopped(&mut ctx).await;
-                    ctx.abort_streams();
-                    ctx.abort_intervals();
-
-                    actor = f();
-                    actor.started(&mut ctx).await.ok();
                 }
+
                 actor.stopped(&mut ctx).await;
                 ctx.abort_streams();
                 ctx.abort_intervals();
+
+                actor = f();
+                actor.started(&mut ctx).await.ok();
             }
-        });
+            actor.stopped(&mut ctx).await;
+            ctx.abort_streams();
+            ctx.abort_intervals();
+        };
+
+        #[cfg(all(feature = "tracing", tokio_unstable))]
+        tokio::task::Builder::new()
+            //.name(<A as Actor>::NAME)
+            .name(_actor_name.as_ref())
+            .spawn(actor_loop);
+        #[cfg(any(not(tokio_unstable), not(feature = "tracing")))]
+        crate::runtime::spawn(actor_loop);
+        #[cfg(all(feature = "tracing", not(tokio_unstable)))]
+        compile_error!("you need to build with --rustflags tokio_unstable");
+
 
         Ok(addr)
     }

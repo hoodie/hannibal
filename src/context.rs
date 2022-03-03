@@ -179,52 +179,50 @@ impl<A> Context<A> {
         let (handle, registration) = futures::future::AbortHandle::new_pair();
         entry.insert(handle);
 
-        let fut = {
-            async move {
+        let fut = async move {
+            if let Some(tx) = tx.upgrade() {
+                mpsc::UnboundedSender::clone(&*tx)
+                    .start_send(ActorEvent::Exec(Box::new(move |actor, ctx| {
+                        Box::pin(async move {
+                            StreamHandler::started(actor, ctx).await;
+                        })
+                    })))
+                    .ok();
+            } else {
+                return;
+            }
+
+            while let Some(msg) = stream.next().await {
                 if let Some(tx) = tx.upgrade() {
-                    mpsc::UnboundedSender::clone(&*tx)
-                        .start_send(ActorEvent::Exec(Box::new(move |actor, ctx| {
+                    let res = mpsc::UnboundedSender::clone(&*tx).start_send(ActorEvent::Exec(
+                        Box::new(move |actor, ctx| {
                             Box::pin(async move {
-                                StreamHandler::started(actor, ctx).await;
+                                StreamHandler::handle(actor, ctx, msg).await;
                             })
-                        })))
-                        .ok();
+                        }),
+                    ));
+                    if res.is_err() {
+                        return;
+                    }
                 } else {
                     return;
                 }
+            }
 
-                while let Some(msg) = stream.next().await {
-                    if let Some(tx) = tx.upgrade() {
-                        let res = mpsc::UnboundedSender::clone(&*tx).start_send(ActorEvent::Exec(
-                            Box::new(move |actor, ctx| {
-                                Box::pin(async move {
-                                    StreamHandler::handle(actor, ctx, msg).await;
-                                })
-                            }),
-                        ));
-                        if res.is_err() {
-                            return;
-                        }
-                    } else {
-                        return;
-                    }
-                }
+            if let Some(tx) = tx.upgrade() {
+                mpsc::UnboundedSender::clone(&*tx)
+                    .start_send(ActorEvent::Exec(Box::new(move |actor, ctx| {
+                        Box::pin(async move {
+                            StreamHandler::finished(actor, ctx).await;
+                        })
+                    })))
+                    .ok();
+            }
 
-                if let Some(tx) = tx.upgrade() {
-                    mpsc::UnboundedSender::clone(&*tx)
-                        .start_send(ActorEvent::Exec(Box::new(move |actor, ctx| {
-                            Box::pin(async move {
-                                StreamHandler::finished(actor, ctx).await;
-                            })
-                        })))
-                        .ok();
-                }
-
-                if let Some(tx) = tx.upgrade() {
-                    mpsc::UnboundedSender::clone(&*tx)
-                        .start_send(ActorEvent::RemoveStream(id))
-                        .ok();
-                }
+            if let Some(tx) = tx.upgrade() {
+                mpsc::UnboundedSender::clone(&*tx)
+                    .start_send(ActorEvent::RemoveStream(id))
+                    .ok();
             }
         };
         spawn(Abortable::new(fut, registration));
