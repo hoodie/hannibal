@@ -1,5 +1,14 @@
 # Changelog
 
+### [v0.8.3](https://github.com/hoodie/Hannibal/compare/v0.8.2...v0.8.3) (2022-03-03)
+
+
+#### Features
+
+* annotate actors with names for console
+ 8f6617d
+
+
 ### [v0.8.2](https://github.com/hoodie/Hannibal/compare/v0.8.1...v0.8.2) (2022-02-28)
 
 
