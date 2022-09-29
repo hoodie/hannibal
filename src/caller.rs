@@ -18,6 +18,7 @@ pub(crate) type TestFn = Box<dyn Fn() -> bool + 'static + Send>;
 /// Like [`Sender<T>`], `Caller` has a weak reference to the recipient of the message type,
 /// and so will not prevent an actor from stopping if all [`Addr`](`crate::Addr`)'s have been dropped elsewhere.
 
+#[derive(Clone)]
 pub struct Caller<T: Message> {
     /// Id of the corresponding [`Actor<A>`](crate::Actor<A>)
     pub actor_id: ActorId,
@@ -34,13 +35,13 @@ impl<T: Message> Caller<T> {
     }
 }
 
-impl<T: Message<Result = ()>> PartialEq for Caller<T> {
+impl<T: Message> PartialEq for Caller<T> {
     fn eq(&self, other: &Self) -> bool {
         self.actor_id == other.actor_id
     }
 }
 
-impl<T: Message<Result = ()>> Hash for Caller<T> {
+impl<T: Message> Hash for Caller<T> {
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.actor_id.hash(state);
     }
@@ -53,6 +54,7 @@ impl<T: Message<Result = ()>> Hash for Caller<T> {
 /// This allows it to be used in the `send_later` and `send_interval` actor functions,
 /// and not keep the actor alive indefinitely even after all references to it have been dropped (unless `ctx.stop()` is called from within)
 
+#[derive(Clone)]
 pub struct Sender<T: Message> {
     /// Id of the corresponding [`Actor<A>`](crate::actor::Actor)
     pub actor_id: ActorId,
@@ -60,7 +62,7 @@ pub struct Sender<T: Message> {
     pub(crate) test_fn: Arc<Mutex<TestFn>>,
 }
 
-impl<T: Message<Result = ()>> Sender<T> {
+impl<T: Message> Sender<T> {
     pub fn send(&self, msg: T) -> Result<()> {
         (self.sender_fn.lock().unwrap())(msg)
     }
@@ -69,13 +71,13 @@ impl<T: Message<Result = ()>> Sender<T> {
     }
 }
 
-impl<T: Message<Result = ()>> PartialEq for Sender<T> {
+impl<T: Message> PartialEq for Sender<T> {
     fn eq(&self, other: &Self) -> bool {
         self.actor_id == other.actor_id
     }
 }
 
-impl<T: Message<Result = ()>> Hash for Sender<T> {
+impl<T: Message> Hash for Sender<T> {
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.actor_id.hash(state);
     }

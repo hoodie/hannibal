@@ -117,7 +117,7 @@ impl<A: Actor> Addr<A> {
     }
 
     /// Send a message `msg` to the actor without waiting for the return value.
-    pub fn send<T: Message<Result = ()>>(&self, msg: T) -> Result<()>
+    pub fn send<T: Message>(&self, msg: T) -> Result<()>
     where
         A: Handler<T>,
     {
@@ -170,7 +170,7 @@ impl<A: Actor> Addr<A> {
     }
 
     /// Create a [`Sender<T>`] for a specific message type
-    pub fn sender<T: Message<Result = ()>>(&self) -> Sender<T>
+    pub fn sender<T: Message>(&self) -> Sender<T>
     where
         A: Handler<T>,
     {
@@ -256,7 +256,7 @@ impl<A> WeakAddr<A> {
     }
 
     /// Try to upgrade to [`Addr`] and call [`Addr::send`]
-    pub fn upgrade_send<T: Message<Result = ()>>(&self, msg: T) -> Result<()>
+    pub fn upgrade_send<T: Message>(&self, msg: T) -> Result<()>
     where
         A: Handler<T>,
     {

@@ -235,7 +235,7 @@ impl<A> Context<A> {
     pub fn send_later<T>(&mut self, msg: T, after: Duration)
     where
         A: Handler<T>,
-        T: Message<Result = ()>,
+        T: Message,
     {
         let sender = self.address().sender();
         let entry = self.intervals.vacant_entry();
@@ -257,7 +257,7 @@ impl<A> Context<A> {
     where
         A: Handler<T>,
         F: Fn() -> T + Sync + Send + 'static,
-        T: Message<Result = ()>,
+        T: Message,
     {
         let sender = self.address().sender();
 
@@ -282,13 +282,13 @@ impl<A> Context<A> {
     pub fn send_interval<T>(&mut self, msg: T, dur: Duration)
     where
         A: Handler<T>,
-        T: Message<Result = ()> + Clone + Sync,
+        T: Message + Clone + Sync,
     {
         self.send_interval_with(move || msg.clone(), dur);
     }
 
     /// Subscribes to a message of a specified type.
-    pub async fn subscribe<T: Message<Result = ()>>(&self) -> Result<()>
+    pub async fn subscribe<T: Message>(&self) -> Result<()>
     where
         A: Handler<T>,
     {
@@ -304,7 +304,7 @@ impl<A> Context<A> {
     }
 
     /// Unsubscribe to a message of a specified type.
-    pub async fn unsubscribe<T: Message<Result = ()>>(&self) -> Result<()> {
+    pub async fn unsubscribe<T: Message>(&self) -> Result<()> {
         let broker = Broker::<T>::from_registry().await?;
         broker.send(Unsubscribe { id: self.actor_id })
     }
