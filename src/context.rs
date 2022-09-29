@@ -29,6 +29,7 @@ pub struct Context<A> {
 }
 
 impl<A> Context<A> {
+    #[allow(clippy::type_complexity)]
     pub(crate) fn new(
         rx_exit: Option<tokio::sync::watch::Receiver<Liveness>>,
     ) -> (
@@ -97,13 +98,12 @@ impl<A> Context<A> {
     pub fn stopped(&self) -> bool {
         self.rx_exit
             .as_ref()
-            .map(|x| *x.borrow() == Liveness::Stopped)
-            .unwrap_or(true)
+            .map_or(true, |x| *x.borrow() == Liveness::Stopped)
     }
 
     pub fn abort_intervals(&mut self) {
         for handle in self.intervals.drain() {
-            handle.abort()
+            handle.abort();
         }
     }
 

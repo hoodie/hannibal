@@ -55,16 +55,15 @@ pub trait Service: Actor + Default {
         let registry = REGISTRY.get_or_init(Default::default);
         let mut registry = registry.lock().await;
 
-        match registry.get_mut(&TypeId::of::<Self>()) {
-            Some(addr) => Ok(addr.downcast_ref::<Addr<Self>>().unwrap().clone()),
-            None => {
-                let life_cycle = LifeCycle::new();
+        if let Some(addr) = registry.get_mut(&TypeId::of::<Self>()) {
+            Ok(addr.downcast_ref::<Addr<Self>>().unwrap().clone())
+        } else {
+            let life_cycle = LifeCycle::new();
 
-                registry.insert(TypeId::of::<Self>(), Box::new(life_cycle.address()));
-                drop(registry);
+            registry.insert(TypeId::of::<Self>(), Box::new(life_cycle.address()));
+            drop(registry);
 
-                life_cycle.start_actor(Self::default()).await
-            }
+            life_cycle.start_actor(Self::default()).await
         }
     }
 }
@@ -86,17 +85,16 @@ pub trait LocalService: Actor + Default {
                 .get_mut(&TypeId::of::<Self>())
                 .map(|addr| addr.downcast_ref::<Addr<Self>>().unwrap().clone())
         });
-        match res {
-            Some(addr) => Ok(addr),
-            None => {
-                let addr = LifeCycle::new().start_actor(Self::default()).await?;
-                LOCAL_REGISTRY.with(|registry| {
-                    registry
-                        .borrow_mut()
-                        .insert(TypeId::of::<Self>(), Box::new(addr.clone()));
-                });
-                Ok(addr)
-            }
+        if let Some(addr) = res {
+            Ok(addr)
+        } else {
+            let addr = LifeCycle::new().start_actor(Self::default()).await?;
+            LOCAL_REGISTRY.with(|registry| {
+                registry
+                    .borrow_mut()
+                    .insert(TypeId::of::<Self>(), Box::new(addr.clone()));
+            });
+            Ok(addr)
         }
     }
 }

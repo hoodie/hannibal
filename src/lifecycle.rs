@@ -23,8 +23,8 @@ impl<A: Actor> LifeCycle<A> {
         let (ctx, rx, tx) = Context::new(Some(rx_exit));
         Self {
             ctx,
-            rx,
             tx,
+            rx,
             tx_exit,
         }
     }
@@ -150,7 +150,6 @@ impl<A: Actor> LifeCycle<A> {
         crate::runtime::spawn(actor_loop);
         #[cfg(all(feature = "tracing", not(tokio_unstable)))]
         compile_error!("you need to build with --rustflags tokio_unstable");
-
 
         Ok(addr)
     }

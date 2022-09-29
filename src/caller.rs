@@ -42,7 +42,7 @@ impl<T: Message<Result = ()>> PartialEq for Caller<T> {
 
 impl<T: Message<Result = ()>> Hash for Caller<T> {
     fn hash<H: Hasher>(&self, state: &mut H) {
-        self.actor_id.hash(state)
+        self.actor_id.hash(state);
     }
 }
 
@@ -77,6 +77,6 @@ impl<T: Message<Result = ()>> PartialEq for Sender<T> {
 
 impl<T: Message<Result = ()>> Hash for Sender<T> {
     fn hash<H: Hasher>(&self, state: &mut H) {
-        self.actor_id.hash(state)
+        self.actor_id.hash(state);
     }
 }

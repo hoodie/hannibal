@@ -53,8 +53,14 @@
 //! | [Tokio](https://tokio.rs/)                         | a supported runtime      |
 //! | [Xactor](https://github.com/sunli829/xactor)       | original version of this |
 
-#![allow(clippy::type_complexity)]
-#![warn(clippy::doc_markdown)]
+#![warn(
+    // clippy::missing_errors_doc,
+    clippy::doc_markdown,
+    clippy::semicolon_if_nothing_returned,
+    clippy::single_match_else,
+    clippy::inconsistent_struct_constructor,
+    clippy::map_unwrap_or
+)]
 
 mod actor;
 mod addr;

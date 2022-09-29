@@ -2,6 +2,7 @@ use hannibal::*;
 
 /// Define `Ping` message
 #[message(result = "usize")]
+#[derive(Clone, Copy)]
 struct Ping(usize);
 
 /// Actor
