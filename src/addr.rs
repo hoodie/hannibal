@@ -68,7 +68,7 @@ impl<A> PartialEq for Addr<A> {
 
 impl<A> Hash for Addr<A> {
     fn hash<H: Hasher>(&self, state: &mut H) {
-        self.actor_id.hash(state)
+        self.actor_id.hash(state);
     }
 }
 
@@ -95,8 +95,7 @@ impl<A: Actor> Addr<A> {
     pub fn stopped(&self) -> bool {
         self.rx_exit
             .as_ref()
-            .map(|x| *x.borrow() == Liveness::Stopped)
-            .unwrap_or(true)
+            .map_or(true, |x| *x.borrow() == Liveness::Stopped)
     }
 
     /// Send a message `msg` to the actor and wait for the return value.
@@ -240,7 +239,7 @@ impl<A> PartialEq for WeakAddr<A> {
 
 impl<A> Hash for WeakAddr<A> {
     fn hash<H: Hasher>(&self, state: &mut H) {
-        self.actor_id.hash(state)
+        self.actor_id.hash(state);
     }
 }
 

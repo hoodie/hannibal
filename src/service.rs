@@ -70,7 +70,7 @@ pub trait Service: Actor + Default {
 }
 
 thread_local! {
-    static LOCAL_REGISTRY: RefCell<HashMap<TypeId, Box<dyn Any + Send>, BuildHasherDefault<FnvHasher>>> = Default::default();
+    static LOCAL_REGISTRY: RefCell<HashMap<TypeId, Box<dyn Any + Send>, BuildHasherDefault<FnvHasher>>> = RefCell::default();
 }
 
 /// Trait define a local service.

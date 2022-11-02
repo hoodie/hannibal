@@ -93,7 +93,7 @@ pub struct Broker<T: Message<Result = ()>> {
 impl<T: Message<Result = ()>> Default for Broker<T> {
     fn default() -> Self {
         Self {
-            subscribes: Default::default(),
+            subscribes: HashMap::default(),
             mark: PhantomData,
         }
     }

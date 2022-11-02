@@ -110,7 +110,6 @@ pub trait Actor: Sized + Send + 'static {
     }
 
     fn name(&self) -> Cow<'static, str> {
-        let x = Cow::from(Self::NAME);
-        x
+        Cow::from(Self::NAME)
     }
 }

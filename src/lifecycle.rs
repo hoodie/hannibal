@@ -23,8 +23,8 @@ impl<A: Actor> LifeCycle<A> {
         let (ctx, rx, tx) = Context::new(Some(rx_exit));
         Self {
             ctx,
-            rx,
             tx,
+            rx,
             tx_exit,
         }
     }
