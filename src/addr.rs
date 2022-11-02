@@ -185,7 +185,7 @@ impl<A: Actor> Addr<A> {
                 )))?;
                 Ok(())
             }
-            None => Ok(()),
+            None => Err(crate::error::anyhow!("Actor Dropped")),
         });
 
         let weak_tx = Arc::downgrade(&self.tx);
