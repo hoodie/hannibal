@@ -4,10 +4,22 @@ use std::hash::{Hash, Hasher};
 use std::pin::Pin;
 use std::sync::{Arc, Mutex};
 
-pub(crate) type CallerFuture<T> =
-    Pin<Box<dyn Future<Output = Result<<T as Message>::Result>> + Send + 'static>>;
+// pub(crate) type CallerFuture<T> =
+//     Pin<Box<dyn Future<Output = Result<<T as Message>::Result>> + Send + 'static>>;
+type CallerFuture<T: Message> = Pin<Box<dyn Future<Output = Result<T::Result>>>>;
 
-pub(crate) type CallerFn<T> = Box<dyn Fn(T) -> CallerFuture<T> + Send + 'static>;
+// pub(crate) type CallerFn<T> = Box<dyn Fn(T) -> CallerFuture<T> + Send + 'static>;
+
+
+trait CallerFn<T: Message> {
+    fn call(&self, msg: T) -> Pin<Box<dyn Future<Output = Result<T::Result>>>>;
+}
+
+impl<T: Message> CallerFn<T> for Box<dyn Fn(T) -> Pin<Box<dyn Future<Output = Result<<T as Message>::Result>> + Send + 'static>>> {
+    fn call(&self, msg: T) -> Pin<Box<dyn Future<Output = Result<T::Result>>>> {
+        (self)(msg)
+    }
+}
 
 pub(crate) type SenderFn<T> = Box<dyn Fn(T) -> Result<()> + 'static + Send>;
 
@@ -21,13 +33,13 @@ pub(crate) type TestFn = Box<dyn Fn() -> bool + 'static + Send>;
 pub struct Caller<T: Message> {
     /// Id of the corresponding [`Actor<A>`](crate::Actor<A>)
     pub actor_id: ActorId,
-    pub(crate) caller_fn: Arc<Mutex<CallerFn<T>>>,
+    pub(crate) caller_fn: Box<dyn CallerFn<T>>,
     pub(crate) test_fn: Arc<Mutex<TestFn>>,
 }
 
 impl<T: Message> Caller<T> {
     pub fn call(&self, msg: T) -> CallerFuture<T> {
-        (self.caller_fn.lock().unwrap())(msg)
+        self.caller_fn.call(msg)
     }
     pub fn can_upgrade(&self) -> bool {
         self.test_fn.lock().unwrap()()

@@ -138,7 +138,7 @@ impl<A: Actor> Addr<A> {
         A: Handler<T>,
     {
         let weak_tx = Arc::downgrade(&self.tx);
-        let caller_fn: Arc<Mutex<CallerFn<T>>> = Arc::new(Mutex::new(Box::new(move |msg| {
+        let caller_fn = move |msg: T| {
             let weak_tx_option = weak_tx.upgrade();
             Box::pin(async move {
                 match weak_tx_option {
@@ -157,15 +157,15 @@ impl<A: Actor> Addr<A> {
                     }
                     None => Err(crate::error::anyhow!("Actor Dropped")),
                 }
-            })
-        })));
+            }) as Pin<Box<dyn Future<Output = Result<T::Result>>>>
+        };
 
         let weak_tx = Arc::downgrade(&self.tx);
         let test_fn: Arc<Mutex<TestFn>> =
             Arc::new(Mutex::new(Box::new(move || weak_tx.strong_count() > 0)));
         Caller {
             actor_id: self.actor_id,
-            caller_fn,
+            caller_fn: Box::new(caller_fn),
             test_fn,
         }
     }
