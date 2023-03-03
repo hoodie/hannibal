@@ -1,6 +1,4 @@
-use crate::caller::TestFn;
-use crate::context::Liveness;
-use crate::error::bail;
+use crate::{caller::TestFn, context::Liveness, error::bail};
 use crate::{Actor, ActorId, Caller, Context, Error, Handler, Message, Result, Sender};
 use futures::channel::{mpsc, oneshot};
 use futures::Future;
