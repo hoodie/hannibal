@@ -4,7 +4,6 @@ use crate::{ActorId, Message, Result};
 use std::future::Future;
 use std::hash::{Hash, Hasher};
 use std::pin::Pin;
-use std::sync::{Arc, Mutex};
 
 pub trait CallerFn<T: Message> {
     fn call(&self, msg: T) -> Pin<Box<dyn Future<Output = Result<T::Result>>>>;
@@ -37,19 +36,19 @@ where
     }
 }
 
-pub(crate) type TestFn = Box<dyn Fn() -> bool + 'static + Send>;
-// pub trait TestFn {
-//     fn test(&self) -> bool;
-// }
-// 
-// impl<F> TestFn for F
-// where
-//     F: Fn() -> bool,
-// {
-//     fn test(&self) -> bool {
-//         self(msg)
-//     }
-// }
+// pub(crate) type TestFn = Box<dyn Fn() -> bool + 'static + Send>;
+pub trait TestFn: Send {
+    fn test(&self) -> bool;
+}
+
+impl<F> TestFn for F
+where
+    F: Fn() -> bool + Send,
+{
+    fn test(&self) -> bool {
+        self()
+    }
+}
 
 /// Caller of a specific message type
 ///
@@ -60,8 +59,8 @@ pub struct Caller<T: Message> {
     /// Id of the corresponding [`Actor<A>`](crate::Actor<A>)
     pub actor_id: ActorId,
     pub(crate) caller_fn: Box<dyn CallerFn<T>>,
-    pub(crate) test_fn: Arc<Mutex<TestFn>>,
-    // pub(crate) test_fn: Box<dyn TestFn>,
+    // pub(crate) test_fn: Arc<Mutex<TestFn>>,
+    pub(crate) test_fn: Box<dyn TestFn>,
 }
 
 impl<T: Message> Caller<T> {
@@ -69,7 +68,7 @@ impl<T: Message> Caller<T> {
         self.caller_fn.call(msg)
     }
     pub fn can_upgrade(&self) -> bool {
-        self.test_fn.lock().unwrap()()
+        self.test_fn.test()
     }
 }
 
@@ -96,8 +95,8 @@ pub struct Sender<T: Message> {
     /// Id of the corresponding [`Actor<A>`](crate::actor::Actor)
     pub actor_id: ActorId,
     pub(crate) sender_fn: Box<dyn SenderFn<T>>,
-    pub(crate) test_fn: Arc<Mutex<TestFn>>,
-    // pub(crate) test_fn: Box<dyn TestFn>,
+    // pub(crate) test_fn: Arc<Mutex<TestFn>>,
+    pub(crate) test_fn: Box<dyn TestFn>,
 }
 
 impl<T: Message<Result = ()>> Sender<T> {
@@ -105,7 +104,7 @@ impl<T: Message<Result = ()>> Sender<T> {
         self.sender_fn.send(msg)
     }
     pub fn can_upgrade(&self) -> bool {
-        (self.test_fn.lock().unwrap())()
+        self.test_fn.test()
     }
 }
 

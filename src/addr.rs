@@ -6,7 +6,7 @@ use futures::channel::{mpsc, oneshot};
 use futures::Future;
 use std::hash::{Hash, Hasher};
 use std::pin::Pin;
-use std::sync::{Arc, Mutex, Weak};
+use std::sync::{Arc, Weak};
 
 type ExecFuture<'a> = Pin<Box<dyn Future<Output = ()> + Send + 'a>>;
 
@@ -161,8 +161,7 @@ impl<A: Actor> Addr<A> {
         };
 
         let weak_tx = Arc::downgrade(&self.tx);
-        let test_fn: Arc<Mutex<TestFn>> =
-            Arc::new(Mutex::new(Box::new(move || weak_tx.strong_count() > 0)));
+        let test_fn: Box<dyn TestFn> = Box::new(move || weak_tx.strong_count() > 0);
         Caller {
             actor_id: self.actor_id,
             caller_fn: Box::new(caller_fn),
@@ -191,8 +190,7 @@ impl<A: Actor> Addr<A> {
         };
 
         let weak_tx = Arc::downgrade(&self.tx);
-        let test_fn: Arc<Mutex<TestFn>> =
-            Arc::new(Mutex::new(Box::new(move || weak_tx.strong_count() > 0)));
+        let test_fn: Box<dyn TestFn> = Box::new(move || weak_tx.strong_count() > 0);
 
         Sender {
             actor_id: self.actor_id,
