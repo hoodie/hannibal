@@ -1,4 +1,4 @@
-use crate::caller::{CallerFn, SenderFn, TestFn};
+use crate::caller::TestFn;
 use crate::context::Liveness;
 use crate::error::bail;
 use crate::{Actor, ActorId, Caller, Context, Error, Handler, Message, Result, Sender};
@@ -176,20 +176,19 @@ impl<A: Actor> Addr<A> {
         A: Handler<T>,
     {
         let weak_tx = Arc::downgrade(&self.tx);
-        let sender_fn: Arc<Mutex<SenderFn<T>>> =
-            Arc::new(Mutex::new(Box::new(move |msg| match weak_tx.upgrade() {
-                Some(tx) => {
-                    mpsc::UnboundedSender::clone(&tx).start_send(ActorEvent::Exec(Box::new(
-                        move |actor, ctx| {
-                            Box::pin(async move {
-                                Handler::handle(&mut *actor, ctx, msg).await;
-                            })
-                        },
-                    )))?;
-                    Ok(())
-                }
-                None => Ok(()),
-            })));
+        let sender_fn = move |msg| match weak_tx.upgrade() {
+            Some(tx) => {
+                mpsc::UnboundedSender::clone(&tx).start_send(ActorEvent::Exec(Box::new(
+                    move |actor, ctx| {
+                        Box::pin(async move {
+                            Handler::handle(&mut *actor, ctx, msg).await;
+                        })
+                    },
+                )))?;
+                Ok(())
+            }
+            None => Ok(()),
+        };
 
         let weak_tx = Arc::downgrade(&self.tx);
         let test_fn: Arc<Mutex<TestFn>> =
@@ -197,7 +196,7 @@ impl<A: Actor> Addr<A> {
 
         Sender {
             actor_id: self.actor_id,
-            sender_fn,
+            sender_fn: Box::new(sender_fn),
             test_fn,
         }
     }
