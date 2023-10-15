@@ -1,26 +1,23 @@
-use crate::{
-    addr::ActorEvent,
-    context::Liveness::{self, Running},
-    error::Result,
-    Actor, Addr, Context,
-};
+use crate::{addr::ActorEvent, error::Result, Actor, Addr, Context};
 
 use futures::{
     channel::mpsc::{UnboundedReceiver, UnboundedSender},
-    StreamExt,
+    FutureExt, StreamExt,
 };
 
 pub(crate) struct LifeCycle<A: Actor> {
     ctx: Context<A>,
     tx: std::sync::Arc<UnboundedSender<ActorEvent<A>>>,
     rx: UnboundedReceiver<ActorEvent<A>>,
-    tx_exit: tokio::sync::watch::Sender<Liveness>,
+    tx_exit: futures::channel::oneshot::Sender<()>,
 }
 
 impl<A: Actor> LifeCycle<A> {
     pub(crate) fn new() -> Self {
-        let (tx_exit, rx_exit) = tokio::sync::watch::channel(Running);
-        let (ctx, rx, tx) = Context::new(Some(rx_exit));
+        // let (tx_exit, rx_exit) = tokio::sync::watch::channel(Running);
+        let (tx_exit, rx_exit) = futures::channel::oneshot::channel::<()>();
+        let running = rx_exit.shared();
+        let (ctx, rx, tx) = Context::new(Some(running));
         Self {
             ctx,
             tx,
@@ -68,7 +65,7 @@ impl<A: Actor> LifeCycle<A> {
             ctx.abort_streams();
             ctx.abort_intervals();
 
-            tx_exit.send(Liveness::Stopped).ok();
+            tx_exit.send(()).ok();
         };
 
         #[cfg(all(feature = "tracing", tokio_unstable))]
