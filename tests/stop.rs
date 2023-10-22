@@ -19,6 +19,8 @@ fn stop_addr() {
         assert!(!addr2.stopped(), "expected addr2 not to be stopped");
 
         addr.stop(None).unwrap();
+        assert!(!addr.stopped());
+        assert!(!addr2.stopped());
         addr.wait_for_stop().await;
 
         assert!(addr2.stopped(), "expected addr2 to be stopped");

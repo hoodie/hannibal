@@ -151,7 +151,6 @@ impl<A: Actor> LifeCycle<A> {
         #[cfg(all(feature = "tracing", not(tokio_unstable)))]
         compile_error!("you need to build with --rustflags tokio_unstable");
 
-
         Ok(addr)
     }
 }

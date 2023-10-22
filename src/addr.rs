@@ -1,4 +1,3 @@
-use crate::caller::{CallerFn, SenderFn, TestFn};
 use crate::context::Liveness;
 use crate::error::bail;
 use crate::{Actor, ActorId, Caller, Context, Error, Handler, Message, Result, Sender};
@@ -6,7 +5,7 @@ use futures::channel::{mpsc, oneshot};
 use futures::Future;
 use std::hash::{Hash, Hasher};
 use std::pin::Pin;
-use std::sync::{Arc, Mutex, Weak};
+use std::sync::{Arc, Weak};
 
 type ExecFuture<'a> = Pin<Box<dyn Future<Output = ()> + Send + 'a>>;
 
@@ -137,7 +136,7 @@ impl<A: Actor> Addr<A> {
         A: Handler<T>,
     {
         let weak_tx = Arc::downgrade(&self.tx);
-        let caller_fn: Arc<Mutex<CallerFn<T>>> = Arc::new(Mutex::new(Box::new(move |msg| {
+        let caller_fn = Box::new(move |msg| {
             let weak_tx_option = weak_tx.upgrade();
             Box::pin(async move {
                 match weak_tx_option {
@@ -156,12 +155,12 @@ impl<A: Actor> Addr<A> {
                     }
                     None => Err(crate::error::anyhow!("Actor Dropped")),
                 }
-            })
-        })));
+            }) as Pin<Box<dyn Future<Output = Result<T::Result>>>>
+        });
 
         let weak_tx = Arc::downgrade(&self.tx);
-        let test_fn: Arc<Mutex<TestFn>> =
-            Arc::new(Mutex::new(Box::new(move || weak_tx.strong_count() > 0)));
+        let test_fn = Box::new(move || weak_tx.strong_count() > 0);
+
         Caller {
             actor_id: self.actor_id,
             caller_fn,
@@ -175,24 +174,22 @@ impl<A: Actor> Addr<A> {
         A: Handler<T>,
     {
         let weak_tx = Arc::downgrade(&self.tx);
-        let sender_fn: Arc<Mutex<SenderFn<T>>> =
-            Arc::new(Mutex::new(Box::new(move |msg| match weak_tx.upgrade() {
-                Some(tx) => {
-                    mpsc::UnboundedSender::clone(&tx).start_send(ActorEvent::Exec(Box::new(
-                        move |actor, ctx| {
-                            Box::pin(async move {
-                                Handler::handle(&mut *actor, ctx, msg).await;
-                            })
-                        },
-                    )))?;
-                    Ok(())
-                }
-                None => Ok(()),
-            })));
+        let sender_fn = Box::new(move |msg| match weak_tx.upgrade() {
+            Some(tx) => {
+                mpsc::UnboundedSender::clone(&tx).start_send(ActorEvent::Exec(Box::new(
+                    move |actor, ctx| {
+                        Box::pin(async move {
+                            Handler::handle(&mut *actor, ctx, msg).await;
+                        })
+                    },
+                )))?;
+                Ok(())
+            }
+            None => Err(crate::error::anyhow!("Actor Dropped")),
+        });
 
         let weak_tx = Arc::downgrade(&self.tx);
-        let test_fn: Arc<Mutex<TestFn>> =
-            Arc::new(Mutex::new(Box::new(move || weak_tx.strong_count() > 0)));
+        let test_fn = Box::new(move || weak_tx.strong_count() > 0);
 
         Sender {
             actor_id: self.actor_id,

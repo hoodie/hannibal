@@ -20,6 +20,7 @@ async-trait = "0.1"
 once_cell = "1.5"
 fnv = "1.0"
 slab = "0.4"
+dyn-clone = "1"
 
 [dependencies.async-std]
 version = "1.8"
@@ -51,3 +52,7 @@ runtime-tokio = ["tokio/rt-multi-thread", "tokio/macros", "tokio/time", "tokio/s
 runtime-async-std = ["async-std", "tokio/sync"]
 tracing = ["tokio/tracing"]
 default = ["runtime-async-std", "anyhow", "tokio/sync"]
+
+[dev-dependencies]
+color-backtrace = "0.6.0"
+ctor = "0.2.5"
