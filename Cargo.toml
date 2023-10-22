@@ -52,3 +52,7 @@ runtime-tokio = ["tokio/rt-multi-thread", "tokio/macros", "tokio/time", "tokio/s
 runtime-async-std = ["async-std", "tokio/sync"]
 tracing = ["tokio/tracing"]
 default = ["runtime-async-std", "anyhow", "tokio/sync"]
+
+[dev-dependencies]
+color-backtrace = "0.6.0"
+ctor = "0.2.5"
