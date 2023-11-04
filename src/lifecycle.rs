@@ -1,9 +1,4 @@
-use crate::{
-    addr::ActorEvent,
-    context::Liveness::{self, Running},
-    error::Result,
-    Actor, Addr, Context,
-};
+use crate::{addr::ActorEvent, error::Result, Actor, Addr, Context};
 
 use futures::{
     channel::mpsc::{UnboundedReceiver, UnboundedSender},
@@ -14,12 +9,13 @@ pub(crate) struct LifeCycle<A: Actor> {
     ctx: Context<A>,
     tx: std::sync::Arc<UnboundedSender<ActorEvent<A>>>,
     rx: UnboundedReceiver<ActorEvent<A>>,
-    tx_exit: tokio::sync::watch::Sender<Liveness>,
+    tx_exit: async_broadcast::Sender<()>,
 }
 
 impl<A: Actor> LifeCycle<A> {
     pub(crate) fn new() -> Self {
-        let (tx_exit, rx_exit) = tokio::sync::watch::channel(Running);
+        // let (tx_exit, rx_exit) = tokio::sync::watch::channel(Running);
+        let (tx_exit, rx_exit) = async_broadcast::broadcast::<()>(1);
         let (ctx, rx, tx) = Context::new(Some(rx_exit));
         Self {
             ctx,
@@ -68,7 +64,7 @@ impl<A: Actor> LifeCycle<A> {
             ctx.abort_streams();
             ctx.abort_intervals();
 
-            tx_exit.send(Liveness::Stopped).ok();
+            tx_exit.broadcast(()).await.unwrap();
         };
 
         #[cfg(all(feature = "tracing", tokio_unstable))]
