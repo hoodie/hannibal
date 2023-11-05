@@ -44,15 +44,15 @@ optional = true
 version = "0.6"
 optional = true
 
+[dev-dependencies]
+color-backtrace = "0.6.0"
+ctor = "0.2.5"
+
 [workspace]
 members = ["hannibal-derive"]
 
 [features]
-runtime-tokio = ["tokio/rt-multi-thread", "tokio/macros", "tokio/time", "tokio/sync"]
-runtime-async-std = ["async-std", "tokio/sync"]
+runtime-tokio = ["tokio/rt-multi-thread", "tokio/macros", "tokio/time"]
+runtime-async-std = ["async-std"]
 tracing = ["tokio/tracing"]
-default = ["runtime-async-std", "anyhow", "tokio/sync"]
-
-[dev-dependencies]
-color-backtrace = "0.6.0"
-ctor = "0.2.5"
+default = ["runtime-async-std", "anyhow"]
