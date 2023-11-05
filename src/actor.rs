@@ -11,7 +11,6 @@ pub trait Message: 'static + Send {
 /// Describes how to handle messages of a specific type.
 /// Implementing Handler is a general way to handle incoming messages.
 /// The type `T` is a message which can be handled by the actor.
-#[async_trait::async_trait]
 pub trait Handler<T: Message>: Actor
 where
     Self: std::marker::Sized,
@@ -24,7 +23,6 @@ where
 /// Implementing Handler is a general way to handle incoming streams.
 /// The type T is a stream message which can be handled by the actor.
 /// Stream messages do not need to implement the [`Message`] trait.
-#[async_trait::async_trait]
 #[allow(unused_variables)]
 pub trait StreamHandler<T: 'static>: Actor {
     /// Method is called for every message received by this Actor.
@@ -50,7 +48,6 @@ pub trait StreamHandler<T: 'static>: Actor {
 /// The requester can wait for a response.
 /// By [`Addr`] referring to the actors, the actors must provide an [`Handler<T>`] implementation for this message.
 /// All messages are statically typed.
-#[async_trait::async_trait]
 #[allow(unused_variables)]
 pub trait Actor: Sized + Send + 'static {
     const NAME: &'static str = "hannibal::Actor";
@@ -87,7 +84,6 @@ pub trait Actor: Sized + Send + 'static {
     /// #[message(result = "i32")]
     /// struct MyMsg(i32);
     ///
-    /// #[async_trait::async_trait]
     /// impl Handler<MyMsg> for MyActor {
     ///     async fn handle(&mut self, _ctx: &mut Context<Self>, msg: MyMsg) -> i32 {
     ///         msg.0 * msg.0

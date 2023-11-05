@@ -29,7 +29,6 @@ impl SubscriberParent {
     }
 }
 
-#[async_trait::async_trait]
 impl Actor for SubscriberParent {
     async fn started(&mut self, ctx: &mut Context<Self>) -> Result<()> {
         println!("Subscriber Parent Started");
@@ -41,7 +40,6 @@ impl Actor for SubscriberParent {
 #[message]
 struct InitializeChildSubscribers;
 
-#[async_trait::async_trait]
 impl Handler<InitializeChildSubscribers> for SubscriberParent {
     async fn handle(&mut self, _ctx: &mut Context<Self>, _msg: InitializeChildSubscribers) {
         let message_producer_addr = self.message_producer.clone();
@@ -65,7 +63,6 @@ impl Handler<InitializeChildSubscribers> for SubscriberParent {
 #[message]
 struct ClearChildSubscribers;
 
-#[async_trait::async_trait]
 impl Handler<ClearChildSubscribers> for SubscriberParent {
     async fn handle(&mut self, _ctx: &mut Context<Self>, _msg: ClearChildSubscribers) {
         self.children_subscribers = Vec::new();
@@ -88,7 +85,6 @@ impl Subscriber {
     }
 }
 
-#[async_trait::async_trait]
 impl Actor for Subscriber {
     async fn started(&mut self, ctx: &mut Context<Self>) -> Result<()> {
         // Send subscription request message to the Message Producer
@@ -101,7 +97,6 @@ impl Actor for Subscriber {
     }
 }
 
-#[async_trait::async_trait]
 impl Handler<RandomMessage> for Subscriber {
     async fn handle(&mut self, _ctx: &mut Context<Self>, msg: RandomMessage) {
         // We just print out the random id, along with the actor's unique id
@@ -126,7 +121,6 @@ impl MessageProducer {
     }
 }
 
-#[async_trait::async_trait]
 impl Actor for MessageProducer {
     async fn started(&mut self, ctx: &mut Context<Self>) -> Result<()> {
         // Send broadcast message to self every 2 seconds
@@ -149,7 +143,6 @@ struct Broadcast;
 #[derive(Clone)]
 struct RandomMessage(i32);
 
-#[async_trait::async_trait]
 impl Handler<Broadcast> for MessageProducer {
     async fn handle(&mut self, _ctx: &mut Context<Self>, _msg: Broadcast) {
         // Generate random number and broadcast that message to all subscribers
@@ -165,7 +158,6 @@ impl Handler<Broadcast> for MessageProducer {
     }
 }
 
-#[async_trait::async_trait]
 impl Handler<SubscribeToProducer> for MessageProducer {
     async fn handle(&mut self, _ctx: &mut Context<Self>, msg: SubscribeToProducer) {
         println!("Recieved Subscription Request");

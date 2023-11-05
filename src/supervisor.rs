@@ -28,21 +28,18 @@ impl Supervisor {
     ///
     /// impl Actor for MyActor {}
     ///
-    /// #[async_trait::async_trait]
     /// impl Handler<Add> for MyActor {
     ///     async fn handle(&mut self, ctx: &mut Context<Self>, _: Add) {
     ///         self.0 += 1;
     ///     }
     /// }
     ///
-    /// #[async_trait::async_trait]
     /// impl Handler<Get> for MyActor {
     ///     async fn handle(&mut self, ctx: &mut Context<Self>, _: Get) -> i32 {
     ///         self.0
     ///     }
     /// }
     ///
-    /// #[async_trait::async_trait]
     /// impl Handler<Die> for MyActor {
     ///     async fn handle(&mut self, ctx: &mut Context<Self>, _: Die) {
     ///         ctx.stop(None);

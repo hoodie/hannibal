@@ -25,7 +25,6 @@
 //!
 //! impl Actor for MyActor {}
 //!
-//! #[async_trait::async_trait]
 //! impl Handler<ToUppercase> for MyActor {
 //!     async fn handle(&mut self, _ctx: &mut Context<Self>, msg: ToUppercase) -> String {
 //!         msg.0.to_uppercase()

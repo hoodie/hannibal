@@ -30,7 +30,6 @@ use crate::{error::Result, lifecycle::LifeCycle, Actor, Addr};
 ///
 /// impl Service for MyService {}
 ///
-/// #[async_trait::async_trait]
 /// impl Handler<AddMsg> for MyService {
 ///     async fn handle(&mut self, ctx: &mut Context<Self>, msg: AddMsg) -> i32 {
 ///         self.0 += msg.0;
@@ -46,7 +45,6 @@ use crate::{error::Result, lifecycle::LifeCycle, Actor, Addr};
 ///     Ok(())
 /// }
 /// ```
-#[async_trait::async_trait]
 pub trait Service: Actor + Default {
     async fn from_registry() -> Result<Addr<Self>> {
         static REGISTRY: OnceCell<
@@ -77,7 +75,6 @@ thread_local! {
 ///
 /// The service is a thread local actor.
 /// You can use `Actor::from_registry` to get the address `Addr<A>` of the service.
-#[async_trait::async_trait]
 pub trait LocalService: Actor + Default {
     async fn from_registry() -> Result<Addr<Self>> {
         let res = LOCAL_REGISTRY.with(|registry| {

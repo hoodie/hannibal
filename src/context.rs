@@ -123,7 +123,6 @@ impl<A> Context<A> {
     /// #[derive(Default)]
     /// struct MyActor(i32);
     ///
-    /// #[async_trait::async_trait]
     /// impl StreamHandler<i32> for MyActor {
     ///     async fn handle(&mut self, _ctx: &mut Context<Self>, msg: i32) {
     ///         self.0 += msg;
@@ -138,14 +137,12 @@ impl<A> Context<A> {
     ///     }
     /// }
     ///
-    /// #[async_trait::async_trait]
     /// impl Handler<GetSum> for MyActor {
     ///     async fn handle(&mut self, _ctx: &mut Context<Self>, _msg: GetSum) -> i32 {
     ///         self.0
     ///     }
     /// }
     ///
-    /// #[async_trait::async_trait]
     /// impl Actor for MyActor {
     ///     async fn started(&mut self, ctx: &mut Context<Self>) -> Result<()> {
     ///         let values = (0..100).collect::<Vec<_>>();

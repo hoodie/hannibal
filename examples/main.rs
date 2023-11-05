@@ -6,7 +6,6 @@ struct Die;
 
 struct MyActor;
 
-#[async_trait::async_trait]
 impl Actor for MyActor {
     async fn started(&mut self, ctx: &mut Context<Self>) -> Result<()> {
         // Send the Die message 3 seconds later
@@ -15,7 +14,6 @@ impl Actor for MyActor {
     }
 }
 
-#[async_trait::async_trait]
 impl Handler<Die> for MyActor {
     async fn handle(&mut self, ctx: &mut Context<Self>, _msg: Die) {
         // Stop the actor without error

@@ -4,7 +4,6 @@ use std::time::Duration;
 #[derive(Debug, Default)]
 pub struct PingLater;
 
-#[async_trait::async_trait]
 impl Actor for PingLater {
     async fn started(&mut self, ctx: &mut Context<Self>) -> hannibal::Result<()> {
         ctx.send_later(Ping("after halt"), Duration::from_millis(1_500));
@@ -21,7 +20,6 @@ impl Actor for PingLater {
 #[derive(Debug)]
 struct Ping(&'static str);
 
-#[async_trait::async_trait]
 impl Handler<Ping> for PingLater {
     async fn handle(&mut self, _ctx: &mut Context<Self>, msg: Ping) {
         println!("PingLater:: handle {:?}", msg);
@@ -30,7 +28,6 @@ impl Handler<Ping> for PingLater {
 #[message]
 struct Halt;
 
-#[async_trait::async_trait]
 impl Handler<Halt> for PingLater {
     async fn handle(&mut self, ctx: &mut Context<Self>, _msg: Halt) {
         println!("PingLater:: received Halt");

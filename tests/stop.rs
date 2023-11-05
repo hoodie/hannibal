@@ -2,7 +2,6 @@
 struct MyActor;
 
 /// Declare actor and its context
-#[async_trait::async_trait]
 impl hannibal::Actor for MyActor {
     async fn stopped(&mut self, _ctx: &mut hannibal::Context<Self>) {
         println!("stopped");
