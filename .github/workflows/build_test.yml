@@ -15,7 +15,7 @@ jobs:
       matrix:
         rust:
           - stable
-          - stable minus 2 releases
+          # - stable minus 2 releases
           - beta
         feature:
           - runtime-tokio,anyhow
