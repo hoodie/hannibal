@@ -1,0 +1,67 @@
+name: Build & Test
+
+on:
+  pull_request:
+  workflow_dispatch:
+  workflow_call:
+  schedule:
+    - cron: "0 5 * * 4" # 5 o'clock utc on thursdays
+
+jobs:
+  build-test-native:
+    name: build and test native
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        rust:
+          - stable
+          - stable minus 2 releases
+          - beta
+        feature:
+          - runtime-tokio,anyhow
+          - runtime-async-std,anyhow
+          - runtime-tokio,eyre
+          - runtime-async-std,eyre
+          - default
+    steps:
+      - uses: actions/checkout@v4
+      - uses: Swatinem/rust-cache@v2
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: ${{ matrix.rust }}
+          components: clippy, rustfmt
+
+      - name: check 
+        run: cargo check --no-default-features --features ${{ matrix.feature }}
+
+      - name: check (benches)
+        run: cargo check --benches --no-default-features --features ${{ matrix.feature }}
+
+      - name: check (tests)
+        run: cargo check --tests --no-default-features --features ${{ matrix.feature }}
+
+      - name: test
+        run: cargo test --no-default-features --features ${{ matrix.feature }}
+
+      - name: clippy
+        run: cargo clippy --no-default-features --features ${{ matrix.feature }} -- -Dwarnings
+
+      # test packaging to avoid surprisis at release time
+      - name: package
+        run: cargo package
+
+  
+  build_experimental:
+    name: "Build with experimental flags"
+    runs-on: ubuntu-latest
+    env:
+      RUSTFLAGS: --cfg tokio_unstable
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Build with tokio and tracing
+        uses: actions-rs/cargo@v1
+        with:
+          command: build  
+          args: --all --features "runtime-tokio anyhow tracing" --no-default-features
+
