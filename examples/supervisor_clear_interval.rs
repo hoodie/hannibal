@@ -4,7 +4,6 @@ use std::time::Duration;
 #[derive(Debug)]
 pub struct PingTimer;
 
-#[async_trait::async_trait]
 impl Actor for PingTimer {
     async fn started(&mut self, ctx: &mut Context<Self>) -> hannibal::Result<()> {
         println!("PingTimer :: started()");
@@ -22,7 +21,6 @@ impl Actor for PingTimer {
 #[derive(Clone)]
 struct Ping;
 
-#[async_trait::async_trait]
 impl Handler<Ping> for PingTimer {
     async fn handle(&mut self, _: &mut Context<Self>, _msg: Ping) {
         println!("PingTimer :: Ping");
@@ -31,7 +29,6 @@ impl Handler<Ping> for PingTimer {
 #[message]
 struct Restart;
 
-#[async_trait::async_trait]
 impl Handler<Restart> for PingTimer {
     async fn handle(&mut self, ctx: &mut Context<Self>, _msg: Restart) {
         println!("PingTimer :: received restart");
@@ -42,7 +39,6 @@ impl Handler<Restart> for PingTimer {
 #[message]
 struct Shutdown;
 
-#[async_trait::async_trait]
 impl Handler<Shutdown> for PingTimer {
     async fn handle(&mut self, ctx: &mut Context<Self>, _msg: Shutdown) {
         println!("PingTimer :: received Shutdown");
@@ -53,7 +49,6 @@ impl Handler<Shutdown> for PingTimer {
 #[message]
 struct Panic;
 
-#[async_trait::async_trait]
 impl Handler<Panic> for PingTimer {
     async fn handle(&mut self, _: &mut Context<Self>, _msg: Panic) {
         println!("PingTimer :: received Panic");

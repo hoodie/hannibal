@@ -11,33 +11,41 @@ pub trait Message: 'static + Send {
 /// Describes how to handle messages of a specific type.
 /// Implementing Handler is a general way to handle incoming messages.
 /// The type `T` is a message which can be handled by the actor.
-#[async_trait::async_trait]
 pub trait Handler<T: Message>: Actor
 where
     Self: std::marker::Sized,
 {
     /// Method is called for every message received by this Actor.
-    async fn handle(&mut self, ctx: &mut Context<Self>, msg: T) -> T::Result;
+    fn handle(
+        &mut self,
+        ctx: &mut Context<Self>,
+        msg: T,
+    ) -> impl futures::Future<Output = T::Result> + Send;
 }
 
 /// Describes how to handle messages of a specific type.
 /// Implementing Handler is a general way to handle incoming streams.
 /// The type T is a stream message which can be handled by the actor.
 /// Stream messages do not need to implement the [`Message`] trait.
-#[async_trait::async_trait]
 #[allow(unused_variables)]
 pub trait StreamHandler<T: 'static>: Actor {
     /// Method is called for every message received by this Actor.
-    async fn handle(&mut self, ctx: &mut Context<Self>, msg: T);
+    fn handle(
+        &mut self,
+        ctx: &mut Context<Self>,
+        msg: T,
+    ) -> impl futures::Future<Output = ()> + Send;
 
     /// Method is called when stream get polled first time.
-    async fn started(&mut self, ctx: &mut Context<Self>) {}
+    fn started(&mut self, ctx: &mut Context<Self>) -> impl futures::Future<Output = ()> + Send {
+        async {}
+    }
 
     /// Method is called when stream finishes.
     ///
     /// By default this method stops actor execution.
-    async fn finished(&mut self, ctx: &mut Context<Self>) {
-        ctx.stop(None);
+    fn finished(&mut self, ctx: &mut Context<Self>) -> impl futures::Future<Output = ()> + Send {
+        async { ctx.stop(None) }
     }
 }
 
@@ -50,27 +58,31 @@ pub trait StreamHandler<T: 'static>: Actor {
 /// The requester can wait for a response.
 /// By [`Addr`] referring to the actors, the actors must provide an [`Handler<T>`] implementation for this message.
 /// All messages are statically typed.
-#[async_trait::async_trait]
 #[allow(unused_variables)]
 pub trait Actor: Sized + Send + 'static {
     const NAME: &'static str = "hannibal::Actor";
 
     /// Called when the actor is first started.
-    async fn started(&mut self, ctx: &mut Context<Self>) -> Result<()> {
-        Ok(())
+    fn started(
+        &mut self,
+        ctx: &mut Context<Self>,
+    ) -> impl std::future::Future<Output = Result<()>> + Send {
+        async { Ok(()) }
     }
 
     /// Called after an actor is stopped.
-    async fn stopped(&mut self, ctx: &mut Context<Self>) {}
+    fn stopped(&mut self, ctx: &mut Context<Self>) -> impl std::future::Future<Output = ()> + Send {
+        async {}
+    }
 
     /// Construct and start a new actor, returning its address.
     ///
     /// This is constructs a new actor using the [`Default`] trait, and invokes its [`start`](`Actor::start`) method.
-    async fn start_default() -> Result<Addr<Self>>
+    fn start_default() -> impl std::future::Future<Output = Result<Addr<Self>>> + Send
     where
         Self: Default,
     {
-        Ok(Self::default().start().await?)
+        async { Self::default().start().await }
     }
 
     /// Start a new actor, returning its address.
@@ -87,7 +99,6 @@ pub trait Actor: Sized + Send + 'static {
     /// #[message(result = "i32")]
     /// struct MyMsg(i32);
     ///
-    /// #[async_trait::async_trait]
     /// impl Handler<MyMsg> for MyActor {
     ///     async fn handle(&mut self, _ctx: &mut Context<Self>, msg: MyMsg) -> i32 {
     ///         msg.0 * msg.0
@@ -105,8 +116,8 @@ pub trait Actor: Sized + Send + 'static {
     ///     Ok(())
     /// }
     /// ```
-    async fn start(self) -> Result<Addr<Self>> {
-        LifeCycle::new().start_actor(self).await
+    fn start(self) -> impl std::future::Future<Output = Result<Addr<Self>>> + Send {
+        async { LifeCycle::new().start_actor(self).await }
     }
 
     fn name(&self) -> Cow<'static, str> {

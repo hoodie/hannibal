@@ -16,7 +16,6 @@ struct CountActor {
 impl Actor for CountActor {}
 
 /// Handler for `Ping` message
-#[async_trait::async_trait]
 impl Handler<Ping> for CountActor {
     async fn handle(&mut self, _ctx: &mut Context<Self>, msg: Ping) -> usize {
         self.count += msg.0;
@@ -25,7 +24,6 @@ impl Handler<Ping> for CountActor {
 }
 
 /// Handler for `Ping` message
-#[async_trait::async_trait]
 impl Handler<Pow> for CountActor {
     async fn handle(&mut self, _ctx: &mut Context<Self>, _msg: Pow) {}
 }
