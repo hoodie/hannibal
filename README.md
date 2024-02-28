@@ -3,12 +3,12 @@
 # Hannibal
 
 <!-- Crates version -->
-[![build](https://img.shields.io/github/workflow/status/hoodie/hannibal/CI)](https://github.com/hoodie/notify-rust/actions?query=workflow%3A"Continuous+Integration")
+[![build](https://img.shields.io/github/actions/workflow/status/hoodie/hannibal/ci_cd.yml?branch=main)](https://github.com/hoodie/hannibal/actions?query=workflow%3A"\"Build")
 [![version](https://img.shields.io/crates/v/hannibal)](https://crates.io/crates/hannibal/)
 [![downloads](https://img.shields.io/crates/d/hannibal.svg?style=flat-square)](https://crates.io/crates/hannibal)
 [![docs.rs docs](https://img.shields.io/badge/docs-latest-blue.svg?style=flat-square)](https://docs.rs/hannibal)
 [![contributors](https://img.shields.io/github/contributors/hoodie/notify-rust)](https://github.com/hoodie/hannibal/graphs/contributors)
-![maintenance](https://img.shields.io/maintenance/yes/2022)
+![maintenance](https://img.shields.io/maintenance/yes/2025)
 [![license](https://img.shields.io/crates/l/hannibal.svg?style=flat)](https://crates.io/crates/hannibal/)
 
 
