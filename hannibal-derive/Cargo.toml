@@ -1,6 +1,6 @@
 [package]
 name = "hannibal-derive"
-version = "0.8.0"
+version = "0.9.0"
 authors = ["Hendrik Sollich <hendrik@hoodie.de>", "sunli <scott_s829@163.com>"]
 description = "Hannibal macros"
 edition = "2021"
