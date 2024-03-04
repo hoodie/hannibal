@@ -5,7 +5,7 @@ use futures::FutureExt;
 pub(crate) struct LifeCycle<A: Actor> {
     ctx: Context<A>,
     tx: std::sync::Arc<flume::Sender<ActorEvent<A>>>,
-    rx: flume::Receiver<ActorEvent<A>>,
+    rx: flume::r#async::RecvStream<'static, ActorEvent<A>>,
     tx_exit: futures::channel::oneshot::Sender<()>,
 }
 

@@ -73,7 +73,7 @@ impl<A> Context<A> {
     pub fn stop(&self, err: Option<Error>) {
         if let Some(tx) = self.tx.upgrade() {
             flume::Sender::clone(&*tx)
-                .start_send(ActorEvent::Stop(err))
+                .try_send(ActorEvent::Stop(err))
                 .ok();
         }
     }
@@ -84,7 +84,7 @@ impl<A> Context<A> {
     pub fn stop_supervisor(&self, err: Option<Error>) {
         if let Some(tx) = self.tx.upgrade() {
             flume::Sender::clone(&*tx)
-                .start_send(ActorEvent::StopSupervisor(err))
+                .try_send(ActorEvent::StopSupervisor(err))
                 .ok();
         }
     }
@@ -174,7 +174,7 @@ impl<A> Context<A> {
         let fut = async move {
             if let Some(tx) = tx.upgrade() {
                 flume::Sender::clone(&*tx)
-                    .start_send(ActorEvent::Exec(Box::new(move |actor, ctx| {
+                    .try_send(ActorEvent::Exec(Box::new(move |actor, ctx| {
                         Box::pin(async move {
                             StreamHandler::started(actor, ctx).await;
                         })
@@ -186,7 +186,7 @@ impl<A> Context<A> {
 
             while let Some(msg) = stream.next().await {
                 if let Some(tx) = tx.upgrade() {
-                    let res = flume::Sender::clone(&*tx).start_send(ActorEvent::Exec(
+                    let res = flume::Sender::clone(&*tx).try_send(ActorEvent::Exec(
                         Box::new(move |actor, ctx| {
                             Box::pin(async move {
                                 StreamHandler::handle(actor, ctx, msg).await;
@@ -203,7 +203,7 @@ impl<A> Context<A> {
 
             if let Some(tx) = tx.upgrade() {
                 flume::Sender::clone(&*tx)
-                    .start_send(ActorEvent::Exec(Box::new(move |actor, ctx| {
+                    .try_send(ActorEvent::Exec(Box::new(move |actor, ctx| {
                         Box::pin(async move {
                             StreamHandler::finished(actor, ctx).await;
                         })
@@ -213,7 +213,7 @@ impl<A> Context<A> {
 
             if let Some(tx) = tx.upgrade() {
                 flume::Sender::clone(&*tx)
-                    .start_send(ActorEvent::RemoveStream(id))
+                    .try_send(ActorEvent::RemoveStream(id))
                     .ok();
             }
         };

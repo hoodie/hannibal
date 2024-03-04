@@ -1,11 +1,13 @@
-use crate::context::RunningFuture;
-use crate::error::bail;
-use crate::{Actor, ActorId, Caller, Context, Error, Handler, Message, Result, Sender};
-use futures::channel::{mpsc, oneshot};
-use futures::Future;
-use std::hash::{Hash, Hasher};
-use std::pin::Pin;
-use std::sync::{Arc, Weak};
+use crate::{
+    context::RunningFuture, error::bail, Actor, ActorId, Caller, Context, Error, Handler, Message,
+    Result, Sender,
+};
+use futures::{channel::oneshot, Future};
+use std::{
+    hash::{Hash, Hasher},
+    pin::Pin,
+    sync::{Arc, Weak},
+};
 
 type ExecFuture<'a> = Pin<Box<dyn Future<Output = ()> + Send + 'a>>;
 
@@ -141,14 +143,14 @@ impl<A: Actor> Addr<A> {
                     Some(tx) => {
                         let (oneshot_tx, oneshot_rx) = oneshot::channel();
 
-                        flume::Sender::clone(&tx).try_send(ActorEvent::Exec(
-                            Box::new(move |actor, ctx| {
+                        flume::Sender::clone(&tx).try_send(ActorEvent::Exec(Box::new(
+                            move |actor, ctx| {
                                 Box::pin(async move {
                                     let res = Handler::handle(&mut *actor, ctx, msg).await;
                                     let _ = oneshot_tx.send(res);
                                 })
-                            }),
-                        ))?;
+                            },
+                        )))?;
                         Ok(oneshot_rx.await?)
                     }
                     None => Err(crate::error::anyhow!("Actor Dropped")),
