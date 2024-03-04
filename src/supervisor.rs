@@ -21,7 +21,7 @@ impl Supervisor {
     /// #[message]
     /// struct Add;
     ///
-    /// #[message(result = "i32")]
+    /// #[message(result = i32)]
     /// struct Get;
     ///
     /// struct MyActor(i32);

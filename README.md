@@ -38,7 +38,7 @@ Please reach out [via an issue](https://github.com/hoodie/hannibal/issues/new) i
 ```rust
 use hannibal::*;
 
-#[message(result = "String")]
+#[message(result = String)]
 struct ToUppercase(String);
 
 struct MyActor;
