@@ -1,7 +1,7 @@
 use hannibal::*;
 
 /// Define `Ping` message
-#[message(result = "usize")]
+#[message(result = usize)]
 struct Ping(usize);
 
 #[message]

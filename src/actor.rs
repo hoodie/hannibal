@@ -96,7 +96,7 @@ pub trait Actor: Sized + Send + 'static {
     ///
     /// impl Actor for MyActor {}
     ///
-    /// #[message(result = "i32")]
+    /// #[message(result = i32)]
     /// struct MyMsg(i32);
     ///
     /// impl Handler<MyMsg> for MyActor {

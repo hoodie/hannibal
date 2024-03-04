@@ -4,7 +4,7 @@ use proc_macro::TokenStream;
 use proc_macro2::{Ident, Span};
 use quote::{quote, quote_spanned};
 use syn::spanned::Spanned;
-use syn::{parse_macro_input, AttributeArgs, DeriveInput, Error, Meta, NestedMeta};
+use syn::{parse_macro_input, DeriveInput};
 
 /// Implement an hannibal message type.
 ///
@@ -13,29 +13,29 @@ use syn::{parse_macro_input, AttributeArgs, DeriveInput, Error, Meta, NestedMeta
 /// # Examples
 ///
 /// ```ignore
-/// #[message(result = "i32")]
+/// #[message(result = i32)]
 /// struct TestMessage(i32);
 /// ```
 #[proc_macro_attribute]
 pub fn message(args: TokenStream, input: TokenStream) -> TokenStream {
-    let args = parse_macro_input!(args as AttributeArgs);
-    let mut result_type = quote! { () };
+    // let mut res: Option<syn::ExprPath> = None;
+    let mut res: Option<syn::Type> = None;
 
-    for arg in args {
-        if let NestedMeta::Meta(Meta::NameValue(nv)) = arg {
-            if nv.path.is_ident("result") {
-                if let syn::Lit::Str(lit) = nv.lit {
-                    if let Ok(ty) = syn::parse_str::<syn::Type>(&lit.value()) {
-                        result_type = quote! { #ty };
-                    } else {
-                        return Error::new_spanned(&lit, "Expect type")
-                            .to_compile_error()
-                            .into();
-                    }
-                }
-            }
+    let args_parser = syn::meta::parser(|meta| {
+        if meta.path.is_ident("result") {
+            res = Some(meta.value()?.parse()?);
+            Ok(())
+        } else {
+            Ok(())
         }
-    }
+    });
+
+    parse_macro_input!(args with args_parser);
+    let result_type = if let Some(ty) = res {
+        quote! { #ty }
+    } else {
+        quote! { () }
+    };
 
     let input = parse_macro_input!(input as DeriveInput);
     let ident = &input.ident;

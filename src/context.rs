@@ -117,7 +117,7 @@ impl<A> Context<A> {
     /// use futures::stream;
     /// use std::time::Duration;
     ///
-    /// #[message(result = "i32")]
+    /// #[message(result = i32)]
     /// struct GetSum;
     ///
     /// #[derive(Default)]
