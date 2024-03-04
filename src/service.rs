@@ -20,7 +20,7 @@ use crate::{error::Result, lifecycle::LifeCycle, Actor, Addr};
 /// ```rust
 /// use hannibal::*;
 ///
-/// #[message(result = "i32")]
+/// #[message(result = i32)]
 /// struct AddMsg(i32);
 ///
 /// #[derive(Default)]

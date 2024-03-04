@@ -18,7 +18,7 @@
 //! ```rust
 //! use hannibal::*;
 //!
-//! #[message(result = "String")]
+//! #[message(result = String)]
 //! struct ToUppercase(String);
 //!
 //! struct MyActor;
