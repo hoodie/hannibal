@@ -65,15 +65,6 @@ async fn main() -> Result<()> {
 
 ## Installation
 
-Hannibal requires [async-trait](https://github.com/dtolnay/async-trait) on userland.
-
-With [cargo add][cargo-add] installed, run:
-
-```sh
-$ cargo add hannibal
-$ cargo add async-trait
-```
-
 We also provide the [tokio](https://tokio.rs/) runtime instead of [async-std](https://async.rs/). To use it, you need to activate `runtime-tokio` and disable default features.
 
 You can edit your `Cargo.toml` as follows:
