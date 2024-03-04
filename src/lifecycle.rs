@@ -1,14 +1,11 @@
 use crate::{addr::ActorEvent, error::Result, Actor, Addr, Context};
 
-use futures::{
-    channel::mpsc::{UnboundedReceiver, UnboundedSender},
-    FutureExt, StreamExt,
-};
+use futures::FutureExt;
 
 pub(crate) struct LifeCycle<A: Actor> {
     ctx: Context<A>,
-    tx: std::sync::Arc<UnboundedSender<ActorEvent<A>>>,
-    rx: UnboundedReceiver<ActorEvent<A>>,
+    tx: std::sync::Arc<flume::Sender<ActorEvent<A>>>,
+    rx: flume::Receiver<ActorEvent<A>>,
     tx_exit: futures::channel::oneshot::Sender<()>,
 }
 

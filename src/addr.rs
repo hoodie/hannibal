@@ -25,7 +25,7 @@ pub(crate) enum ActorEvent<A> {
 /// You can use the [`Clone`] trait to create multiple copies of [`Addr<A>`].
 pub struct Addr<A> {
     pub(crate) actor_id: ActorId,
-    pub(crate) tx: Arc<mpsc::UnboundedSender<ActorEvent<A>>>,
+    pub(crate) tx: Arc<flume::Sender<ActorEvent<A>>>,
     pub(crate) rx_exit: Option<RunningFuture>,
 }
 
@@ -79,7 +79,7 @@ impl<A: Actor> Addr<A> {
 
     /// Stop the actor.
     pub fn stop(&mut self, err: Option<Error>) -> Result<()> {
-        mpsc::UnboundedSender::clone(&*self.tx).start_send(ActorEvent::Stop(err))?;
+        flume::Sender::clone(&*self.tx).try_send(ActorEvent::Stop(err))?;
         Ok(())
     }
 
@@ -87,7 +87,7 @@ impl<A: Actor> Addr<A> {
     ///
     /// this is ignored by normal actors
     pub fn stop_supervisor(&mut self, err: Option<Error>) -> Result<()> {
-        mpsc::UnboundedSender::clone(&*self.tx).start_send(ActorEvent::StopSupervisor(err))?;
+        flume::Sender::clone(&*self.tx).try_send(ActorEvent::StopSupervisor(err))?;
         Ok(())
     }
 
@@ -101,7 +101,7 @@ impl<A: Actor> Addr<A> {
         A: Handler<T>,
     {
         let (tx, rx) = oneshot::channel();
-        mpsc::UnboundedSender::clone(&*self.tx).start_send(ActorEvent::Exec(Box::new(
+        flume::Sender::clone(&*self.tx).try_send(ActorEvent::Exec(Box::new(
             move |actor, ctx| {
                 Box::pin(async move {
                     let res = Handler::handle(actor, ctx, msg).await;
@@ -118,7 +118,7 @@ impl<A: Actor> Addr<A> {
     where
         A: Handler<T>,
     {
-        mpsc::UnboundedSender::clone(&*self.tx).start_send(ActorEvent::Exec(Box::new(
+        flume::Sender::clone(&*self.tx).try_send(ActorEvent::Exec(Box::new(
             move |actor, ctx| {
                 Box::pin(async move {
                     Handler::handle(actor, ctx, msg).await;
@@ -141,7 +141,7 @@ impl<A: Actor> Addr<A> {
                     Some(tx) => {
                         let (oneshot_tx, oneshot_rx) = oneshot::channel();
 
-                        mpsc::UnboundedSender::clone(&tx).start_send(ActorEvent::Exec(
+                        flume::Sender::clone(&tx).try_send(ActorEvent::Exec(
                             Box::new(move |actor, ctx| {
                                 Box::pin(async move {
                                     let res = Handler::handle(&mut *actor, ctx, msg).await;
@@ -174,7 +174,7 @@ impl<A: Actor> Addr<A> {
         let weak_tx = Arc::downgrade(&self.tx);
         let sender_fn = Box::new(move |msg| match weak_tx.upgrade() {
             Some(tx) => {
-                mpsc::UnboundedSender::clone(&tx).start_send(ActorEvent::Exec(Box::new(
+                flume::Sender::clone(&tx).try_send(ActorEvent::Exec(Box::new(
                     move |actor, ctx| {
                         Box::pin(async move {
                             Handler::handle(&mut *actor, ctx, msg).await;
@@ -212,7 +212,7 @@ impl<A: Actor> Addr<A> {
 /// In order to use a [`WeakAddr<A>`] you need to "upgrade" it to a proper [`Addr<A>`].
 pub struct WeakAddr<A> {
     pub(crate) actor_id: ActorId,
-    pub(crate) tx: Weak<mpsc::UnboundedSender<ActorEvent<A>>>,
+    pub(crate) tx: Weak<flume::Sender<ActorEvent<A>>>,
     pub(crate) rx_exit: Option<RunningFuture>,
 }
 

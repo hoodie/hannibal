@@ -3,7 +3,6 @@ use crate::broker::{Subscribe, Unsubscribe};
 use crate::runtime::{sleep, spawn};
 use crate::{ActorId, Addr, Broker, Error, Handler, Message, Result, Service, StreamHandler};
 use futures::{
-    channel::mpsc,
     future::{AbortHandle, Abortable},
     Stream, StreamExt,
 };
@@ -18,7 +17,7 @@ pub type RunningFuture = futures::future::Shared<futures::channel::oneshot::Rece
 ///An actor execution context.
 pub struct Context<A> {
     actor_id: ActorId,
-    tx: Weak<mpsc::UnboundedSender<ActorEvent<A>>>,
+    tx: Weak<flume::Sender<ActorEvent<A>>>,
     pub(crate) rx_exit: Option<RunningFuture>,
     pub(crate) streams: Slab<AbortHandle>,
     pub(crate) intervals: Slab<AbortHandle>,
@@ -29,8 +28,8 @@ impl<A> Context<A> {
         rx_exit: Option<RunningFuture>,
     ) -> (
         Self,
-        mpsc::UnboundedReceiver<ActorEvent<A>>,
-        Arc<mpsc::UnboundedSender<ActorEvent<A>>>,
+        flume::Receiver<ActorEvent<A>>,
+        Arc<flume::Sender<ActorEvent<A>>>,
     ) {
         static ACTOR_ID: OnceCell<AtomicU64> = OnceCell::new();
 
@@ -39,7 +38,7 @@ impl<A> Context<A> {
             .get_or_init(Default::default)
             .fetch_add(1, Ordering::Relaxed);
 
-        let (tx, rx) = mpsc::unbounded::<ActorEvent<A>>();
+        let (tx, rx) = flume::unbounded::<ActorEvent<A>>();
         let tx = Arc::new(tx);
         let weak_tx = Arc::downgrade(&tx);
         (
@@ -73,7 +72,7 @@ impl<A> Context<A> {
     /// Stop the actor.
     pub fn stop(&self, err: Option<Error>) {
         if let Some(tx) = self.tx.upgrade() {
-            mpsc::UnboundedSender::clone(&*tx)
+            flume::Sender::clone(&*tx)
                 .start_send(ActorEvent::Stop(err))
                 .ok();
         }
@@ -84,7 +83,7 @@ impl<A> Context<A> {
     /// this is ignored by normal actors
     pub fn stop_supervisor(&self, err: Option<Error>) {
         if let Some(tx) = self.tx.upgrade() {
-            mpsc::UnboundedSender::clone(&*tx)
+            flume::Sender::clone(&*tx)
                 .start_send(ActorEvent::StopSupervisor(err))
                 .ok();
         }
@@ -174,7 +173,7 @@ impl<A> Context<A> {
 
         let fut = async move {
             if let Some(tx) = tx.upgrade() {
-                mpsc::UnboundedSender::clone(&*tx)
+                flume::Sender::clone(&*tx)
                     .start_send(ActorEvent::Exec(Box::new(move |actor, ctx| {
                         Box::pin(async move {
                             StreamHandler::started(actor, ctx).await;
@@ -187,7 +186,7 @@ impl<A> Context<A> {
 
             while let Some(msg) = stream.next().await {
                 if let Some(tx) = tx.upgrade() {
-                    let res = mpsc::UnboundedSender::clone(&*tx).start_send(ActorEvent::Exec(
+                    let res = flume::Sender::clone(&*tx).start_send(ActorEvent::Exec(
                         Box::new(move |actor, ctx| {
                             Box::pin(async move {
                                 StreamHandler::handle(actor, ctx, msg).await;
@@ -203,7 +202,7 @@ impl<A> Context<A> {
             }
 
             if let Some(tx) = tx.upgrade() {
-                mpsc::UnboundedSender::clone(&*tx)
+                flume::Sender::clone(&*tx)
                     .start_send(ActorEvent::Exec(Box::new(move |actor, ctx| {
                         Box::pin(async move {
                             StreamHandler::finished(actor, ctx).await;
@@ -213,7 +212,7 @@ impl<A> Context<A> {
             }
 
             if let Some(tx) = tx.upgrade() {
-                mpsc::UnboundedSender::clone(&*tx)
+                flume::Sender::clone(&*tx)
                     .start_send(ActorEvent::RemoveStream(id))
                     .ok();
             }
