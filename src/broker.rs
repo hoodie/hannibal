@@ -42,7 +42,7 @@ impl<T: Message<Result = ()> + Clone> Message for Publish<T> {
 /// #[derive(Clone)]
 /// struct MyMsg(&'static str);
 ///
-/// #[message(result = "String")]
+/// #[message(result = String)]
 /// struct GetValue;
 ///
 /// #[derive(Default)]

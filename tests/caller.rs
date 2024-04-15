@@ -1,6 +1,6 @@
 use hannibal::*;
 
-#[message(result = "usize")]
+#[message(result = usize)]
 struct Count(usize);
 
 #[message]
