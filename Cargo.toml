@@ -1,6 +1,6 @@
 [package]
 name = "hannibal"
-version = "0.9.0"
+version = "0.10.0"
 authors = ["Hendrik Sollich <hendrik@hoodie.de>", "sunli <scott_s829@163.com>"]
 description = "a small actor library"
 edition = "2021"
@@ -34,7 +34,7 @@ optional = true
 
 [dependencies.hannibal-derive]
 path = "hannibal-derive"
-version = "0.9"
+version = "0.10"
 
 [dependencies.anyhow]
 version = "1.0"
