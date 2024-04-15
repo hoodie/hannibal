@@ -1,5 +1,17 @@
 # Changelog
 
+## [v0.10.0](https://github.com/hoodie/hannibal/compare/v0.9.0...v0.10.0) (2024-04-15)
+
+### ⚠ BREAKING CHANGE
+
+* message result type attributes no longer use quotes
+
+
+### Features
+
+* **hannibal-derive:** update to syn 2.x
+([c0ffee8](https://github.com/hoodie/hannibal/commit/c0ffee849f17f916efbb353411b76bd7019822e1))
+
 ## [v0.9.0](https://github.com/hoodie/hannibal/compare/v0.8.3...v0.9.0) (2024-03-04)
 
 ### ⚠ BREAKING CHANGE
