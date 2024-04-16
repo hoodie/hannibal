@@ -1,11 +1,20 @@
-use crate::context::RunningFuture;
-use crate::error::bail;
-use crate::{Actor, ActorId, Caller, Context, Error, Handler, Message, Result, Sender};
-use futures::channel::{mpsc, oneshot};
-use futures::Future;
-use std::hash::{Hash, Hasher};
-use std::pin::Pin;
-use std::sync::{Arc, Weak};
+use crate::{
+    context::RunningFuture, error::bail, Actor, ActorId, Caller, Context, Error, Handler, Message,
+    Result, Sender,
+};
+use futures::{
+    channel::{mpsc, oneshot},
+    Future,
+};
+use std::{
+    hash::{Hash, Hasher},
+    pin::Pin,
+    sync::{Arc, Weak},
+};
+
+pub(crate) mod caller;
+pub(crate) mod sender;
+pub(crate) mod tester;
 
 type ExecFuture<'a> = Pin<Box<dyn Future<Output = ()> + Send + 'a>>;
 

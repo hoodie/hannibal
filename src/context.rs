@@ -1,7 +1,9 @@
-use crate::addr::ActorEvent;
-use crate::broker::{Subscribe, Unsubscribe};
-use crate::runtime::{sleep, spawn};
-use crate::{ActorId, Addr, Broker, Error, Handler, Message, Result, Service, StreamHandler};
+use crate::{
+    addr::ActorEvent,
+    broker::{Subscribe, Unsubscribe},
+    runtime::{sleep, spawn},
+    ActorId, Addr, Broker, Error, Handler, Message, Result, Service, StreamHandler,
+};
 use futures::{
     channel::mpsc,
     future::{AbortHandle, Abortable},
@@ -9,9 +11,13 @@ use futures::{
 };
 use once_cell::sync::OnceCell;
 use slab::Slab;
-use std::sync::atomic::{AtomicU64, Ordering};
-use std::sync::{Arc, Weak};
-use std::time::Duration;
+use std::{
+    sync::{
+        atomic::{AtomicU64, Ordering},
+        Arc, Weak,
+    },
+    time::Duration,
+};
 
 pub type RunningFuture = futures::future::Shared<futures::channel::oneshot::Receiver<()>>;
 
