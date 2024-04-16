@@ -2,22 +2,21 @@ use crate::{addr::ActorEvent, error::Result, Actor, Addr, Context};
 
 use futures::{
     channel::mpsc::{UnboundedReceiver, UnboundedSender},
-    FutureExt, StreamExt,
+    StreamExt,
 };
 
 pub(crate) struct LifeCycle<A: Actor> {
     ctx: Context<A>,
     tx: std::sync::Arc<UnboundedSender<ActorEvent<A>>>,
     rx: UnboundedReceiver<ActorEvent<A>>,
-    tx_exit: futures::channel::oneshot::Sender<()>,
+    tx_exit: async_broadcast::Sender<()>,
 }
 
 impl<A: Actor> LifeCycle<A> {
     pub(crate) fn new() -> Self {
         // let (tx_exit, rx_exit) = tokio::sync::watch::channel(Running);
-        let (tx_exit, rx_exit) = futures::channel::oneshot::channel::<()>();
-        let running = rx_exit.shared();
-        let (ctx, rx, tx) = Context::new(Some(running));
+        let (tx_exit, rx_exit) = async_broadcast::broadcast::<()>(1);
+        let (ctx, rx, tx) = Context::new(Some(rx_exit));
         Self {
             ctx,
             tx,
@@ -65,7 +64,7 @@ impl<A: Actor> LifeCycle<A> {
             ctx.abort_streams();
             ctx.abort_intervals();
 
-            tx_exit.send(()).ok();
+            tx_exit.broadcast(()).await.unwrap();
         };
 
         #[cfg(all(feature = "tracing", tokio_unstable))]

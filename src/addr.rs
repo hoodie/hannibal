@@ -1,4 +1,3 @@
-use crate::context::RunningFuture;
 use crate::error::bail;
 use crate::{Actor, ActorId, Caller, Context, Error, Handler, Message, Result, Sender};
 use futures::channel::{mpsc, oneshot};
@@ -26,7 +25,7 @@ pub(crate) enum ActorEvent<A> {
 pub struct Addr<A> {
     pub(crate) actor_id: ActorId,
     pub(crate) tx: Arc<mpsc::UnboundedSender<ActorEvent<A>>>,
-    pub(crate) rx_exit: Option<RunningFuture>,
+    pub(crate) rx_exit: Option<async_broadcast::Receiver<()>>,
 }
 
 impl<A> std::fmt::Debug for Addr<A> {
@@ -92,7 +91,7 @@ impl<A: Actor> Addr<A> {
     }
 
     pub fn stopped(&self) -> bool {
-        self.rx_exit.as_ref().map_or(true, |x| x.peek().is_some())
+        self.rx_exit.as_ref().map_or(true, |x| x.is_closed())
     }
 
     /// Send a message `msg` to the actor and wait for the return value.
@@ -198,8 +197,8 @@ impl<A: Actor> Addr<A> {
 
     /// Wait for an actor to finish, and if the actor has finished, the function returns immediately.
     pub async fn wait_for_stop(self) {
-        if let Some(rx_exit) = self.rx_exit {
-            rx_exit.await.ok();
+        if let Some(mut rx_exit) = self.rx_exit {
+            rx_exit.recv().await.ok();
         } else {
             std::future::ready(()).await;
         }
@@ -210,20 +209,22 @@ impl<A: Actor> Addr<A> {
 ///
 /// This address will not prolong the lifetime of the actor.
 /// In order to use a [`WeakAddr<A>`] you need to "upgrade" it to a proper [`Addr<A>`].
+#[derive(Debug)]
 pub struct WeakAddr<A> {
     pub(crate) actor_id: ActorId,
     pub(crate) tx: Weak<mpsc::UnboundedSender<ActorEvent<A>>>,
-    pub(crate) rx_exit: Option<RunningFuture>,
+    pub(crate) rx_exit: Option<async_broadcast::Receiver<()>>,
 }
 
-impl<A> std::fmt::Debug for WeakAddr<A> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("WeakAddr")
-            .field("actor_id", &self.actor_id)
-            .field("rx_exit", &self.rx_exit)
-            .finish_non_exhaustive()
-    }
-}
+// impl<A> std::fmt::Debug for WeakAddr<A> {
+//     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+//         f.debug_struct("WeakAddr")
+//             .field("actor_id", &self.actor_id)
+//             // .field("tx", &self.tx)
+//             .field("rx_exit", &self.rx_exit)
+//             .finish()
+//     }
+// }
 
 impl<A> PartialEq for WeakAddr<A> {
     fn eq(&self, other: &Self) -> bool {
