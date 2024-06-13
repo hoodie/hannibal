@@ -27,7 +27,7 @@ where
 
 /// Caller of a specific message type
 ///
-/// Like [`Sender<T>`], `Caller` has a weak reference to the recipient of the message type,
+/// Like [`Sender<T>`](`super::Sender<T>`), `Caller` has a weak reference to the recipient of the message type,
 /// and so will not prevent an actor from stopping if all [`Addr`](`crate::Addr`)'s have been dropped elsewhere.
 
 pub struct Caller<T: Message> {

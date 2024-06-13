@@ -57,6 +57,8 @@
 
 mod actor;
 mod addr;
+mod weak_addr;
+
 mod broker;
 mod context;
 mod lifecycle;
@@ -89,11 +91,15 @@ pub type Error = error::Error;
 pub type ActorId = u64;
 
 pub use actor::{Actor, Handler, Message, StreamHandler};
-pub use addr::{caller::Caller, sender::Sender, Addr, WeakAddr};
+
+pub use addr::{caller::Caller, sender::Sender, Addr};
+pub use weak_addr::WeakAddr;
+
 pub use broker::Broker;
 
 pub use context::Context;
 pub use hannibal_derive::{main, message};
+
 pub use runtime::{block_on, sleep, spawn, timeout};
 pub use service::{LocalService, Service};
 pub use supervisor::Supervisor;

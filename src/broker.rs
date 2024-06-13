@@ -1,4 +1,4 @@
-use crate::{Actor, Addr, Context, Handler, Message, Result, Sender, Service};
+use crate::{addr::sender::Sender, Actor, Addr, Context, Handler, Message, Result, Service};
 use fnv::FnvHasher;
 use std::{any::Any, collections::HashMap, hash::BuildHasherDefault, marker::PhantomData};
 
