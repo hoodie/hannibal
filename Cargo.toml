@@ -48,6 +48,9 @@ optional = true
 color-backtrace = "0.6.0"
 ctor = "0.2.6"
 
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(tokio_unstable)'] }
+
 [workspace]
 members = ["hannibal-derive"]
 
