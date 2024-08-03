@@ -33,9 +33,9 @@ fn caller_stop() {
     hannibal::block_on(async {
         let addr = CountActor { count: 10 }.start().await.unwrap();
 
-        let caller: addr::Caller<Count> = addr.caller();
+        let caller: Caller<Count> = addr.caller();
         let caller2 = caller.clone();
-        let sender: addr::Sender<Ping> = addr.sender();
+        let sender: Sender<Ping> = addr.sender();
 
         assert!(caller.can_upgrade());
         assert!(sender.can_upgrade());

@@ -1,11 +1,8 @@
 use crate::{
-    context::RunningFuture, weak_addr::WeakAddr, Actor, ActorId, Context, Error, Handler, Message,
-    Result,
+    channel::ChanTx, context::RunningFuture, weak_addr::WeakAddr, Actor, ActorId, Context, Error,
+    Handler, Message, Result,
 };
-use futures::{
-    channel::{mpsc, oneshot},
-    Future,
-};
+use futures::{channel::oneshot, Future};
 use std::{
     hash::{Hash, Hasher},
     pin::Pin,
@@ -35,7 +32,7 @@ pub(crate) enum ActorEvent<A> {
 /// You can use the [`Clone`] trait to create multiple copies of [`Addr<A>`].
 pub struct Addr<A> {
     pub(crate) actor_id: ActorId,
-    pub(crate) tx: Arc<mpsc::UnboundedSender<ActorEvent<A>>>,
+    pub(crate) tx: ChanTx<A>,
     pub(crate) rx_exit: Option<RunningFuture>,
 }
 
@@ -89,7 +86,7 @@ impl<A: Actor> Addr<A> {
 
     /// Stop the actor.
     pub fn stop(&mut self, err: Option<Error>) -> Result<()> {
-        mpsc::UnboundedSender::clone(&*self.tx).start_send(ActorEvent::Stop(err))?;
+        self.tx.send(ActorEvent::Stop(err))?;
         Ok(())
     }
 
@@ -97,7 +94,7 @@ impl<A: Actor> Addr<A> {
     ///
     /// this is ignored by normal actors
     pub fn stop_supervisor(&mut self, err: Option<Error>) -> Result<()> {
-        mpsc::UnboundedSender::clone(&*self.tx).start_send(ActorEvent::StopSupervisor(err))?;
+        self.tx.send(ActorEvent::StopSupervisor(err))?;
         Ok(())
     }
 
@@ -111,14 +108,12 @@ impl<A: Actor> Addr<A> {
         A: Handler<T>,
     {
         let (tx, rx) = oneshot::channel();
-        mpsc::UnboundedSender::clone(&*self.tx).start_send(ActorEvent::Exec(Box::new(
-            move |actor, ctx| {
-                Box::pin(async move {
-                    let res = Handler::handle(actor, ctx, msg).await;
-                    let _ = tx.send(res);
-                })
-            },
-        )))?;
+        self.tx.send(ActorEvent::Exec(Box::new(move |actor, ctx| {
+            Box::pin(async move {
+                let res = Handler::handle(actor, ctx, msg).await;
+                let _ = tx.send(res);
+            })
+        })))?;
 
         Ok(rx.await?)
     }
@@ -128,13 +123,11 @@ impl<A: Actor> Addr<A> {
     where
         A: Handler<T>,
     {
-        mpsc::UnboundedSender::clone(&*self.tx).start_send(ActorEvent::Exec(Box::new(
-            move |actor, ctx| {
-                Box::pin(async move {
-                    Handler::handle(actor, ctx, msg).await;
-                })
-            },
-        )))?;
+        self.tx.send(ActorEvent::Exec(Box::new(move |actor, ctx| {
+            Box::pin(async move {
+                Handler::handle(actor, ctx, msg).await;
+            })
+        })))?;
         Ok(())
     }
 
@@ -151,14 +144,12 @@ impl<A: Actor> Addr<A> {
                     Some(tx) => {
                         let (oneshot_tx, oneshot_rx) = oneshot::channel();
 
-                        mpsc::UnboundedSender::clone(&tx).start_send(ActorEvent::Exec(
-                            Box::new(move |actor, ctx| {
-                                Box::pin(async move {
-                                    let res = Handler::handle(&mut *actor, ctx, msg).await;
-                                    let _ = oneshot_tx.send(res);
-                                })
-                            }),
-                        ))?;
+                        tx.send(ActorEvent::Exec(Box::new(move |actor, ctx| {
+                            Box::pin(async move {
+                                let res = Handler::handle(&mut *actor, ctx, msg).await;
+                                let _ = oneshot_tx.send(res);
+                            })
+                        })))?;
                         Ok(oneshot_rx.await?)
                     }
                     None => Err(crate::error::anyhow!("Actor Dropped")),
@@ -184,13 +175,11 @@ impl<A: Actor> Addr<A> {
         let weak_tx = Arc::downgrade(&self.tx);
         let sender_fn = Box::new(move |msg| match weak_tx.upgrade() {
             Some(tx) => {
-                mpsc::UnboundedSender::clone(&tx).start_send(ActorEvent::Exec(Box::new(
-                    move |actor, ctx| {
-                        Box::pin(async move {
-                            Handler::handle(&mut *actor, ctx, msg).await;
-                        })
-                    },
-                )))?;
+                tx.send(ActorEvent::Exec(Box::new(move |actor, ctx| {
+                    Box::pin(async move {
+                        Handler::handle(&mut *actor, ctx, msg).await;
+                    })
+                })))?;
                 Ok(())
             }
             None => Err(crate::error::anyhow!("Actor Dropped")),
