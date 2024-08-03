@@ -1,11 +1,11 @@
 use crate::{
     addr::ActorEvent,
     broker::{Subscribe, Unsubscribe},
+    channel_wrapper::{ChannelWrapper, SendFn},
     runtime::{sleep, spawn},
-    ActorId, Addr, Broker, Error, Handler, Message, Result, Service, StreamHandler,
+    Actor, ActorId, Addr, Broker, Error, Handler, Message, Result, Service, StreamHandler,
 };
 use futures::{
-    channel::mpsc,
     future::{AbortHandle, Abortable},
     Stream, StreamExt,
 };
@@ -14,7 +14,7 @@ use slab::Slab;
 use std::{
     sync::{
         atomic::{AtomicU64, Ordering},
-        Arc, Weak,
+        Weak,
     },
     time::Duration,
 };
@@ -24,41 +24,34 @@ pub type RunningFuture = futures::future::Shared<futures::channel::oneshot::Rece
 ///An actor execution context.
 pub struct Context<A> {
     actor_id: ActorId,
-    tx: Weak<mpsc::UnboundedSender<ActorEvent<A>>>,
+    // tx: Weak<mpsc::UnboundedSender<ActorEvent<A>>>,
+    tx: Weak<dyn SendFn<A>>,
     pub(crate) rx_exit: Option<RunningFuture>,
     pub(crate) streams: Slab<AbortHandle>,
     pub(crate) intervals: Slab<AbortHandle>,
 }
 
-impl<A> Context<A> {
-    pub(crate) fn new(
-        rx_exit: Option<RunningFuture>,
-    ) -> (
-        Self,
-        mpsc::UnboundedReceiver<ActorEvent<A>>,
-        Arc<mpsc::UnboundedSender<ActorEvent<A>>>,
-    ) {
+impl<A: Actor> Context<A>
+where
+    for<'a> A: 'a,
+{
+    fn next_id() -> u64 {
         static ACTOR_ID: OnceCell<AtomicU64> = OnceCell::new();
-
-        // Get an actor id
-        let actor_id = ACTOR_ID
+        ACTOR_ID
             .get_or_init(Default::default)
-            .fetch_add(1, Ordering::Relaxed);
+            .fetch_add(1, Ordering::Relaxed)
+    }
 
-        let (tx, rx) = mpsc::unbounded::<ActorEvent<A>>();
-        let tx = Arc::new(tx);
-        let weak_tx = Arc::downgrade(&tx);
-        (
-            Self {
-                actor_id,
-                tx: weak_tx,
-                rx_exit,
-                streams: Default::default(),
-                intervals: Default::default(),
-            },
-            rx,
-            tx,
-        )
+    pub(crate) fn new(rx_exit: Option<RunningFuture>, wrapper: &ChannelWrapper<A>) -> Self {
+        let actor_id = Self::next_id();
+
+        Self {
+            actor_id,
+            tx: wrapper.weak_tx(),
+            rx_exit,
+            streams: Default::default(),
+            intervals: Default::default(),
+        }
     }
 
     /// Returns the address of the actor.
@@ -79,9 +72,7 @@ impl<A> Context<A> {
     /// Stop the actor.
     pub fn stop(&self, err: Option<Error>) {
         if let Some(tx) = self.tx.upgrade() {
-            mpsc::UnboundedSender::clone(&*tx)
-                .start_send(ActorEvent::Stop(err))
-                .ok();
+            tx.call(ActorEvent::Stop(err)).ok();
         }
     }
 
@@ -90,9 +81,7 @@ impl<A> Context<A> {
     /// this is ignored by normal actors
     pub fn stop_supervisor(&self, err: Option<Error>) {
         if let Some(tx) = self.tx.upgrade() {
-            mpsc::UnboundedSender::clone(&*tx)
-                .start_send(ActorEvent::StopSupervisor(err))
-                .ok();
+            tx.call(ActorEvent::StopSupervisor(err)).ok();
         }
     }
 
@@ -179,9 +168,9 @@ impl<A> Context<A> {
         entry.insert(handle);
 
         let fut = async move {
-            if let Some(tx) = tx.upgrade() {
-                mpsc::UnboundedSender::clone(&*tx)
-                    .start_send(ActorEvent::Exec(Box::new(move |actor, ctx| {
+            if let Some(send_fn) = tx.upgrade() {
+                send_fn
+                    .call(ActorEvent::Exec(Box::new(move |actor, ctx| {
                         Box::pin(async move {
                             StreamHandler::started(actor, ctx).await;
                         })
@@ -192,14 +181,12 @@ impl<A> Context<A> {
             }
 
             while let Some(msg) = stream.next().await {
-                if let Some(tx) = tx.upgrade() {
-                    let res = mpsc::UnboundedSender::clone(&*tx).start_send(ActorEvent::Exec(
-                        Box::new(move |actor, ctx| {
-                            Box::pin(async move {
-                                StreamHandler::handle(actor, ctx, msg).await;
-                            })
-                        }),
-                    ));
+                if let Some(send_fn) = tx.upgrade() {
+                    let res = send_fn.call(ActorEvent::Exec(Box::new(move |actor, ctx| {
+                        Box::pin(async move {
+                            StreamHandler::handle(actor, ctx, msg).await;
+                        })
+                    })));
                     if res.is_err() {
                         return;
                     }
@@ -209,19 +196,16 @@ impl<A> Context<A> {
             }
 
             if let Some(tx) = tx.upgrade() {
-                mpsc::UnboundedSender::clone(&*tx)
-                    .start_send(ActorEvent::Exec(Box::new(move |actor, ctx| {
-                        Box::pin(async move {
-                            StreamHandler::finished(actor, ctx).await;
-                        })
-                    })))
-                    .ok();
+                tx.call(ActorEvent::Exec(Box::new(move |actor, ctx| {
+                    Box::pin(async move {
+                        StreamHandler::finished(actor, ctx).await;
+                    })
+                })))
+                .ok();
             }
 
             if let Some(tx) = tx.upgrade() {
-                mpsc::UnboundedSender::clone(&*tx)
-                    .start_send(ActorEvent::RemoveStream(id))
-                    .ok();
+                tx.call(ActorEvent::RemoveStream(id)).ok();
             }
         };
         spawn(Abortable::new(fut, registration));

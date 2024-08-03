@@ -99,6 +99,7 @@ pub use broker::Broker;
 
 pub use context::Context;
 pub use hannibal_derive::{main, message};
+mod channel_wrapper;
 
 pub use runtime::{block_on, sleep, spawn, timeout};
 pub use service::{LocalService, Service};

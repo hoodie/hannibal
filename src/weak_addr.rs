@@ -1,8 +1,7 @@
 use crate::{
-    addr::ActorEvent, context::RunningFuture, error::bail, Actor, ActorId, Addr, Handler, Message,
-    Result,
+    channel_wrapper::SendFn, context::RunningFuture, error::bail, Actor, ActorId, Addr, Handler,
+    Message, Result,
 };
-use futures::channel::mpsc;
 use std::{
     hash::{Hash, Hasher},
     sync::Weak,
@@ -14,7 +13,7 @@ use std::{
 /// In order to use a [`WeakAddr<A>`] you need to "upgrade" it to a proper [`Addr<A>`].
 pub struct WeakAddr<A> {
     pub(crate) actor_id: ActorId,
-    pub(crate) tx: Weak<mpsc::UnboundedSender<ActorEvent<A>>>,
+    pub(crate) tx: Weak<dyn SendFn<A>>,
     pub(crate) rx_exit: Option<RunningFuture>,
 }
 

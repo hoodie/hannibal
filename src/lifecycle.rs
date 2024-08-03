@@ -1,27 +1,30 @@
-use crate::{addr::ActorEvent, error::Result, Actor, Addr, Context};
-
-use futures::{
-    channel::mpsc::{UnboundedReceiver, UnboundedSender},
-    FutureExt, StreamExt,
+use crate::{
+    addr::ActorEvent, channel_wrapper::ChannelWrapper, error::Result, Actor, Addr, Context,
 };
+
+use futures::FutureExt;
 
 pub(crate) struct LifeCycle<A: Actor> {
     ctx: Context<A>,
-    tx: std::sync::Arc<UnboundedSender<ActorEvent<A>>>,
-    rx: UnboundedReceiver<ActorEvent<A>>,
+    // tx: Arc<SendFn<ActorEvent<A>>>,
+    // rx: UnboundedReceiver<ActorEvent<A>>,
+    channels: ChannelWrapper<A>,
     tx_exit: futures::channel::oneshot::Sender<()>,
 }
 
-impl<A: Actor> LifeCycle<A> {
+impl<A: Actor> LifeCycle<A>
+where
+    for<'a> A: 'a,
+{
     pub(crate) fn new() -> Self {
         // let (tx_exit, rx_exit) = tokio::sync::watch::channel(Running);
+        let channels = ChannelWrapper::unbounded();
         let (tx_exit, rx_exit) = futures::channel::oneshot::channel::<()>();
         let running = rx_exit.shared();
-        let (ctx, rx, tx) = Context::new(Some(running));
+        let ctx = Context::new(Some(running), &channels);
         Self {
             ctx,
-            tx,
-            rx,
+            channels,
             tx_exit,
         }
     }
@@ -33,8 +36,7 @@ impl<A: Actor> LifeCycle<A> {
     pub(crate) async fn start_actor(self, mut actor: A) -> Result<Addr<A>> {
         let Self {
             mut ctx,
-            mut rx,
-            tx,
+            mut channels,
             tx_exit,
         } = self;
 
@@ -45,9 +47,11 @@ impl<A: Actor> LifeCycle<A> {
         actor.started(&mut ctx).await?;
 
         let _actor_name = actor.name();
+        let tx = channels.tx();
 
+        let mut rx = channels.rx().unwrap();
         let actor_loop = async move {
-            while let Some(event) = rx.next().await {
+            while let Ok(event) = rx.call().await {
                 match event {
                     ActorEvent::Exec(f) => f(&mut actor, &mut ctx).await,
                     ActorEvent::Stop(_err) => break,
@@ -91,16 +95,11 @@ impl<A: Actor> LifeCycle<A> {
     {
         let Self {
             mut ctx,
-            mut rx,
-            tx,
+            mut channels,
             ..
         } = self;
-
-        let addr = Addr {
-            actor_id: ctx.actor_id(),
-            tx,
-            rx_exit: ctx.rx_exit.clone(),
-        };
+        let rx_exit = ctx.rx_exit.clone();
+        let actor_id = ctx.actor_id();
 
         // Create the actor
         let mut actor = f();
@@ -110,10 +109,13 @@ impl<A: Actor> LifeCycle<A> {
 
         let _actor_name = actor.name();
 
+        let tx = channels.tx();
+
+        let mut rx = channels.rx().unwrap();
         let actor_loop = async move {
             'restart_loop: loop {
                 'event_loop: loop {
-                    match rx.next().await {
+                    match rx.call().await.ok() {
                         None => break 'restart_loop,
                         Some(ActorEvent::Stop(_err)) => break 'event_loop,
                         Some(ActorEvent::StopSupervisor(_err)) => break 'restart_loop,
@@ -148,6 +150,10 @@ impl<A: Actor> LifeCycle<A> {
         #[cfg(all(feature = "tracing", not(tokio_unstable)))]
         compile_error!("you need to build with --rustflags tokio_unstable");
 
-        Ok(addr)
+        Ok(Addr {
+            actor_id,
+            tx,
+            rx_exit,
+        })
     }
 }
