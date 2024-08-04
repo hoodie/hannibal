@@ -20,6 +20,22 @@ impl<A: Actor> LifeCycle<A> {
         }
     }
 
+    pub(crate) fn new_bounded(buffer: usize) -> Self {
+        let channel = ChannelWrapper::bounded(buffer);
+        let (tx_exit, rx_exit) = futures::channel::oneshot::channel::<()>();
+        let ctx = Context::new(rx_exit.shared().into(), &channel);
+        Self {
+            ctx,
+            channel,
+            tx_exit,
+        }
+    }
+}
+
+impl<A: Actor> LifeCycle<A>
+where
+    for<'a> A: 'a,
+{
     /// TODO: why now implement this here in stead of in Context?
     pub fn address(&self) -> Addr<A> {
         self.ctx.address()
