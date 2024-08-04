@@ -21,7 +21,7 @@ impl Actor for PingLater {
 struct Ping(&'static str);
 
 impl Handler<Ping> for PingLater {
-    async fn handle(&mut self, _ctx: &mut Context<Self>, msg: Ping) {
+    async fn handle(&mut self, _ctx: &mut Context<Self>, Ping(msg): Ping) {
         println!("PingLater:: handle {:?}", msg);
     }
 }

@@ -82,10 +82,7 @@ where
     }
 
     pub fn stopped(&self) -> bool {
-        self.rx_exit
-            .as_ref()
-            .map(|x| x.peek().is_some())
-            .unwrap_or(true)
+        self.rx_exit.as_ref().map_or(true, |x| x.peek().is_some())
     }
 
     pub fn abort_intervals(&mut self) {
@@ -165,11 +162,9 @@ where
 
         let fut = async move {
             if let Some(tx) = weak_tx.upgrade() {
-                tx.send(ActorEvent::Exec(Box::new(move |actor, ctx| {
-                    Box::pin(async move {
-                        StreamHandler::started(actor, ctx).await;
-                    })
-                })))
+                tx.send(ActorEvent::exec(move |actor, ctx| {
+                    Box::pin(StreamHandler::started(actor, ctx))
+                }))
                 .ok(); // TODO: don't eat error
             } else {
                 return;
@@ -177,11 +172,9 @@ where
 
             while let Some(msg) = stream.next().await {
                 if let Some(tx) = weak_tx.upgrade() {
-                    let res = tx.send(ActorEvent::Exec(Box::new(move |actor, ctx| {
-                        Box::pin(async move {
-                            StreamHandler::handle(actor, ctx, msg).await;
-                        })
-                    })));
+                    let res = tx.send(ActorEvent::exec(move |actor, ctx| {
+                        Box::pin(StreamHandler::handle(actor, ctx, msg))
+                    }));
                     if res.is_err() {
                         return;
                     }
@@ -191,11 +184,9 @@ where
             }
 
             if let Some(tx) = weak_tx.upgrade() {
-                tx.send(ActorEvent::Exec(Box::new(move |actor, ctx| {
-                    Box::pin(async move {
-                        StreamHandler::finished(actor, ctx).await;
-                    })
-                })))
+                tx.send(ActorEvent::exec(move |actor, ctx| {
+                    Box::pin(StreamHandler::finished(actor, ctx))
+                }))
                 .ok(); // TODO: don't eat error
             }
 

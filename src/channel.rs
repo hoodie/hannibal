@@ -1,12 +1,15 @@
 use anyhow::Result;
 use futures::StreamExt;
 
-use std::sync::{Arc, Weak};
+use std::{
+    future::Future,
+    pin::Pin,
+    sync::{Arc, Weak},
+};
 
 use crate::addr::ActorEvent;
 
-pub type RecvFuture<A> =
-    std::pin::Pin<Box<dyn std::future::Future<Output = Option<ActorEvent<A>>> + Send>>;
+pub type RecvFuture<A> = Pin<Box<dyn Future<Output = Option<ActorEvent<A>>> + Send>>;
 pub type WeakChanTx<A> = Weak<dyn TxFn<A>>;
 pub type ChanTx<A> = Arc<dyn TxFn<A>>;
 pub type ChanRx<A> = Box<dyn RxFn<A>>;

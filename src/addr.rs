@@ -1,9 +1,10 @@
 use crate::{
-    channel::ChanTx, context::RunningFuture, weak_addr::WeakAddr, Actor, ActorId, Context, Error,
-    Handler, Message, Result,
+    channel::ChanTx, context::RunningFuture, error::anyhow, weak_addr::WeakAddr, Actor, ActorId,
+    Context, Error, Handler, Message, Result,
 };
 use futures::{channel::oneshot, Future};
 use std::{
+    future::ready,
     hash::{Hash, Hasher},
     pin::Pin,
     sync::Arc,
@@ -24,6 +25,15 @@ pub(crate) enum ActorEvent<A> {
     Stop(Option<Error>),
     StopSupervisor(Option<Error>),
     RemoveStream(usize),
+}
+
+impl<A> ActorEvent<A> {
+    pub fn exec<F>(f: F) -> ActorEvent<A>
+    where
+        F: for<'a> FnOnce(&'a mut A, &'a mut Context<A>) -> ExecFuture<'a> + Send + 'static,
+    {
+        ActorEvent::Exec(Box::new(f))
+    }
 }
 
 /// The address of an actor.
@@ -107,15 +117,15 @@ impl<A: Actor> Addr<A> {
     where
         A: Handler<T>,
     {
-        let (tx, rx) = oneshot::channel();
-        self.tx.send(ActorEvent::Exec(Box::new(move |actor, ctx| {
+        let (repsonse_tx, response) = oneshot::channel();
+        self.tx.send(ActorEvent::exec(move |actor, ctx| {
             Box::pin(async move {
                 let res = Handler::handle(actor, ctx, msg).await;
-                let _ = tx.send(res);
+                let _ = repsonse_tx.send(res);
             })
-        })))?;
+        }))?;
 
-        Ok(rx.await?)
+        Ok(response.await?)
     }
 
     /// Send a message `msg` to the actor without waiting for the return value.
@@ -124,9 +134,7 @@ impl<A: Actor> Addr<A> {
         A: Handler<T>,
     {
         self.tx.send(ActorEvent::Exec(Box::new(move |actor, ctx| {
-            Box::pin(async move {
-                Handler::handle(actor, ctx, msg).await;
-            })
+            Box::pin(Handler::handle(actor, ctx, msg))
         })))?;
         Ok(())
     }
@@ -137,32 +145,32 @@ impl<A: Actor> Addr<A> {
         A: Handler<T>,
     {
         let weak_tx = Arc::downgrade(&self.tx);
-        let caller_fn = Box::new(move |msg| {
-            let weak_tx_option = weak_tx.upgrade();
-            Box::pin(async move {
-                match weak_tx_option {
-                    Some(tx) => {
-                        let (oneshot_tx, oneshot_rx) = oneshot::channel();
 
-                        tx.send(ActorEvent::Exec(Box::new(move |actor, ctx| {
-                            Box::pin(async move {
-                                let res = Handler::handle(&mut *actor, ctx, msg).await;
-                                let _ = oneshot_tx.send(res);
-                            })
-                        })))?;
-                        Ok(oneshot_rx.await?)
-                    }
-                    None => Err(crate::error::anyhow!("Actor Dropped")),
-                }
-            }) as Pin<Box<dyn Future<Output = Result<T::Result>>>>
-        });
+        let caller_fn = move |msg| {
+            if let Some(tx) = weak_tx.upgrade() {
+                Box::pin(async move {
+                    let (response_tx, response) = oneshot::channel();
+
+                    tx.send(ActorEvent::exec(move |actor, ctx| {
+                        Box::pin(async move {
+                            let res = Handler::handle(&mut *actor, ctx, msg).await;
+                            let _ = response_tx.send(res);
+                        })
+                    }))?;
+
+                    Ok(response.await?)
+                }) as Pin<Box<dyn Future<Output = Result<T::Result>>>>
+            } else {
+                Box::pin(ready(Err(anyhow!("Actor Dropped"))))
+            }
+        };
 
         let weak_tx = Arc::downgrade(&self.tx);
         let test_fn = Box::new(move || weak_tx.strong_count() > 0);
 
         Caller {
             actor_id: self.actor_id,
-            caller_fn,
+            caller_fn: Box::new(caller_fn),
             test_fn,
         }
     }
@@ -173,24 +181,23 @@ impl<A: Actor> Addr<A> {
         A: Handler<T>,
     {
         let weak_tx = Arc::downgrade(&self.tx);
-        let sender_fn = Box::new(move |msg| match weak_tx.upgrade() {
-            Some(tx) => {
-                tx.send(ActorEvent::Exec(Box::new(move |actor, ctx| {
-                    Box::pin(async move {
-                        Handler::handle(&mut *actor, ctx, msg).await;
-                    })
-                })))?;
-                Ok(())
+
+        let sender_fn = move |msg| {
+            if let Some(tx) = weak_tx.upgrade() {
+                tx.send(ActorEvent::exec(move |actor, ctx| {
+                    Box::pin(Handler::handle(&mut *actor, ctx, msg))
+                }))
+            } else {
+                Err(anyhow!("Actor Dropped"))
             }
-            None => Err(crate::error::anyhow!("Actor Dropped")),
-        });
+        };
 
         let weak_tx = Arc::downgrade(&self.tx);
         let test_fn = Box::new(move || weak_tx.strong_count() > 0);
 
         Sender {
             actor_id: self.actor_id,
-            sender_fn,
+            sender_fn: Box::new(sender_fn),
             test_fn,
         }
     }
@@ -200,7 +207,7 @@ impl<A: Actor> Addr<A> {
         if let Some(rx_exit) = self.rx_exit {
             rx_exit.await.ok();
         } else {
-            std::future::ready(()).await;
+            ready(()).await;
         }
     }
 }
