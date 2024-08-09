@@ -1,9 +1,7 @@
-use dyn_clone::DynClone;
-
 use super::{tester::TestFn, ActorId, Message, Result};
 use std::hash::{Hash, Hasher};
 
-pub(crate) trait SenderFn<T>: DynClone + 'static + Send + Sync
+pub(crate) trait SenderFn<T>: 'static + Send + Sync
 where
     T: Message,
 {

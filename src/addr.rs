@@ -168,6 +168,31 @@ impl<A: Actor> Addr<A> {
     }
 
     /// Create a [`Sender<T>`] for a specific message type
+    pub fn strong_sender<T: Message<Result = ()>>(&self) -> Sender<T>
+    where
+        A: Handler<T>,
+    {
+        let tx = Arc::clone(&self.tx);
+        let sender_fn = Box::new(move |msg| {
+            tx.send(ActorEvent::Exec(Box::new(move |actor, ctx| {
+                Box::pin(async move {
+                    Handler::handle(&mut *actor, ctx, msg).await;
+                })
+            })))?;
+            Ok(())
+        });
+
+        let weak_tx = Arc::downgrade(&self.tx);
+        let test_fn = Box::new(move || weak_tx.strong_count() > 0);
+
+        Sender {
+            actor_id: self.actor_id,
+            sender_fn,
+            test_fn,
+        }
+    }
+
+    /// Create a [`Sender<T>`] for a specific message type
     pub fn sender<T: Message<Result = ()>>(&self) -> Sender<T>
     where
         A: Handler<T>,
