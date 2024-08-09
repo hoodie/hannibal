@@ -206,7 +206,7 @@ where
         A: Handler<T>,
         T: Message<Result = ()>,
     {
-        let sender = self.address().sender();
+        let sender = self.address().weak_sender();
         let entry = self.intervals.vacant_entry();
         let (handle, registration) = futures::future::AbortHandle::new_pair();
         entry.insert(handle);
@@ -214,7 +214,7 @@ where
         spawn(Abortable::new(
             async move {
                 sleep(after).await;
-                sender.send(msg).ok();
+                sender.try_send(msg).ok();
             },
             registration,
         ));
@@ -228,7 +228,7 @@ where
         F: Fn() -> T + Sync + Send + 'static,
         T: Message<Result = ()>,
     {
-        let sender = self.address().sender();
+        let sender = self.address().weak_sender();
 
         let entry = self.intervals.vacant_entry();
         let (handle, registration) = futures::future::AbortHandle::new_pair();
@@ -238,7 +238,7 @@ where
             async move {
                 loop {
                     sleep(dur).await;
-                    if sender.send(f()).is_err() {
+                    if sender.try_send(f()).is_err() {
                         break;
                     }
                 }
@@ -262,7 +262,7 @@ where
         A: Handler<T>,
     {
         let broker = Broker::<T>::from_registry().await?;
-        let sender = self.address().sender();
+        let sender = self.address().weak_sender();
         broker
             .send(Subscribe {
                 id: self.actor_id,

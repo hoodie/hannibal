@@ -46,7 +46,7 @@ fn drop_addr() {
         let addr = hannibal::Actor::start(MyActor).await?;
         let addr2 = addr.clone();
         let addr3 = addr.downgrade();
-        let caller = addr.caller::<Ping>();
+        let caller = addr.weak_caller::<Ping>();
 
         assert!(!addr.stopped(), "expected addr not to be stopped");
         assert!(!addr2.stopped(), "expected addr2 not to be stopped");

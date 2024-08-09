@@ -1,13 +1,14 @@
+use anyhow::anyhow;
 use dyn_clone::DynClone;
-
-use super::{tester::TestFn, ActorId, Message, Result};
 use std::{
     future::Future,
-    hash::{Hash, Hasher},
     pin::Pin,
+    sync::{Arc, Weak},
 };
 
-pub(crate) trait CallerFn<T>: DynClone + Send + Sync + 'static
+use super::{Message, Result};
+
+pub(crate) trait CallerFn<T>: Send + Sync + 'static + DynClone
 where
     T: Message,
 {
@@ -17,7 +18,8 @@ where
 impl<F, T> CallerFn<T> for F
 where
     F: Fn(T) -> Pin<Box<dyn Future<Output = Result<T::Result>>>>,
-    F: 'static + Send + Sync + DynClone,
+    F: 'static + Send + Sync,
+    F: DynClone,
     T: Message,
 {
     fn call(&self, msg: T) -> Pin<Box<dyn Future<Output = Result<T::Result>>>> {
@@ -25,45 +27,61 @@ where
     }
 }
 
-/// Caller of a specific message type
-///
-/// Like [`Sender<T>`](`super::Sender<T>`), `Caller` has a weak reference to the recipient of the message type,
-/// and so will not prevent an actor from stopping if all [`Addr`](`crate::Addr`)'s have been dropped elsewhere.
-
+/// Caller of a specific message type.
 pub struct Caller<T: Message> {
-    /// Id of the corresponding [`Actor<A>`](crate::Actor<A>)
-    pub actor_id: ActorId,
-    pub(crate) caller_fn: Box<dyn CallerFn<T>>,
-    pub(crate) test_fn: Box<dyn TestFn>,
-}
-
-impl<T: Message> Caller<T> {
-    pub async fn call(&self, msg: T) -> Result<T::Result> {
-        self.caller_fn.call(msg).await
-    }
-    pub fn can_upgrade(&self) -> bool {
-        self.test_fn.test()
-    }
-}
-
-impl<T: Message<Result = ()>> PartialEq for Caller<T> {
-    fn eq(&self, other: &Self) -> bool {
-        self.actor_id == other.actor_id
-    }
-}
-
-impl<T: Message<Result = ()>> Hash for Caller<T> {
-    fn hash<H: Hasher>(&self, state: &mut H) {
-        self.actor_id.hash(state);
-    }
+    pub(crate) call_fn: Arc<dyn CallerFn<T>>,
 }
 
 impl<T: Message> Clone for Caller<T> {
     fn clone(&self) -> Self {
-        Self {
-            actor_id: self.actor_id,
-            caller_fn: dyn_clone::clone_box(&*self.caller_fn),
-            test_fn: dyn_clone::clone_box(&*self.test_fn),
+        Caller {
+            call_fn: self.call_fn.clone(),
         }
+    }
+}
+
+/// Caller of a specific message type. You need to upgrade it to a `Caller` before you can use it.
+///
+/// Like [`WeakSender<T>`](`super::WeakSender<T>`), `Caller` has a weak reference to the recipient of the message type,
+/// and so will not prevent an actor from stopping if all [`Addr`](`crate::Addr`)'s have been dropped elsewhere.
+pub struct WeakCaller<T: Message> {
+    pub(crate) call_fn: Weak<dyn CallerFn<T>>,
+}
+
+impl<T: Message> Clone for WeakCaller<T> {
+    fn clone(&self) -> Self {
+        WeakCaller {
+            call_fn: self.call_fn.clone(),
+        }
+    }
+}
+
+impl<T: Message> Caller<T> {
+    pub async fn call(&self, msg: T) -> Result<T::Result> {
+        self.call_fn.call(msg).await
+    }
+
+    pub fn downgrade(&self) -> WeakCaller<T> {
+        WeakCaller {
+            call_fn: Arc::downgrade(&self.call_fn),
+        }
+    }
+}
+
+impl<T: Message> WeakCaller<T> {
+    pub fn upgrade(&self) -> Option<Caller<T>> {
+        self.call_fn.upgrade().map(|call_fn| Caller { call_fn })
+    }
+
+    pub fn can_upgrade(&self) -> bool {
+        Weak::strong_count(&self.call_fn) > 1
+    }
+
+    pub async fn try_call(&self, msg: T) -> Result<T::Result> {
+        let call_fn = self
+            .call_fn
+            .upgrade()
+            .ok_or_else(|| anyhow!("Actor dropped"))?;
+        call_fn.call(msg).await
     }
 }

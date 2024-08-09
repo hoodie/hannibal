@@ -33,16 +33,16 @@ fn caller_stop() {
     hannibal::block_on(async {
         let addr = CountActor { count: 10 }.start().await.unwrap();
 
-        let caller: Caller<Count> = addr.caller();
+        let caller: WeakCaller<Count> = addr.weak_caller();
         let caller2 = caller.clone();
-        let sender: Sender<Ping> = addr.sender();
+        let sender: WeakSender<Ping> = addr.weak_sender();
 
         assert!(caller.can_upgrade());
         assert!(sender.can_upgrade());
 
-        assert_eq!(caller.call(Count(10)).await.unwrap(), 20);
-        assert_eq!(caller2.call(Count(10)).await.unwrap(), 30);
-        assert!(sender.send(Ping).is_ok());
+        assert_eq!(caller.try_call(Count(10)).await.unwrap(), 20);
+        assert_eq!(caller2.try_call(Count(10)).await.unwrap(), 30);
+        assert!(sender.try_send(Ping).is_ok());
 
         std::mem::drop(addr);
 
@@ -50,9 +50,9 @@ fn caller_stop() {
         assert_eq!(caller2.can_upgrade(), false);
         assert_eq!(sender.can_upgrade(), false);
 
-        assert!(caller.call(Count(10)).await.is_err());
-        assert!(caller2.call(Count(10)).await.is_err());
-        assert!(sender.send(Ping).is_err());
+        assert!(caller.try_call(Count(10)).await.is_err());
+        assert!(caller2.try_call(Count(10)).await.is_err());
+        assert!(sender.try_send(Ping).is_err());
     });
 }
 

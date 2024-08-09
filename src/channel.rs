@@ -54,9 +54,6 @@ impl<A> ChannelWrapper<A> {
             rx_fn: Some(rx_fn),
         }
     }
-    pub fn send(&self, msg: ActorEvent<A>) -> Result<()> {
-        self.tx_fn.send(msg)
-    }
 }
 
 impl<A> ChannelWrapper<A>

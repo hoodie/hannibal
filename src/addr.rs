@@ -1,8 +1,11 @@
+use self::{caller::Caller, sender::Sender};
 use crate::{
-    channel::ChanTx, context::RunningFuture, error::anyhow, weak_addr::WeakAddr, Actor, ActorId,
-    Context, Error, Handler, Message, Result,
+    channel::ChanTx, context::RunningFuture, weak_addr::WeakAddr, Actor, ActorId, Context, Error,
+    Handler, Message, Result,
 };
+use caller::WeakCaller;
 use futures::{channel::oneshot, Future};
+use sender::WeakSender;
 use std::{
     future::ready,
     hash::{Hash, Hasher},
@@ -12,8 +15,6 @@ use std::{
 
 pub(crate) mod caller;
 pub(crate) mod sender;
-pub(crate) mod tester;
-pub use self::{caller::Caller, sender::Sender};
 
 type ExecFuture<'a> = Pin<Box<dyn Future<Output = ()> + Send + 'a>>;
 
@@ -144,35 +145,32 @@ impl<A: Actor> Addr<A> {
     where
         A: Handler<T>,
     {
-        let weak_tx = Arc::downgrade(&self.tx);
+        let tx = self.tx.clone();
+        let call_fn = Arc::new(move |msg| {
+            let tx = tx.clone();
+            Box::pin(async move {
+                let (response_tx, response) = oneshot::channel();
 
-        let caller_fn = move |msg| {
-            if let Some(tx) = weak_tx.upgrade() {
-                Box::pin(async move {
-                    let (response_tx, response) = oneshot::channel();
+                tx.send(ActorEvent::exec(move |actor, ctx| {
+                    Box::pin(async move {
+                        let res = Handler::handle(&mut *actor, ctx, msg).await;
+                        let _ = response_tx.send(res);
+                    })
+                }))?;
 
-                    tx.send(ActorEvent::exec(move |actor, ctx| {
-                        Box::pin(async move {
-                            let res = Handler::handle(&mut *actor, ctx, msg).await;
-                            let _ = response_tx.send(res);
-                        })
-                    }))?;
+                Ok(response.await?)
+            }) as Pin<Box<dyn Future<Output = Result<T::Result>>>>
+        });
 
-                    Ok(response.await?)
-                }) as Pin<Box<dyn Future<Output = Result<T::Result>>>>
-            } else {
-                Box::pin(ready(Err(anyhow!("Actor Dropped"))))
-            }
-        };
+        Caller { call_fn }
+    }
 
-        let weak_tx = Arc::downgrade(&self.tx);
-        let test_fn = Box::new(move || weak_tx.strong_count() > 0);
-
-        Caller {
-            actor_id: self.actor_id,
-            caller_fn: Box::new(caller_fn),
-            test_fn,
-        }
+    /// Create a [`Caller<T>`] for a specific message type
+    pub fn weak_caller<T: Message>(&self) -> WeakCaller<T>
+    where
+        A: Handler<T>,
+    {
+        self.caller().downgrade()
     }
 
     /// Create a [`Sender<T>`] for a specific message type
@@ -180,26 +178,23 @@ impl<A: Actor> Addr<A> {
     where
         A: Handler<T>,
     {
-        let weak_tx = Arc::downgrade(&self.tx);
+        let tx = Arc::clone(&self.tx);
+        let send_fn = Arc::new(move |msg| {
+            tx.send(ActorEvent::exec(move |actor, ctx| {
+                Box::pin(Handler::handle(&mut *actor, ctx, msg))
+            }))?;
+            Ok(())
+        });
 
-        let sender_fn = move |msg| {
-            if let Some(tx) = weak_tx.upgrade() {
-                tx.send(ActorEvent::exec(move |actor, ctx| {
-                    Box::pin(Handler::handle(&mut *actor, ctx, msg))
-                }))
-            } else {
-                Err(anyhow!("Actor Dropped"))
-            }
-        };
+        Sender { send_fn }
+    }
 
-        let weak_tx = Arc::downgrade(&self.tx);
-        let test_fn = Box::new(move || weak_tx.strong_count() > 0);
-
-        Sender {
-            actor_id: self.actor_id,
-            sender_fn: Box::new(sender_fn),
-            test_fn,
-        }
+    /// Create a [`WeakSender<T>`] for a specific message type
+    pub fn weak_sender<T: Message<Result = ()>>(&self) -> WeakSender<T>
+    where
+        A: Handler<T>,
+    {
+        self.sender().downgrade()
     }
 
     /// Wait for an actor to finish, and if the actor has finished, the function returns immediately.
