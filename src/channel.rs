@@ -108,12 +108,12 @@ where
         });
 
         let rx = Arc::new(async_lock::Mutex::new(rx));
-        let recv = Box::new(move || {
+        let recv = Box::new(move || -> RecvFuture<A> {
             let rx = rx.clone();
             Box::pin(async move {
                 let mut rx = rx.lock().await;
                 rx.next().await
-            }) as RecvFuture<A>
+            })
         });
         Self::wrap(send, recv)
     }
@@ -140,12 +140,12 @@ where
         });
 
         let rx = Arc::new(async_lock::Mutex::new(rx));
-        let recv = Box::new(move || {
+        let recv = Box::new(move || -> RecvFuture<A> {
             let rx = rx.clone();
             Box::pin(async move {
                 let mut rx = rx.lock().await;
                 rx.next().await
-            }) as RecvFuture<A>
+            })
         });
         Self::wrap(send, recv)
     }

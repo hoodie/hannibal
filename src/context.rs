@@ -199,13 +199,12 @@ where
 
     /// Sends the message `msg` to self after a specified period of time.
     ///
-    /// We use `Sender` instead of `Addr` so that the interval doesn't keep reference to address and prevent the actor from being dropped and stopped
-
+    /// We use `WeakSender` instead of `Addr` so that the interval doesn't keep reference to address and prevent the actor from being dropped and stopped.
     pub fn send_later<M: Message<Result = ()>>(&mut self, msg: M, after: Duration)
     where
         A: Handler<M>,
     {
-        let sender = self.address().sender();
+        let sender = self.address().weak_sender();
         let entry = self.intervals.vacant_entry();
         let (handle, registration) = futures::future::AbortHandle::new_pair();
         entry.insert(handle);
@@ -213,7 +212,7 @@ where
         spawn(Abortable::new(
             async move {
                 sleep(after).await;
-                sender.send(msg).ok();
+                sender.try_send(msg)
             },
             registration,
         ));
@@ -226,7 +225,7 @@ where
         A: Handler<M>,
         F: Fn() -> M + Sync + Send + 'static,
     {
-        let sender = self.address().sender();
+        let sender = self.address().weak_sender();
 
         let entry = self.intervals.vacant_entry();
         let (handle, registration) = futures::future::AbortHandle::new_pair();
@@ -236,7 +235,7 @@ where
             async move {
                 loop {
                     sleep(dur).await;
-                    if sender.send(f()).is_err() {
+                    if sender.try_send(f()).is_err() {
                         break;
                     }
                 }
@@ -260,7 +259,7 @@ where
         A: Handler<M>,
     {
         let broker = Broker::<M>::from_registry().await?;
-        let sender = self.address().sender();
+        let sender = self.address().weak_sender();
         broker
             .send(Subscribe {
                 id: self.actor_id,
