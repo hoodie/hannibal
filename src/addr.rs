@@ -145,24 +145,7 @@ impl<A: Actor> Addr<A> {
     where
         A: Handler<T>,
     {
-        let tx = self.tx.clone();
-        let call_fn = Arc::new(move |msg| {
-            let tx = tx.clone();
-            Box::pin(async move {
-                let (response_tx, response) = oneshot::channel();
-
-                tx.send(ActorEvent::exec(move |actor, ctx| {
-                    Box::pin(async move {
-                        let res = Handler::handle(&mut *actor, ctx, msg).await;
-                        let _ = response_tx.send(res);
-                    })
-                }))?;
-
-                Ok(response.await?)
-            }) as Pin<Box<dyn Future<Output = Result<T::Result>>>>
-        });
-
-        Caller { call_fn }
+        Caller::from(self.tx.clone())
     }
 
     /// Create a [`Caller<T>`] for a specific message type
@@ -170,7 +153,7 @@ impl<A: Actor> Addr<A> {
     where
         A: Handler<T>,
     {
-        self.caller().downgrade()
+        Caller::from(self.tx.clone()).downgrade()
     }
 
     /// Create a [`Sender<T>`] for a specific message type
@@ -178,15 +161,7 @@ impl<A: Actor> Addr<A> {
     where
         A: Handler<T>,
     {
-        let tx = Arc::clone(&self.tx);
-        let send_fn = Arc::new(move |msg| {
-            tx.send(ActorEvent::exec(move |actor, ctx| {
-                Box::pin(Handler::handle(&mut *actor, ctx, msg))
-            }))?;
-            Ok(())
-        });
-
-        Sender { send_fn }
+        Sender::from(Arc::clone(&self.tx))
     }
 
     /// Create a [`WeakSender<T>`] for a specific message type
@@ -194,7 +169,7 @@ impl<A: Actor> Addr<A> {
     where
         A: Handler<T>,
     {
-        self.sender().downgrade()
+        Sender::from(Arc::clone(&self.tx)).downgrade()
     }
 
     /// Wait for an actor to finish, and if the actor has finished, the function returns immediately.

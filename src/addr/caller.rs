@@ -1,4 +1,6 @@
 use anyhow::anyhow;
+use futures::channel::oneshot;
+
 use dyn_clone::DynClone;
 use std::{
     future::Future,
@@ -6,7 +8,9 @@ use std::{
     sync::{Arc, Weak},
 };
 
-use super::{Message, Result};
+use crate::{channel::ChanTx, Actor, Handler};
+
+use super::{ActorEvent, Message, Result};
 
 pub(crate) trait CallerFn<T>: Send + Sync + 'static + DynClone
 where
@@ -30,6 +34,33 @@ where
 /// Caller of a specific message type.
 pub struct Caller<T: Message> {
     pub(crate) call_fn: Arc<dyn CallerFn<T>>,
+}
+
+impl<T, A> From<ChanTx<A>> for Caller<T>
+where
+    A: Actor,
+    A: Handler<T>,
+    T: Message,
+{
+    fn from(tx: ChanTx<A>) -> Self {
+        let call_fn = Arc::new(move |msg| {
+            let tx = tx.clone();
+            Box::pin(async move {
+                let (response_tx, response) = oneshot::channel();
+
+                tx.send(ActorEvent::exec(move |actor, ctx| {
+                    Box::pin(async move {
+                        let res = Handler::handle(&mut *actor, ctx, msg).await;
+                        let _ = response_tx.send(res);
+                    })
+                }))?;
+
+                Ok(response.await?)
+            }) as Pin<Box<dyn Future<Output = Result<T::Result>>>>
+        });
+
+        Caller { call_fn }
+    }
 }
 
 impl<T: Message> Clone for Caller<T> {

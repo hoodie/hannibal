@@ -1,6 +1,8 @@
 use anyhow::anyhow;
 
-use super::{Message, Result};
+use crate::{channel::ChanTx, Actor, Handler};
+
+use super::{ActorEvent, Message, Result};
 use std::sync::{Arc, Weak};
 
 pub(crate) trait SenderFn<T>: 'static + Send + Sync
@@ -27,7 +29,25 @@ pub struct Sender<T: Message> {
     pub(crate) send_fn: Arc<dyn SenderFn<T>>,
 }
 
-/// WeakSender of a specific message type. You need to upgrade it to a `Sender` before you can use it.
+impl<T, A> From<ChanTx<A>> for Sender<T>
+where
+    A: Actor,
+    A: Handler<T>,
+    T: Message<Result = ()>,
+{
+    fn from(tx: ChanTx<A>) -> Self {
+        let send_fn = Arc::new(move |msg| {
+            tx.send(ActorEvent::exec(move |actor, ctx| {
+                Box::pin(Handler::handle(&mut *actor, ctx, msg))
+            }))?;
+            Ok(())
+        });
+
+        Sender { send_fn }
+    }
+}
+
+/// `WeakSender` of a specific message type. You need to upgrade it to a `Sender` before you can use it.
 ///
 /// Like [`WeakCaller<T>`](`super::WeakCaller<T>`), Sender has a weak reference to the recipient of the message type,
 /// and so will not prevent an actor from stopping if all [`Addr`](`crate::Addr`)'s have been dropped elsewhere.
