@@ -28,7 +28,7 @@ pub(crate) enum ActorEvent<A> {
     RemoveStream(usize),
 }
 
-impl<A> ActorEvent<A> {
+impl<A: Actor> ActorEvent<A> {
     pub fn exec<F>(f: F) -> ActorEvent<A>
     where
         F: for<'a> FnOnce(&'a mut A, &'a mut Context<A>) -> ExecFuture<'a> + Send + 'static,
@@ -41,7 +41,7 @@ impl<A> ActorEvent<A> {
 ///
 /// When all references to [`Addr<A>`] are dropped, the actor ends.
 /// You can use the [`Clone`] trait to create multiple copies of [`Addr<A>`].
-pub struct Addr<A> {
+pub struct Addr<A: ?Sized> {
     pub(crate) actor_id: ActorId,
     pub(crate) tx: ChanTx<A>,
     pub(crate) rx_exit: Option<RunningFuture>,

@@ -112,9 +112,7 @@ impl<T: Message<Result = ()>> Handler<Unsubscribe> for Broker<T> {
 impl<T: Message<Result = ()> + Clone> Handler<Publish<T>> for Broker<T> {
     async fn handle(&mut self, _ctx: &mut Context<Self>, msg: Publish<T>) {
         for sender in self.subscribes.values_mut() {
-            if let Some(sender) = sender
-                .downcast_mut::<WeakSender<T>>()
-            {
+            if let Some(sender) = sender.downcast_mut::<WeakSender<T>>() {
                 sender.try_send(msg.0.clone()).ok();
             }
         }

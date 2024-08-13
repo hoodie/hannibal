@@ -5,10 +5,7 @@ use crate::{channel::ChanTx, Actor, Handler};
 use super::{ActorEvent, Message, Result};
 use std::sync::{Arc, Weak};
 
-pub(crate) trait SenderFn<T>: 'static + Send + Sync
-where
-    T: Message,
-{
+pub(crate) trait SenderFn<T: Message>: 'static + Send + Sync {
     fn send(&self, msg: T) -> Result<()>;
 }
 
@@ -25,7 +22,10 @@ where
 
 /// Sender of a specific message type.
 #[derive(Clone)]
-pub struct Sender<T: Message> {
+pub struct Sender<T>
+where
+    T: Message,
+{
     pub(crate) send_fn: Arc<dyn SenderFn<T>>,
 }
 

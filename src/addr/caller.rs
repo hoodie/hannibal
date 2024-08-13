@@ -12,10 +12,7 @@ use crate::{channel::ChanTx, Actor, Handler};
 
 use super::{ActorEvent, Message, Result};
 
-pub(crate) trait CallerFn<T>: Send + Sync + 'static + DynClone
-where
-    T: Message,
-{
+pub(crate) trait CallerFn<T: Message>: Send + Sync + 'static + DynClone {
     fn call(&self, msg: T) -> Pin<Box<dyn Future<Output = Result<T::Result>>>>;
 }
 
