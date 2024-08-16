@@ -1,4 +1,7 @@
-use std::sync::{mpsc, Arc, Mutex, Weak};
+use std::{
+    marker::PhantomData,
+    sync::{mpsc, Arc, Mutex, Weak},
+};
 
 type Payload = Box<dyn FnOnce() + Send + 'static>;
 
@@ -17,10 +20,8 @@ impl Context {
     }
     pub fn send<M, H>(&self, msg: M, handler: Arc<H>)
     where
-        H: Handler<M>,
-        H: 'static,
-        M: Send,
-        M: 'static,
+        H: Handler<M> + 'static,
+        M: Send + 'static,
     {
         let handler = handler.clone();
         self.tx
@@ -31,9 +32,14 @@ impl Context {
             .unwrap()
     }
 
-    pub fn spawn(&mut self) {
-        let rx = self.rx.lock().unwrap().take().unwrap();
+    pub fn spawn(&mut self, actor: Arc<dyn Actor + Send + Sync>) {
+        let Some(rx) = self.rx.lock().ok().and_then(|mut orx| orx.take()) else {
+            eprintln!("Cannot spawn context");
+            return;
+        };
+
         std::thread::spawn(move || {
+            actor.started();
             let receiving = rx.iter();
             for payload in receiving {
                 payload();
@@ -42,34 +48,65 @@ impl Context {
     }
 }
 
-#[derive(Clone)]
 pub struct Addr<A: Actor> {
     ctx: Arc<Mutex<Context>>,
     actor: Arc<A>,
 }
 
+impl<A: Actor> Clone for Addr<A> {
+    fn clone(&self) -> Self {
+        Addr {
+            ctx: self.ctx.clone(),
+            actor: self.actor.clone(),
+        }
+    }
+}
+
 impl<A: Actor> Addr<A> {
     pub fn send<M>(&self, msg: M)
     where
-        A: Handler<M>,
-        M: Send,
-        A: 'static,
-        M: 'static,
+        A: Handler<M> + 'static,
+        M: Send + 'static,
     {
         self.ctx.lock().unwrap().send(msg, self.actor.clone());
     }
 
+    pub fn downgrade(&self) -> WeakAddr<A> {
+        WeakAddr {
+            ctx: Arc::downgrade(&self.ctx),
+            actor: Arc::downgrade(&self.actor),
+        }
+    }
+
     pub fn sender<M>(&self) -> Sender<M>
     where
-        A: Handler<M>,
-        M: Send,
-        A: 'static,
-        M: 'static,
+        A: Handler<M> + 'static,
+        M: Send + 'static,
     {
-        Sender {
-            tx: self.ctx.lock().unwrap().tx.clone(),
-            actor: self.actor.clone(),
-            marker: std::marker::PhantomData,
+        (*self).clone().into()
+    }
+}
+
+pub struct WeakAddr<A: Actor> {
+    ctx: Weak<Mutex<Context>>,
+    actor: Weak<A>,
+}
+
+impl<A: Actor> WeakAddr<A> {
+    pub fn upgrade(&self) -> Option<Addr<A>> {
+        Some(Addr {
+            ctx: self.ctx.upgrade()?,
+            actor: self.actor.upgrade()?,
+        })
+    }
+
+    pub fn try_send<M>(&self, msg: M)
+    where
+        A: Handler<M> + 'static,
+        M: Send + 'static,
+    {
+        if let Some(addr) = self.upgrade() {
+            addr.send(msg)
         }
     }
 }
@@ -79,7 +116,7 @@ pub struct LifeCycle {
 }
 
 pub trait Actor {
-    fn start(&self);
+    fn started(&self);
 }
 
 impl Default for LifeCycle {
@@ -95,12 +132,15 @@ impl LifeCycle {
         }
     }
 
-    pub fn start<A: Actor>(mut self, actor: A) -> Addr<A> {
+    pub fn start<A>(mut self, actor: Arc<A>) -> Addr<A>
+    where
+        A: Actor + Send + Sync + 'static,
+    {
         let LifeCycle { ref mut ctx } = self;
-        ctx.spawn();
+        ctx.spawn(actor.clone());
         Addr {
             ctx: Arc::new(Mutex::new(self.ctx)),
-            actor: Arc::new(actor),
+            actor,
         }
     }
 }
@@ -112,14 +152,26 @@ pub trait Handler<M>: Actor + Send + Sync {
 pub struct Sender<M> {
     tx: Arc<mpsc::Sender<Payload>>,
     actor: Arc<dyn Handler<M>>,
-    marker: std::marker::PhantomData<M>,
+    marker: PhantomData<M>,
+}
+
+impl<M, A> From<Addr<A>> for Sender<M>
+where
+    A: Handler<M> + 'static,
+{
+    fn from(Addr { ctx, actor }: Addr<A>) -> Self {
+        Sender {
+            tx: ctx.lock().unwrap().tx.clone(),
+            actor: actor.clone(),
+            marker: PhantomData,
+        }
+    }
 }
 
 impl<M> Sender<M> {
     pub fn send(&self, msg: M)
     where
-        M: Send,
-        M: 'static,
+        M: Send + 'static,
     {
         let actor = self.actor.clone();
         self.tx.send(Box::new(move || actor.handle(msg))).unwrap()
@@ -129,7 +181,7 @@ impl<M> Sender<M> {
         WeakSender {
             tx: Arc::downgrade(&self.tx),
             actor: Arc::downgrade(&self.actor),
-            marker: std::marker::PhantomData,
+            marker: PhantomData,
         }
     }
 }
@@ -137,14 +189,13 @@ impl<M> Sender<M> {
 pub struct WeakSender<M> {
     tx: Weak<mpsc::Sender<Payload>>,
     actor: Weak<dyn Handler<M>>,
-    marker: std::marker::PhantomData<M>,
+    marker: PhantomData<M>,
 }
 
 impl<M> WeakSender<M> {
     pub fn try_send(&self, msg: M) -> bool
     where
-        M: Send,
-        M: 'static,
+        M: Send + 'static,
     {
         if let Some((tx, actor)) = self.tx.upgrade().zip(self.actor.upgrade()) {
             tx.send(Box::new(move || actor.handle(msg))).unwrap();
