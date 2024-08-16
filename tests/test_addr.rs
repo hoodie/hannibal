@@ -1,8 +1,4 @@
-use minibal::{
-    actor::{Actor, Handler},
-    addr::{start, Message},
-    context::Context,
-};
+use minibal::{start, Actor, Context, Handler, Message};
 
 #[derive(Debug, Default)]
 struct MyActor(Option<&'static str>);

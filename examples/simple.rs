@@ -1,9 +1,4 @@
-use minibal::{
-    actor::{Actor, Handler},
-    addr::{start, Message},
-    context::Context,
-    error::Result,
-};
+use minibal::{error::Result, start, Actor, Context, Handler, Message};
 
 struct MyActor(&'static str);
 
