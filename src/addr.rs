@@ -1,6 +1,6 @@
 use super::*;
 pub struct Addr<A: Actor> {
-    pub(crate)ctx: Arc<Mutex<Context>>,
+    pub(crate) ctx: Arc<Mutex<Context>>,
     pub(crate) actor: Arc<A>,
 }
 
@@ -20,6 +20,14 @@ impl<A: Actor> Addr<A> {
         M: Send + 'static,
     {
         self.ctx.lock().unwrap().send(msg, self.actor.clone());
+    }
+
+    pub fn stop(&self) {
+        if let Ok(ctx) = self.ctx.lock() {
+            ctx.stop();
+        } else {
+            eprintln!("Cannot stop actor");
+        }
     }
 
     pub fn downgrade(&self) -> WeakAddr<A> {

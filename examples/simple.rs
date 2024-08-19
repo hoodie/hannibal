@@ -1,12 +1,15 @@
 use std::sync::Arc;
 
-use minibal::{Actor, Context, Handler, LifeCycle};
+use minibal::{Actor, Handler, EventLoop};
 
 struct MyActor(&'static str);
 
 impl Actor for MyActor {
     fn started(&self) {
         println!("[Actor {}] started", self.0);
+    }
+    fn stopped(&self) {
+        println!("[Actor {}] stopped", self.0);
     }
 }
 
@@ -22,29 +25,46 @@ impl Handler<String> for MyActor {
     }
 }
 
-fn main() {
-    let mut ctx = Context::new();
+fn halt() {
+    eprintln!("Press Enter to exit");
+    std::io::stdin().read_line(&mut String::new()).unwrap();
+}
 
-    let actor = Arc::new(MyActor("actor 1"));
-    ctx.spawn(actor.clone());
+fn internal_api() {
+    let actor = Arc::new(MyActor("actor 0"));
+    let mut life_cycle = EventLoop::new();
+    life_cycle.spawn(actor.clone()).unwrap();
 
-    let addr = LifeCycle::new().start(MyActor("actor 2").into());
-    let sender = addr.sender::<i32>();
+    let ctx = life_cycle.ctx;
 
     ctx.send(String::from("hello world"), actor.clone());
     ctx.send(1337, actor.clone());
     ctx.send(4711, actor.clone());
+    ctx.stop();
+}
 
-    addr.send(42);
+fn main() {
+    internal_api();
+
+    let addr1 = EventLoop::new().start(MyActor("actor 1"));
+    let addr2 = EventLoop::new().start(MyActor("actor 2"));
+    let sender = addr1.sender::<i32>();
+    let sender2 = addr2.sender::<i32>();
+
+    addr1.send(42);
     sender.send(43);
+
     let weak_sender = sender.downgrade();
     weak_sender.try_send(44);
 
-    drop(addr);
+    drop(addr1);
     drop(sender);
-
     dbg!(weak_sender.try_send(45));
+    halt();
 
-    eprintln!("Press Enter to exit");
-    std::io::stdin().read_line(&mut String::new()).unwrap();
+    sender2.send(46);
+    addr2.stop();
+    sender2.send(47); // lost TODO: make
+
+    halt();
 }
