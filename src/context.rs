@@ -3,8 +3,8 @@ use event_loop::Payload;
 use super::*;
 
 pub struct Context {
-    pub(crate) tx: Arc<mpsc::Sender<Payload>>,
-    pub(crate) rx: Arc<Mutex<Option<mpsc::Receiver<Payload>>>>,
+    pub tx: Arc<mpsc::Sender<Payload>>,
+    rx: Arc<Mutex<Option<mpsc::Receiver<Payload>>>>,
 }
 
 impl Context {
@@ -14,6 +14,10 @@ impl Context {
             tx: Arc::new(tx),
             rx: Arc::new(Mutex::new(Some(rx))),
         }
+    }
+
+    pub fn take_rx(&mut self) -> Option<mpsc::Receiver<Payload>> {
+        self.rx.lock().ok().and_then(|mut orx| orx.take())
     }
 
     pub fn send<M, H>(&self, msg: M, handler: Arc<H>)

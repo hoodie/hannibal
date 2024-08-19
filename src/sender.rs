@@ -14,7 +14,7 @@ where
 {
     fn from(Addr { ctx, actor }: Addr<A>) -> Self {
         Sender {
-            tx: ctx.lock().unwrap().tx.clone(),
+            tx: ctx.tx.clone(),
             actor: actor.clone(),
             marker: PhantomData,
         }
@@ -27,7 +27,9 @@ impl<M> Sender<M> {
         M: Send + 'static,
     {
         let actor = self.actor.clone();
-        self.tx.send(Payload::Exec(Box::new(move || actor.handle(msg)))).unwrap()
+        self.tx
+            .send(Payload::Exec(Box::new(move || actor.handle(msg))))
+            .unwrap()
     }
 
     pub fn downgrade(&self) -> WeakSender<M> {
@@ -51,7 +53,8 @@ impl<M> WeakSender<M> {
         M: Send + 'static,
     {
         if let Some((tx, actor)) = self.tx.upgrade().zip(self.actor.upgrade()) {
-            tx.send(Payload::Exec(Box::new(move || actor.handle(msg)))).unwrap();
+            tx.send(Payload::Exec(Box::new(move || actor.handle(msg))))
+                .unwrap();
             true
         } else {
             eprintln!("Actor is dead");

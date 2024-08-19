@@ -1,6 +1,6 @@
 use super::*;
 
-pub(crate) enum Payload {
+pub enum Payload {
     Exec(Box<dyn FnOnce() + Send + 'static>),
     Stop,
 }
@@ -29,7 +29,7 @@ impl EventLoop {
         let actor = Arc::new(actor);
         self.spawn(actor.clone()).unwrap();
         Addr {
-            ctx: Arc::new(Mutex::new(self.ctx)),
+            ctx: Arc::new(self.ctx),
             actor,
         }
     }
@@ -52,7 +52,7 @@ impl EventLoop {
     }
 
     pub fn spawn(&mut self, actor: impl Actor + Send + Sync + 'static) -> Result<(), String> {
-        let Some(rx) = self.ctx.rx.lock().ok().and_then(|mut orx| orx.take()) else {
+        let Some(rx) = self.ctx.take_rx() else {
             eprintln!("Cannot spawn context");
             return Err(format!("Cannot spawn context"));
         };
