@@ -1,5 +1,5 @@
 use anyhow::Result;
-use futures::StreamExt;
+use futures::{SinkExt, StreamExt};
 
 use std::{
     future::Future,
@@ -102,6 +102,19 @@ where
             futures::channel::mpsc::UnboundedReceiver<ActorEvent<A>>,
         ),
     ) -> Self {
+        let atx = tx.clone();
+        let _send_async = Arc::new(
+            move |event: ActorEvent<A>| -> Pin<Box<dyn Future<Output = Result<()>>>> {
+                let mut tx = atx.clone();
+                Box::pin(async move {
+                    // let ftx: dyn Sink<Payload> = &tx;
+                    // SinkExt::send_all(&mut tx, event);
+                    tx.send(event).await.unwrap(); //.map_err(|_| {}).await?;
+                    Ok(())
+                })
+            },
+        );
+
         let send = Arc::new(move |event: ActorEvent<A>| -> Result<()> {
             let mut tx = tx.clone();
             tx.start_send(event)?;
@@ -134,6 +147,20 @@ where
             futures::channel::mpsc::Receiver<ActorEvent<A>>,
         ),
     ) -> Self {
+
+        let atx = tx.clone();
+        let _send_async = Arc::new(
+            move |event: ActorEvent<A>| -> Pin<Box<dyn Future<Output = Result<()>>>> {
+                let mut tx = atx.clone();
+                Box::pin(async move {
+                    // let ftx: dyn Sink<Payload> = &tx;
+                    // SinkExt::send_all(&mut tx, event);
+                    tx.send(event).await.unwrap(); //.map_err(|_| {}).await?;
+                    Ok(())
+                })
+            },
+        );
+
         let send = Arc::new(move |event: ActorEvent<A>| -> anyhow::Result<()> {
             let mut wtx = tx.clone();
             wtx.start_send(event)?;
