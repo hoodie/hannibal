@@ -1,12 +1,13 @@
-#![allow(unused_imports)]
-use std::sync::{Arc, Mutex}; // TODO: use async_lock::Mutex;
+use std::{
+    future::Future,
+    pin::Pin,
+    sync::{Arc, Mutex},
+};
 
 use async_lock::RwLock;
-// use async_lock::Mutex;
 use futures::{channel::mpsc, SinkExt};
 
 use super::{AsyncHandler, Payload};
-use crate::error::ActorError::WriteError;
 use crate::ActorResult;
 
 pub struct AsyncContext {
@@ -37,14 +38,14 @@ impl AsyncContext {
         let handler = handler.clone();
         eprintln!("sending closoure");
         let mut tx = Arc::unwrap_or_clone(self.tx.clone());
-        tx.send(Payload::Exec(Box::new(move || {
+        tx.send(Payload::from(move || {
             eprintln!("sent closoure");
             Box::pin(async move {
                 eprintln!("awaited sent closoure");
                 handler.write().await.handle(msg).await?;
                 Ok(())
-            })
-        })))
+            }) as Pin<Box<dyn Future<Output = ActorResult<()>> + Send>>
+        }))
         .await?;
         Ok(())
     }

@@ -1,22 +1,28 @@
-#![allow(unused_imports)]
 use super::{AsyncActor, AsyncAddr, AsyncContext};
-use crate::ActorResult;
+use crate::{error::ActorError::SpawnError, ActorResult};
 
 use std::{future::Future, pin::Pin, sync::Arc};
 
 use async_lock::RwLock;
 use futures::{
-    channel::mpsc::{self, Receiver, Sender, UnboundedReceiver, UnboundedSender},
-    FutureExt, StreamExt,
+    channel::mpsc::{self},
+    StreamExt,
 };
-
-use futures::task::LocalSpawnExt;
 
 type Exec = dyn FnOnce() -> Pin<Box<dyn Future<Output = ActorResult<()>> + Send>> + Send + 'static;
 
 pub enum Payload {
     Exec(Box<Exec>),
     Stop,
+}
+
+impl<F> From<F> for Payload
+where
+    F: FnOnce() -> Pin<Box<dyn Future<Output = ActorResult<()>> + Send>> + Send + 'static,
+{
+    fn from(f: F) -> Self {
+        Payload::Exec(Box::new(f))
+    }
 }
 
 type BoxedAsyncActor = Arc<RwLock<dyn AsyncActor>>;
@@ -39,16 +45,16 @@ pub struct AsyncEventLoop {
 }
 
 impl AsyncEventLoop {
-    pub fn start<A>(mut self, actor: A) -> AsyncAddr<A>
+    pub async fn start<A>(mut self, actor: A) -> ActorResult<AsyncAddr<A>>
     where
         A: AsyncActor + Send + Sync + 'static,
     {
         let actor = Arc::new(RwLock::new(actor));
-        self.spawn(actor.clone()).unwrap();
-        AsyncAddr {
+        self.spawn(actor.clone()).await.unwrap();
+        Ok(AsyncAddr {
             ctx: Arc::new(self.ctx),
             actor,
-        }
+        })
     }
 
     pub(crate) fn async_loop(
@@ -72,14 +78,12 @@ impl AsyncEventLoop {
         }
     }
 
-    #[allow(unused)]
-    pub fn spawn(&mut self, actor: BoxedAsyncActor) -> Result<(), String> {
+    pub async fn spawn(&mut self, actor: BoxedAsyncActor) -> ActorResult<()> {
         let Some(rx) = self.ctx.take_rx() else {
             eprintln!("Cannot spawn context");
-            return Err("Cannot spawn context".to_string());
+            return Err(SpawnError);
         };
-        Self::async_loop(actor, rx);
+        Self::async_loop(actor, rx).await?;
         todo!();
-        Ok(())
     }
 }
