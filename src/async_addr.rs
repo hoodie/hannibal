@@ -1,11 +1,10 @@
-#![allow(unused_imports)]
 use std::sync::Arc;
 
 use async_lock::RwLock;
 
 use crate::{
-    error::ActorError, non_blocking::AsyncContext, ActorResult, AsyncActor, Context, Handler,
-    Sender,
+    AsyncHandler, non_blocking::{AsyncContext, AsyncSender},
+    ActorResult, AsyncActor,
 };
 
 pub struct AsyncAddr<A: AsyncActor> {
@@ -23,17 +22,17 @@ impl<A: AsyncActor> Clone for AsyncAddr<A> {
 }
 
 impl<A: AsyncActor> AsyncAddr<A> {
-    pub fn send<M>(&self, msg: M) -> ActorResult<()>
+    pub async fn send<M>(&self, msg: M) -> ActorResult<()>
     where
-        A: Handler<M> + 'static,
+        A: AsyncHandler<M> + 'static,
         M: Send + Sync + 'static,
     {
-        self.ctx.send(msg, self.actor.clone())?;
+        self.ctx.send(msg, self.actor.clone()).await?;
         Ok(())
     }
 
-    pub fn stop(&self) -> ActorResult<()> {
-        self.ctx.stop()
+    pub async fn stop(&self) -> ActorResult<()> {
+        self.ctx.stop().await
     }
 
     // pub fn downgrade(&self) -> WeakAddr<A> {
@@ -43,9 +42,9 @@ impl<A: AsyncActor> AsyncAddr<A> {
     //     }
     // }
 
-    pub fn sender<M>(&self) -> Sender<M>
+    pub fn sender<M>(&self) -> AsyncSender<M>
     where
-        A: Handler<M> + 'static,
+        A: AsyncHandler<M> + 'static,
         M: Send + 'static,
     {
         (*self).clone().into()

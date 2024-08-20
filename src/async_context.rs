@@ -7,7 +7,7 @@ use futures::{channel::mpsc, SinkExt};
 
 use crate::async_event_loop::Payload;
 use crate::error::ActorError::WriteError;
-use crate::{ActorResult, Handler};
+use crate::{ActorResult, AsyncHandler};
 
 pub struct AsyncContext {
     pub tx: Arc<mpsc::Sender<Payload>>,
@@ -31,7 +31,7 @@ impl AsyncContext {
 
     pub async fn send<M, H>(&self, msg: M, handler: Arc<RwLock<H>>) -> ActorResult<()>
     where
-        H: Handler<M> + 'static,
+        H: AsyncHandler<M> + 'static,
         M: Send + 'static,
     {
         let handler = handler.clone();

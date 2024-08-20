@@ -1,5 +1,8 @@
 #![allow(unused_imports)]
-use crate::{Actor, ActorResult, Addr, Context};
+use crate::{
+    non_blocking::{AsyncAddr, AsyncContext},
+    ActorResult, AsyncActor,
+};
 use std::sync::Arc;
 use std::{future::Future, pin::Pin};
 
@@ -26,19 +29,33 @@ pub enum Payload {
     Stop,
 }
 
+type BoxedAsyncActor = Arc<RwLock<dyn AsyncActor>>;
+
+impl AsyncActor for BoxedAsyncActor {
+    fn started(&mut self) -> Pin<Box<dyn std::future::Future<Output = ActorResult<()>> + Send>> {
+        let actor = self.clone();
+        Box::pin(async move { actor.as_ref().write().await.started().await })
+    }
+
+    fn stopped(&mut self) -> Pin<Box<dyn std::future::Future<Output = ActorResult<()>> + Send>> {
+        let actor = self.clone();
+        Box::pin(async move { actor.as_ref().write().await.stopped().await })
+    }
+}
+
 #[derive(Default)]
 pub struct AsyncEventLoop {
-    pub ctx: Context,
+    pub ctx: AsyncContext,
 }
 
 impl AsyncEventLoop {
-    pub fn start<A>(mut self, actor: A) -> Addr<A>
+    pub fn start<A>(mut self, actor: A) -> AsyncAddr<A>
     where
-        A: Actor + Send + Sync + 'static,
+        A: AsyncActor + Send + Sync + 'static,
     {
         let actor = Arc::new(RwLock::new(actor));
         self.spawn(actor.clone()).unwrap();
-        Addr {
+        AsyncAddr {
             ctx: Arc::new(self.ctx),
             actor,
         }
@@ -49,7 +66,7 @@ impl AsyncEventLoop {
         mut rx: mpsc::Receiver<Payload>,
         // mut rx: Arc<async_lock::Mutex<mpsc::Receiver<Payload>>>,
         // mut rx: Pin<Box<mpsc::Receiver<Payload>>>,
-    ) -> Pin<Box<dyn Future<Output = ()> + Send + 'static>> {
+    ) -> impl Future<Output = Result<(), ()>> {
         // let mut actor = actor.clone();
 
         // let (_, mut rx) = futures::channel::mpsc::channel::<Payload>(5);
@@ -67,29 +84,24 @@ impl AsyncEventLoop {
                 match payload {
                     Payload::Exec(exec) => {
                         eprintln!("received Exec");
-                        exec(/*&actor*/).await
+                        exec(/*&actor*/).await;
                     }
                     Payload::Stop => break,
                 }
             }
+            Ok(())
             // actor.stopped();
         }) // as Pin<Box<dyn Future<Output = ()>>
     }
 
     #[allow(unused)]
-    pub fn spawn(&mut self, actor: Arc<dyn Actor + Send + Sync + 'static>) -> Result<(), String> {
+    pub fn spawn(&mut self, actor: BoxedAsyncActor) -> Result<(), String> {
         let Some(rx) = self.ctx.take_rx() else {
             eprintln!("Cannot spawn context");
             return Err("Cannot spawn context".to_string());
         };
 
-        let mut pool = futures_executor::LocalPool::new();
-        let spawner = pool.spawner();
-        eprintln!("pool started");
-        spawner.spawn_local(Self::async_loop(/*actor, */ rx));
-        pool.run();
-
-        eprintln!("pool ended");
+        todo!();
         // std::thread::spawn((Self::async_loop(actor, rx)).unwrap());
         Ok(())
     }
