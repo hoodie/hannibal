@@ -1,10 +1,10 @@
-use std::sync::{Arc, Weak};
+use std::sync::{Arc, RwLock, Weak};
 
 use crate::{Actor, Context, Handler, Sender};
 
 pub struct Addr<A: Actor> {
     pub(crate) ctx: Arc<Context>,
-    pub(crate) actor: Arc<A>,
+    pub(crate) actor: Arc<RwLock<A>>,
 }
 
 impl<A: Actor> Clone for Addr<A> {
@@ -20,7 +20,7 @@ impl<A: Actor> Addr<A> {
     pub fn send<M>(&self, msg: M)
     where
         A: Handler<M> + 'static,
-        M: Send + 'static,
+        M: Send + Sync + 'static,
     {
         self.ctx.send(msg, self.actor.clone());
     }
@@ -48,7 +48,7 @@ impl<A: Actor> Addr<A> {
 #[derive(Clone)]
 pub struct WeakAddr<A: Actor> {
     ctx: Weak<Context>,
-    actor: Weak<A>,
+    actor: Weak<RwLock<A>>,
 }
 
 impl<A: Actor> WeakAddr<A> {
@@ -62,7 +62,7 @@ impl<A: Actor> WeakAddr<A> {
     pub fn try_send<M>(&self, msg: M)
     where
         A: Handler<M> + 'static,
-        M: Send + 'static,
+        M: Send + Sync + 'static,
     {
         if let Some(addr) = self.upgrade() {
             addr.send(msg)

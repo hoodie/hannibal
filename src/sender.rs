@@ -1,14 +1,14 @@
 use std::{
     marker::PhantomData,
-    sync::{mpsc, Arc, Weak},
+    sync::{mpsc, Arc, RwLock, Weak},
 };
 
-use crate::{event_loop::Payload, Addr, Handler};
+use crate::{error::ActorError::WriteError, event_loop::Payload, Addr, Handler};
 
 #[derive(Clone)]
 pub struct Sender<M> {
     tx: Arc<mpsc::Sender<Payload>>,
-    actor: Arc<dyn Handler<M>>,
+    actor: Arc<RwLock<dyn Handler<M>>>,
     marker: PhantomData<M>,
 }
 
@@ -28,11 +28,14 @@ where
 impl<M> Sender<M> {
     pub fn send(&self, msg: M)
     where
-        M: Send + 'static,
+        M: Send + Sync + 'static,
     {
         let actor = self.actor.clone();
         self.tx
-            .send(Payload::Exec(Box::new(move || actor.handle(msg))))
+            .send(Payload::from(move || {
+                actor.write().map_err(|_| WriteError)?.handle(msg);
+                Ok(())
+            }))
             .unwrap()
     }
 
@@ -48,18 +51,21 @@ impl<M> Sender<M> {
 #[derive(Clone)]
 pub struct WeakSender<M> {
     tx: Weak<mpsc::Sender<Payload>>,
-    actor: Weak<dyn Handler<M>>,
+    actor: Weak<RwLock<dyn Handler<M>>>,
     marker: PhantomData<M>,
 }
 
 impl<M> WeakSender<M> {
     pub fn try_send(&self, msg: M) -> bool
     where
-        M: Send + 'static,
+        M: Send + Sync + 'static,
     {
         if let Some((tx, actor)) = self.tx.upgrade().zip(self.actor.upgrade()) {
-            tx.send(Payload::Exec(Box::new(move || actor.handle(msg))))
-                .unwrap();
+            tx.send(Payload::from(move || {
+                actor.write().map_err(|_| WriteError)?.handle(msg);
+                Ok(())
+            }))
+            .unwrap();
             true
         } else {
             eprintln!("Actor is dead");

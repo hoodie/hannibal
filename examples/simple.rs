@@ -1,26 +1,29 @@
-use std::sync::Arc;
+use std::sync::{Arc, RwLock};
 
-use minibal::{Actor, Handler, EventLoop};
+use minibal::{Actor, ActorResult, EventLoop, Handler};
 
 struct MyActor(&'static str);
 
 impl Actor for MyActor {
-    fn started(&self) {
+    fn started(&mut self) -> ActorResult<()> {
         println!("[Actor {}] started", self.0);
+        Ok(())
     }
-    fn stopped(&self) {
+
+    fn stopped(&mut self) -> ActorResult<()> {
         println!("[Actor {}] stopped", self.0);
+        Ok(())
     }
 }
 
 impl Handler<i32> for MyActor {
-    fn handle(&self, msg: i32) {
+    fn handle(&mut self, msg: i32) {
         println!("[Actor {}] received an number {}", self.0, msg);
     }
 }
 
 impl Handler<String> for MyActor {
-    fn handle(&self, msg: String) {
+    fn handle(&mut self, msg: String) {
         println!("[Actor {}] received a string {}", self.0, msg);
     }
 }
@@ -31,7 +34,7 @@ fn halt() {
 }
 
 fn internal_api() {
-    let actor = Arc::new(MyActor("actor 0"));
+    let actor = Arc::new(RwLock::new(MyActor("actor 0")));
     let mut life_cycle = EventLoop::default();
     life_cycle.spawn(actor.clone()).unwrap();
 

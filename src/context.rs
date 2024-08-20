@@ -1,6 +1,6 @@
-use std::sync::{mpsc, Arc, Mutex};
+use std::sync::{mpsc, Arc, Mutex, RwLock};
 
-use crate::{event_loop::Payload, Handler};
+use crate::{error::ActorError::WriteError, event_loop::Payload, Handler};
 
 pub struct Context {
     pub tx: Arc<mpsc::Sender<Payload>>,
@@ -22,17 +22,18 @@ impl Context {
         self.rx.lock().ok().and_then(|mut orx| orx.take())
     }
 
-    pub fn send<M, H>(&self, msg: M, handler: Arc<H>)
+    pub fn send<M, H>(&self, msg: M, handler: Arc<RwLock<H>>)
     where
         H: Handler<M> + 'static,
-        M: Send + 'static,
+        M: Send + Sync + 'static,
     {
         let handler = handler.clone();
         self.tx
-            .send(Payload::Exec(Box::new(move || {
-                let handler = handler.clone();
+            .send(Payload::from(move || {
+                let mut handler = handler.write().map_err(|_| WriteError)?;
                 handler.handle(msg);
-            })))
+                Ok(())
+            }))
             .unwrap()
     }
 
