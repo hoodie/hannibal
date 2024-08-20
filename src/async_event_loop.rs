@@ -14,18 +14,10 @@ use futures::{
 
 use futures::task::LocalSpawnExt;
 
+type Exec = dyn FnOnce() -> Pin<Box<dyn Future<Output = ActorResult<()>> + Send>> + Send + 'static;
+
 pub enum Payload {
-    Exec(
-        Box<
-            dyn FnOnce(
-                    // &'a (dyn Actor + Send + Sync),
-                    // &'a mut Context,
-                )
-                    -> Pin<Box<dyn Future<Output = ActorResult<()>> + Send /*+ 'a*/>>
-                + Send
-                + 'static,
-        >,
-    ),
+    Exec(Box<Exec>),
     Stop,
 }
 
@@ -62,36 +54,24 @@ impl AsyncEventLoop {
     }
 
     pub(crate) fn async_loop(
-        // actor: Arc<dyn Actor + Send + Sync + 'static>,
+        mut actor: BoxedAsyncActor,
         mut rx: mpsc::Receiver<Payload>,
-        // mut rx: Arc<async_lock::Mutex<mpsc::Receiver<Payload>>>,
-        // mut rx: Pin<Box<mpsc::Receiver<Payload>>>,
     ) -> impl Future<Output = Result<(), ()>> {
-        // let mut actor = actor.clone();
-
-        // let (_, mut rx) = futures::channel::mpsc::channel::<Payload>(5);
-        // use futures::stream::{self, StreamExt};
-
-        // let mut rx = Box::pin(futures::channel::mpsc::channel::<Payload>(5).1);
-        // let mut rx = futures::channel::mpsc::channel::<Payload>(5).1;
-
-        // let rx = rx.lock().await;
-
         Box::pin(async move {
-            // actor.started();
+            actor.started();
             eprintln!("waiting for events");
             while let Some(payload) = rx.next().await {
                 match payload {
                     Payload::Exec(exec) => {
                         eprintln!("received Exec");
-                        exec(/*&actor*/).await;
+                        exec().await;
                     }
                     Payload::Stop => break,
                 }
             }
+            actor.stopped();
             Ok(())
-            // actor.stopped();
-        }) // as Pin<Box<dyn Future<Output = ()>>
+        })
     }
 
     #[allow(unused)]
@@ -102,7 +82,6 @@ impl AsyncEventLoop {
         };
 
         todo!();
-        // std::thread::spawn((Self::async_loop(actor, rx)).unwrap());
         Ok(())
     }
 }
