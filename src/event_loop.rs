@@ -1,27 +1,17 @@
-use super::*;
+use crate::{Actor, Addr, Context};
+use std::sync::{mpsc, Arc};
 
 pub enum Payload {
     Exec(Box<dyn FnOnce() + Send + 'static>),
     Stop,
 }
 
+#[derive(Default)]
 pub struct EventLoop {
     pub ctx: Context,
 }
 
-impl Default for EventLoop {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
 impl EventLoop {
-    pub fn new() -> Self {
-        EventLoop {
-            ctx: Context::new(),
-        }
-    }
-
     pub fn start<A>(mut self, actor: A) -> Addr<A>
     where
         A: Actor + Send + Sync + 'static,
@@ -54,7 +44,7 @@ impl EventLoop {
     pub fn spawn(&mut self, actor: impl Actor + Send + Sync + 'static) -> Result<(), String> {
         let Some(rx) = self.ctx.take_rx() else {
             eprintln!("Cannot spawn context");
-            return Err(format!("Cannot spawn context"));
+            return Err("Cannot spawn context".to_string());
         };
 
         std::thread::spawn((Self::sync_loop(actor, rx)).unwrap());

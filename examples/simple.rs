@@ -32,7 +32,7 @@ fn halt() {
 
 fn internal_api() {
     let actor = Arc::new(MyActor("actor 0"));
-    let mut life_cycle = EventLoop::new();
+    let mut life_cycle = EventLoop::default();
     life_cycle.spawn(actor.clone()).unwrap();
 
     let ctx = life_cycle.ctx;
@@ -46,8 +46,8 @@ fn internal_api() {
 fn main() {
     internal_api();
 
-    let addr1 = EventLoop::new().start(MyActor("actor 1"));
-    let addr2 = EventLoop::new().start(MyActor("actor 2"));
+    let addr1 = EventLoop::default().start(MyActor("actor 1"));
+    let addr2 = EventLoop::default().start(MyActor("actor 2"));
     let sender = addr1.sender::<i32>();
     let sender2 = addr2.sender::<i32>();
 

@@ -1,7 +1,11 @@
-use event_loop::Payload;
+use std::{
+    marker::PhantomData,
+    sync::{mpsc, Arc, Weak},
+};
 
-use super::*;
+use crate::{event_loop::Payload, Addr, Handler};
 
+#[derive(Clone)]
 pub struct Sender<M> {
     tx: Arc<mpsc::Sender<Payload>>,
     actor: Arc<dyn Handler<M>>,
@@ -41,6 +45,7 @@ impl<M> Sender<M> {
     }
 }
 
+#[derive(Clone)]
 pub struct WeakSender<M> {
     tx: Weak<mpsc::Sender<Payload>>,
     actor: Weak<dyn Handler<M>>,

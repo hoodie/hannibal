@@ -1,21 +1,23 @@
-use event_loop::Payload;
+use std::sync::{mpsc, Arc, Mutex};
 
-use super::*;
+use crate::{event_loop::Payload, Handler};
 
 pub struct Context {
     pub tx: Arc<mpsc::Sender<Payload>>,
-    rx: Arc<Mutex<Option<mpsc::Receiver<Payload>>>>,
+    rx: Mutex<Option<mpsc::Receiver<Payload>>>,
 }
 
-impl Context {
-    pub fn new() -> Self {
+impl Default for Context {
+    fn default() -> Self {
         let (tx, rx) = std::sync::mpsc::channel::<Payload>();
         Context {
             tx: Arc::new(tx),
-            rx: Arc::new(Mutex::new(Some(rx))),
+            rx: Mutex::new(Some(rx)),
         }
     }
+}
 
+impl Context {
     pub fn take_rx(&mut self) -> Option<mpsc::Receiver<Payload>> {
         self.rx.lock().ok().and_then(|mut orx| orx.take())
     }

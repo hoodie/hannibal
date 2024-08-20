@@ -1,4 +1,7 @@
-use super::*;
+use std::sync::{Arc, Weak};
+
+use crate::{Actor, Context, Handler, Sender};
+
 pub struct Addr<A: Actor> {
     pub(crate) ctx: Arc<Context>,
     pub(crate) actor: Arc<A>,
@@ -42,6 +45,7 @@ impl<A: Actor> Addr<A> {
     }
 }
 
+#[derive(Clone)]
 pub struct WeakAddr<A: Actor> {
     ctx: Weak<Context>,
     actor: Weak<A>,
