@@ -40,34 +40,35 @@ fn internal_api() {
 
     let ctx = life_cycle.ctx;
 
-    ctx.send(String::from("hello world"), actor.clone());
-    ctx.send(1337, actor.clone());
-    ctx.send(4711, actor.clone());
-    ctx.stop();
+    ctx.send(String::from("hello world"), actor.clone())
+        .unwrap();
+    ctx.send(1337, actor.clone()).unwrap();
+    ctx.send(4711, actor.clone()).unwrap();
+    ctx.stop().unwrap();
 }
 
 fn main() {
     internal_api();
 
-    let addr1 = EventLoop::default().start(MyActor("actor 1"));
-    let addr2 = EventLoop::default().start(MyActor("actor 2"));
+    let addr1 = EventLoop::default().start(MyActor("actor 1")).unwrap();
+    let addr2 = EventLoop::default().start(MyActor("actor 2")).unwrap();
     let sender = addr1.sender::<i32>();
     let sender2 = addr2.sender::<i32>();
 
-    addr1.send(42);
-    sender.send(43);
+    addr1.send(42).unwrap();
+    sender.send(43).unwrap();
 
     let weak_sender = sender.downgrade();
-    weak_sender.try_send(44);
+    weak_sender.try_send(44).unwrap();
 
     drop(addr1);
     drop(sender);
-    dbg!(weak_sender.try_send(45));
+    eprintln!("{}:{} {:?}", file!(), line!(), weak_sender.try_send(45));
     halt();
 
-    sender2.send(46);
-    addr2.stop();
-    sender2.send(47); // lost TODO: make
+    sender2.send(46).unwrap();
+    addr2.stop().unwrap();
+    sender2.send(47).unwrap(); // lost TODO: make
 
     halt();
 }

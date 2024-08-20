@@ -1,6 +1,6 @@
 use std::sync::{Arc, RwLock, Weak};
 
-use crate::{Actor, Context, Handler, Sender};
+use crate::{error::ActorError, Actor, ActorResult, Context, Handler, Sender};
 
 pub struct Addr<A: Actor> {
     pub(crate) ctx: Arc<Context>,
@@ -17,16 +17,17 @@ impl<A: Actor> Clone for Addr<A> {
 }
 
 impl<A: Actor> Addr<A> {
-    pub fn send<M>(&self, msg: M)
+    pub fn send<M>(&self, msg: M) -> ActorResult<()>
     where
         A: Handler<M> + 'static,
         M: Send + Sync + 'static,
     {
-        self.ctx.send(msg, self.actor.clone());
+        self.ctx.send(msg, self.actor.clone())?;
+        Ok(())
     }
 
-    pub fn stop(&self) {
-        self.ctx.stop();
+    pub fn stop(&self) -> ActorResult<()> {
+        self.ctx.stop()
     }
 
     pub fn downgrade(&self) -> WeakAddr<A> {
@@ -59,13 +60,16 @@ impl<A: Actor> WeakAddr<A> {
         })
     }
 
-    pub fn try_send<M>(&self, msg: M)
+    pub fn try_send<M>(&self, msg: M) -> ActorResult<()>
     where
         A: Handler<M> + 'static,
         M: Send + Sync + 'static,
     {
         if let Some(addr) = self.upgrade() {
-            addr.send(msg)
+            addr.send(msg)?;
+            Ok(())
+        } else {
+            Err(ActorError::AlreadyStopped)
         }
     }
 }

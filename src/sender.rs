@@ -3,7 +3,11 @@ use std::{
     sync::{mpsc, Arc, RwLock, Weak},
 };
 
-use crate::{error::ActorError::WriteError, event_loop::Payload, Addr, Handler};
+use crate::{
+    error::ActorError::{self, WriteError},
+    event_loop::Payload,
+    ActorResult, Addr, Handler,
+};
 
 #[derive(Clone)]
 pub struct Sender<M> {
@@ -26,17 +30,16 @@ where
 }
 
 impl<M> Sender<M> {
-    pub fn send(&self, msg: M)
+    pub fn send(&self, msg: M) -> ActorResult<()>
     where
         M: Send + Sync + 'static,
     {
         let actor = self.actor.clone();
-        self.tx
-            .send(Payload::from(move || {
-                actor.write().map_err(|_| WriteError)?.handle(msg);
-                Ok(())
-            }))
-            .unwrap()
+        self.tx.send(Payload::from(move || {
+            actor.write().map_err(|_| WriteError)?.handle(msg);
+            Ok(())
+        }))?;
+        Ok(())
     }
 
     pub fn downgrade(&self) -> WeakSender<M> {
@@ -56,7 +59,7 @@ pub struct WeakSender<M> {
 }
 
 impl<M> WeakSender<M> {
-    pub fn try_send(&self, msg: M) -> bool
+    pub fn try_send(&self, msg: M) -> ActorResult<()>
     where
         M: Send + Sync + 'static,
     {
@@ -64,12 +67,11 @@ impl<M> WeakSender<M> {
             tx.send(Payload::from(move || {
                 actor.write().map_err(|_| WriteError)?.handle(msg);
                 Ok(())
-            }))
-            .unwrap();
-            true
+            }))?;
+            Ok(())
         } else {
             eprintln!("Actor is dead");
-            false
+            Err(ActorError::AlreadyStopped)
         }
     }
 }

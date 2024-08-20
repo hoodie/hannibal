@@ -38,16 +38,17 @@ pub struct EventLoop {
 }
 
 impl EventLoop {
-    pub fn start<A>(mut self, actor: A) -> Addr<A>
+    pub fn start<A>(mut self, actor: A) -> ActorResult<Addr<A>>
     where
         A: Actor + Send + Sync + 'static,
     {
         let actor = Arc::new(RwLock::new(actor));
-        self.spawn(actor.clone()).unwrap();
-        Addr {
+        self.spawn(actor.clone())?;
+
+        Ok(Addr {
             ctx: Arc::new(self.ctx),
             actor,
-        }
+        })
     }
 
     pub(crate) fn sync_loop(
