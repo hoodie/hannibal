@@ -13,4 +13,3 @@ async-std = { version = "1.12.0", features = ["attributes"] }
 
 
 [lints.rust]
-# dead_code = "allow"
