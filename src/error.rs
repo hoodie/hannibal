@@ -19,4 +19,7 @@ pub enum ActorError {
 
     #[error("Failed to send message")]
     SendError(#[from] std::sync::mpsc::SendError<Payload>),
+
+    #[error("Failed to send message")]
+    AsyncSendError(#[from] futures::channel::mpsc::SendError),
 }

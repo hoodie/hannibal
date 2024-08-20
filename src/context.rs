@@ -9,7 +9,7 @@ pub struct Context {
 
 impl Default for Context {
     fn default() -> Self {
-        let (tx, rx) = std::sync::mpsc::channel::<Payload>();
+        let (tx, rx) = mpsc::channel::<Payload>();
         Context {
             tx: Arc::new(tx),
             rx: Mutex::new(Some(rx)),
