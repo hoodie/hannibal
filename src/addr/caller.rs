@@ -31,9 +31,9 @@ pub struct Caller<M: Message> {
     call_fn: Box<dyn CallerFn<M>>,
 }
 
-impl<M> Caller<M> where M: Message {
-    pub fn call(&self, msg: M) -> Pin<Box<dyn Future<Output = Result<M::Result>>>> {
-        self.call_fn.call(msg)
+impl<M: Message> Caller<M> {
+    pub async fn call(&self, msg: M) -> Result<M::Result> {
+        self.call_fn.call(msg).await
     }
 }
 
@@ -103,5 +103,21 @@ where
         });
 
         WeakCaller { call_fn }
+    }
+}
+
+impl<M: Message> Clone for Caller<M> {
+    fn clone(&self) -> Self {
+        Caller {
+            call_fn: dyn_clone::clone_box(&*self.call_fn),
+        }
+    }
+}
+
+impl<M: Message> Clone for WeakCaller<M> {
+    fn clone(&self) -> Self {
+        WeakCaller {
+            call_fn: dyn_clone::clone_box(&*self.call_fn),
+        }
     }
 }

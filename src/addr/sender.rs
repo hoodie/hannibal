@@ -82,3 +82,19 @@ where
         WeakSender { send_fn }
     }
 }
+
+impl<M: Message> Clone for Sender<M> {
+    fn clone(&self) -> Self {
+        Sender {
+            send_fn: dyn_clone::clone_box(&*self.send_fn),
+        }
+    }
+}
+
+impl<M: Message> Clone for WeakSender<M> {
+    fn clone(&self) -> Self {
+        WeakSender {
+            send_fn: dyn_clone::clone_box(&*self.send_fn),
+        }
+    }
+}
