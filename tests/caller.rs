@@ -37,8 +37,8 @@ fn caller_stop() {
         let caller2 = caller.clone();
         let sender: WeakSender<Ping> = addr.weak_sender();
 
-        assert!(caller.can_upgrade());
-        assert!(sender.can_upgrade());
+        assert!(caller.upgrade().is_some());
+        assert!(sender.upgrade().is_some());
 
         assert_eq!(caller.try_call(Count(10)).await.unwrap(), 20);
         assert_eq!(caller2.try_call(Count(10)).await.unwrap(), 30);
@@ -46,9 +46,9 @@ fn caller_stop() {
 
         std::mem::drop(addr);
 
-        assert_eq!(caller.can_upgrade(), false);
-        assert_eq!(caller2.can_upgrade(), false);
-        assert_eq!(sender.can_upgrade(), false);
+        assert_eq!(caller.upgrade().is_some(), false);
+        assert_eq!(caller2.upgrade().is_some(), false);
+        assert_eq!(sender.upgrade().is_some(), false);
 
         assert!(caller.try_call(Count(10)).await.is_err());
         assert!(caller2.try_call(Count(10)).await.is_err());

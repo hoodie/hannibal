@@ -1,4 +1,4 @@
-use std::sync::{Arc, Weak};
+use std::sync::Arc;
 
 use dyn_clone::DynClone;
 
@@ -51,12 +51,20 @@ where
 
 /// WeakSender of a specific message type.
 pub struct WeakSender<M: Message> {
-    send_fn: Box<dyn SenderFn<M>>,
+    upgrade: Box<dyn UpgradeFn<M>>,
 }
 
 impl<M: Message> WeakSender<M> {
-    pub fn try_send(&self, msg: M) -> Result<()> {
-        self.send_fn.send(msg)
+    pub fn upgrade(&self) -> Option<Sender<M>> {
+        self.upgrade.upgrade()
+    }
+
+    pub fn try_send(&self, msg: M) -> Option<Result<()>> {
+        if let Some(sender) = self.upgrade.upgrade() {
+            Some(sender.send(msg))
+        } else {
+            None
+        }
     }
 }
 
@@ -66,20 +74,11 @@ where
     M: Message<Result = ()>,
 {
     fn from(tx: ChanTx<A>) -> Self {
-        let tx: Weak<_> = Arc::downgrade(&tx);
-        let send_fn = Box::new(move |msg| {
-            let Some(tx) = tx.upgrade() else {
-                return Err(anyhow::anyhow!("failed to upgrade"));
-            };
+        let weak_tx = Arc::downgrade(&tx);
 
-            tx.send(ActorEvent::exec(move |actor, ctx| {
-                Box::pin(Handler::handle(&mut *actor, ctx, msg))
-            }))?;
+        let upgrade = Box::new(move || weak_tx.upgrade().map(|tx| Sender::from(tx)));
 
-            Ok(())
-        });
-
-        WeakSender { send_fn }
+        WeakSender { upgrade }
     }
 }
 
@@ -94,7 +93,22 @@ impl<M: Message> Clone for Sender<M> {
 impl<M: Message> Clone for WeakSender<M> {
     fn clone(&self) -> Self {
         WeakSender {
-            send_fn: dyn_clone::clone_box(&*self.send_fn),
+            upgrade: dyn_clone::clone_box(&*self.upgrade),
         }
+    }
+}
+
+trait UpgradeFn<M: Message>: Send + Sync + 'static + DynClone {
+    fn upgrade(&self) -> Option<Sender<M>>;
+}
+
+impl<F, M> UpgradeFn<M> for F
+where
+    F: Fn() -> Option<Sender<M>>,
+    F: 'static + Send + Sync + DynClone,
+    M: Message,
+{
+    fn upgrade(&self) -> Option<Sender<M>> {
+        self()
     }
 }

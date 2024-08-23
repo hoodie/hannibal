@@ -1,11 +1,7 @@
 use futures::channel::oneshot;
 
 use dyn_clone::DynClone;
-use std::{
-    future::Future,
-    pin::Pin,
-    sync::{Arc, Weak},
-};
+use std::{future::Future, pin::Pin, sync::Arc};
 
 use crate::{channel::ChanTx, Actor, Handler};
 
@@ -65,15 +61,20 @@ where
 
 /// Caller of a specific message type.
 pub struct WeakCaller<M: Message> {
-    call_fn: Box<dyn CallerFn<M>>,
+    upgrade: Box<dyn UpgradeFn<M>>,
 }
 
-impl<M> WeakCaller<M>
-where
-    M: Message,
-{
-    pub fn try_call(&self, msg: M) -> Pin<Box<dyn Future<Output = Result<M::Result>>>> {
-        self.call_fn.call(msg)
+impl<M: Message> WeakCaller<M> {
+    pub fn upgrade(&self) -> Option<Caller<M>> {
+        self.upgrade.upgrade()
+    }
+
+    pub async fn try_call(&self, msg: M) -> Option<Result<M::Result>> {
+        if let Some(caller) = self.upgrade.upgrade() {
+            Some(caller.call(msg).await)
+        } else {
+            None
+        }
     }
 }
 
@@ -83,26 +84,11 @@ where
     M: Message,
 {
     fn from(tx: ChanTx<A>) -> Self {
-        let call_fn = Box::new(move |msg| {
-            let wtx: Weak<_> = Arc::downgrade(&tx);
-            Box::pin(async move {
-                let Some(tx) = wtx.upgrade() else {
-                    return Err(anyhow::anyhow!("failed to upgrade"));
-                };
-                let (response_tx, response) = oneshot::channel();
+        let weak_tx = Arc::downgrade(&tx);
 
-                tx.send(ActorEvent::exec(move |actor, ctx| {
-                    Box::pin(async move {
-                        let res = Handler::handle(&mut *actor, ctx, msg).await;
-                        let _ = response_tx.send(res);
-                    })
-                }))?;
+        let upgrade = Box::new(move || weak_tx.upgrade().map(|tx| Caller::from(tx)));
 
-                Ok(response.await?)
-            }) as Pin<Box<dyn Future<Output = Result<M::Result>>>>
-        });
-
-        WeakCaller { call_fn }
+        WeakCaller { upgrade }
     }
 }
 
@@ -117,7 +103,22 @@ impl<M: Message> Clone for Caller<M> {
 impl<M: Message> Clone for WeakCaller<M> {
     fn clone(&self) -> Self {
         WeakCaller {
-            call_fn: dyn_clone::clone_box(&*self.call_fn),
+            upgrade: dyn_clone::clone_box(&*self.upgrade),
         }
+    }
+}
+
+trait UpgradeFn<M: Message>: Send + Sync + 'static + DynClone {
+    fn upgrade(&self) -> Option<Caller<M>>;
+}
+
+impl<F, M> UpgradeFn<M> for F
+where
+    F: Fn() -> Option<Caller<M>>,
+    F: 'static + Send + Sync + DynClone,
+    M: Message,
+{
+    fn upgrade(&self) -> Option<Caller<M>> {
+        self()
     }
 }

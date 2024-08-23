@@ -49,12 +49,12 @@ async fn main() -> Result<()> {
     println!("RESULT: {}", res == 30);
     assert_eq!(res, 30);
 
-    println!("caller can upgrade: {}", caller.can_upgrade());
-    assert!(caller.can_upgrade());
+    println!("caller can upgrade: {}", caller.upgrade().is_some());
+    assert!(caller.upgrade().is_some());
 
     std::mem::drop(addr);
 
-    assert_eq!(caller.can_upgrade(), false);
+    assert_eq!(caller.upgrade().is_some(), false);
     assert!(sender.try_send(Pow).is_err());
 
     let res = caller.try_call(Ping(10)).await?;

@@ -54,15 +54,15 @@ fn drop_addr() {
             !addr3.upgrade().unwrap().stopped(),
             "expected addr3 not to be stopped"
         );
-        assert!(caller.can_upgrade());
+        assert!(caller.upgrade().is_some());
 
         drop(addr);
         assert!(!addr2.stopped());
         assert!(!addr3.upgrade().unwrap().stopped());
-        assert!(caller.can_upgrade());
+        assert!(caller.upgrade().is_some());
 
         drop(addr2);
-        assert!(!caller.can_upgrade());
+        assert!(!caller.upgrade().is_some());
         assert!(addr3.upgrade().is_none(), "expected addr3 to be stopped");
 
         Ok(())

@@ -199,8 +199,7 @@ where
 
     /// Sends the message `msg` to self after a specified period of time.
     ///
-    /// We use `Sender` instead of `Addr` so that the interval doesn't keep reference to address and prevent the actor from being dropped and stopped
-
+    /// We use `WeakSender` instead of `Addr` so that the interval doesn't keep reference to address and prevent the actor from being dropped and stopped
     pub fn send_later<T>(&mut self, msg: T, after: Duration)
     where
         A: Handler<T>,
@@ -214,7 +213,7 @@ where
         spawn(Abortable::new(
             async move {
                 sleep(after).await;
-                sender.try_send(msg).ok();
+                sender.try_send(msg)
             },
             registration,
         ));
@@ -238,7 +237,7 @@ where
             async move {
                 loop {
                     sleep(dur).await;
-                    if sender.try_send(f()).is_err() {
+                    if sender.try_send(f()).is_none() {
                         break;
                     }
                 }
