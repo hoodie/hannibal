@@ -5,19 +5,19 @@ mod sender;
 
 use crate::ActorResult;
 
-pub use self::addr::AsyncAddr;
-pub use self::context::AsyncContext;
-pub use self::event_loop::{AsyncEventLoop, Payload};
-pub use self::sender::AsyncSender;
+pub use self::{
+    addr::Addr,
+    context::Context,
+    event_loop::{EventLoop, Payload},
+    sender::Sender,
+};
 
-pub trait AsyncActor: Send + Sync + 'static {
+pub trait Actor: Send + Sync + 'static {
     async fn started(self: &mut Self) -> ActorResult<()>;
     async fn stopped(self: &mut Self) -> ActorResult<()>;
 }
 
 // pub trait AsyncHandler<M>: asyncactor {
-pub trait AsyncHandler<M> {
+pub trait Handler<M>: Actor {
     async fn handle(&mut self, msg: M) -> ActorResult<()>;
 }
-
-pub type ActorOuter<A> = std::sync::Arc<async_lock::RwLock<A>>;

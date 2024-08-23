@@ -1,23 +1,23 @@
 use futures::{channel::mpsc, SinkExt};
 use std::{marker::PhantomData, sync::Arc};
 
-use super::{ActorOuter, AsyncActor, AsyncAddr, AsyncHandler, Payload};
+use super::{ActorOuter, Actor, Addr, Handler, Payload};
 use crate::ActorResult;
 
 #[derive(Clone)]
-pub struct AsyncSender<M> {
+pub struct Sender<M> {
     tx: Arc<mpsc::Sender<Payload>>,
     actor: ActorOuter<M>,
     marker: PhantomData<M>,
 }
 
-impl<M, A> From<AsyncAddr<A>> for AsyncSender<M>
+impl<M, A> From<Addr<A>> for Sender<M>
 where
-    A: AsyncHandler<M> + 'static,
-    A: AsyncActor + 'static,
+    A: Handler<M> + 'static,
+    A: Actor + 'static,
 {
-    fn from(AsyncAddr { ctx, actor }: AsyncAddr<A>) -> Self {
-        AsyncSender {
+    fn from(Addr { ctx, actor }: Addr<A>) -> Self {
+        Sender {
             tx: ctx.tx.clone(),
             actor: actor.clone(),
             marker: PhantomData,
@@ -25,7 +25,7 @@ where
     }
 }
 
-impl<M> AsyncSender<M> {
+impl<M> Sender<M> {
     pub async fn send(&self, msg: M) -> ActorResult<()>
     where
         M: Send + 'static,
@@ -34,7 +34,7 @@ impl<M> AsyncSender<M> {
         let mut tx = Arc::unwrap_or_clone(self.tx.clone());
         tx.send(Payload::Exec(Box::new(move || {
             Box::pin(async move {
-                let writable_actor: Option<&mut AsyncHandler<M>> =
+                let writable_actor: Option<&mut Handler<M>> =
                     actor.write().await.downcast_mut();
 
                 actor.write().await.handle(msg).await?;
