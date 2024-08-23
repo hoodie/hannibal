@@ -153,7 +153,7 @@ impl<A: Actor> Addr<A> {
     where
         A: Handler<T>,
     {
-        Caller::from(self.tx.clone()).downgrade()
+        WeakCaller::from(self.tx.clone())
     }
 
     /// Create a [`Sender<T>`] for a specific message type
@@ -161,7 +161,7 @@ impl<A: Actor> Addr<A> {
     where
         A: Handler<T>,
     {
-        Sender::from(Arc::clone(&self.tx))
+        Sender::from(self.tx.clone())
     }
 
     /// Create a [`WeakSender<T>`] for a specific message type
@@ -169,7 +169,7 @@ impl<A: Actor> Addr<A> {
     where
         A: Handler<T>,
     {
-        Sender::from(Arc::clone(&self.tx)).downgrade()
+        WeakSender::from(self.tx.clone())
     }
 
     /// Wait for an actor to finish, and if the actor has finished, the function returns immediately.

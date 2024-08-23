@@ -1,45 +1,47 @@
-use anyhow::anyhow;
+use std::sync::{Arc, Weak};
+
+use dyn_clone::DynClone;
 
 use crate::{channel::ChanTx, Actor, Handler};
 
 use super::{ActorEvent, Message, Result};
-use std::sync::{Arc, Weak};
 
-pub(crate) trait SenderFn<T: Message>: 'static + Send + Sync {
+trait SenderFn<T: Message>: 'static + Send + Sync + DynClone {
     fn send(&self, msg: T) -> Result<()>;
 }
 
-impl<F, T> SenderFn<T> for F
+impl<F, M: Message> SenderFn<M> for F
 where
-    F: Fn(T) -> Result<()>,
-    F: 'static + Send + Sync + Clone,
-    T: Message,
+    F: Fn(M) -> Result<()>,
+    F: 'static + Send + Sync + DynClone,
 {
-    fn send(&self, msg: T) -> Result<()> {
+    fn send(&self, msg: M) -> Result<()> {
         self(msg)
     }
 }
 
 /// Sender of a specific message type.
-#[derive(Clone)]
-pub struct Sender<T>
-where
-    T: Message,
-{
-    pub(crate) send_fn: Arc<dyn SenderFn<T>>,
+pub struct Sender<M: Message> {
+    send_fn: Box<dyn SenderFn<M>>,
 }
 
-impl<T, A> From<ChanTx<A>> for Sender<T>
+impl<M: Message> Sender<M> {
+    pub fn send(&self, msg: M) -> Result<()> {
+        self.send_fn.send(msg)
+    }
+}
+
+impl<M: Message<Result = ()>, A> From<ChanTx<A>> for Sender<M>
 where
-    A: Actor,
-    A: Handler<T>,
-    T: Message<Result = ()>,
+    A: Actor + Handler<M>,
 {
     fn from(tx: ChanTx<A>) -> Self {
-        let send_fn = Arc::new(move |msg| {
+        let tx: Arc<_> = tx.clone();
+        let send_fn = Box::new(move |msg| {
             tx.send(ActorEvent::exec(move |actor, ctx| {
                 Box::pin(Handler::handle(&mut *actor, ctx, msg))
             }))?;
+
             Ok(())
         });
 
@@ -47,43 +49,36 @@ where
     }
 }
 
-/// `WeakSender` of a specific message type. You need to upgrade it to a `Sender` before you can use it.
-///
-/// Like [`WeakCaller<T>`](`super::WeakCaller<T>`), Sender has a weak reference to the recipient of the message type,
-/// and so will not prevent an actor from stopping if all [`Addr`](`crate::Addr`)'s have been dropped elsewhere.
-/// This allows it to be used in the `send_later` and `send_interval` actor functions,
-/// and not keep the actor alive indefinitely even after all references to it have been dropped (unless `ctx.stop()` is called from within)
-
-#[derive(Clone)]
-pub struct WeakSender<T: Message> {
-    pub(crate) send_fn: Weak<dyn SenderFn<T>>,
+/// WeakSender of a specific message type.
+pub struct WeakSender<M: Message> {
+    send_fn: Box<dyn SenderFn<M>>,
 }
 
-impl<T: Message<Result = ()>> Sender<T> {
-    pub fn send(&self, msg: T) -> Result<()> {
+impl<M: Message> WeakSender<M> {
+    pub fn try_send(&self, msg: M) -> Result<()> {
         self.send_fn.send(msg)
     }
-    pub fn downgrade(&self) -> WeakSender<T> {
-        WeakSender {
-            send_fn: Arc::downgrade(&self.send_fn),
-        }
-    }
 }
 
-impl<T: Message> WeakSender<T> {
-    pub fn upgrade(&self) -> Option<Sender<T>> {
-        self.send_fn.upgrade().map(|send_fn| Sender { send_fn })
-    }
+impl<M, A> From<ChanTx<A>> for WeakSender<M>
+where
+    A: Actor + Handler<M>,
+    M: Message<Result = ()>,
+{
+    fn from(tx: ChanTx<A>) -> Self {
+        let tx: Weak<_> = Arc::downgrade(&tx);
+        let send_fn = Box::new(move |msg| {
+            let Some(tx) = tx.upgrade() else {
+                return Err(anyhow::anyhow!("failed to upgrade"));
+            };
 
-    pub fn can_upgrade(&self) -> bool {
-        Weak::strong_count(&self.send_fn) > 1
-    }
+            tx.send(ActorEvent::exec(move |actor, ctx| {
+                Box::pin(Handler::handle(&mut *actor, ctx, msg))
+            }))?;
 
-    pub fn try_send(&self, msg: T) -> Result<()> {
-        let send_fn = self
-            .send_fn
-            .upgrade()
-            .ok_or_else(|| anyhow!("Actor dropped"))?;
-        send_fn.send(msg)
+            Ok(())
+        });
+
+        WeakSender { send_fn }
     }
 }

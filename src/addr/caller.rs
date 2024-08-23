@@ -1,4 +1,3 @@
-use anyhow::anyhow;
 use futures::channel::oneshot;
 
 use dyn_clone::DynClone;
@@ -12,36 +11,40 @@ use crate::{channel::ChanTx, Actor, Handler};
 
 use super::{ActorEvent, Message, Result};
 
-pub(crate) trait CallerFn<T: Message>: Send + Sync + 'static + DynClone {
-    fn call(&self, msg: T) -> Pin<Box<dyn Future<Output = Result<T::Result>>>>;
+trait CallerFn<M: Message>: Send + Sync + 'static + DynClone {
+    fn call(&self, msg: M) -> Pin<Box<dyn Future<Output = Result<M::Result>>>>;
 }
 
-impl<F, T> CallerFn<T> for F
+impl<F, M> CallerFn<M> for F
 where
-    F: Fn(T) -> Pin<Box<dyn Future<Output = Result<T::Result>>>>,
-    F: 'static + Send + Sync,
-    F: DynClone,
-    T: Message,
+    F: Fn(M) -> Pin<Box<dyn Future<Output = Result<M::Result>>>>,
+    F: 'static + Send + Sync + DynClone,
+    M: Message,
 {
-    fn call(&self, msg: T) -> Pin<Box<dyn Future<Output = Result<T::Result>>>> {
+    fn call(&self, msg: M) -> Pin<Box<dyn Future<Output = Result<M::Result>>>> {
         self(msg)
     }
 }
 
 /// Caller of a specific message type.
-pub struct Caller<T: Message> {
-    pub(crate) call_fn: Arc<dyn CallerFn<T>>,
+pub struct Caller<M: Message> {
+    call_fn: Box<dyn CallerFn<M>>,
 }
 
-impl<T, A> From<ChanTx<A>> for Caller<T>
+impl<M> Caller<M> where M: Message {
+    pub fn call(&self, msg: M) -> Pin<Box<dyn Future<Output = Result<M::Result>>>> {
+        self.call_fn.call(msg)
+    }
+}
+
+impl<M, A> From<ChanTx<A>> for Caller<M>
 where
-    A: Actor,
-    A: Handler<T>,
-    T: Message,
+    A: Actor + Handler<M>,
+    M: Message,
 {
     fn from(tx: ChanTx<A>) -> Self {
-        let call_fn = Arc::new(move |msg| {
-            let tx = tx.clone();
+        let call_fn = Box::new(move |msg| {
+            let tx: Arc<_> = tx.clone();
             Box::pin(async move {
                 let (response_tx, response) = oneshot::channel();
 
@@ -53,63 +56,52 @@ where
                 }))?;
 
                 Ok(response.await?)
-            }) as Pin<Box<dyn Future<Output = Result<T::Result>>>>
+            }) as Pin<Box<dyn Future<Output = Result<M::Result>>>>
         });
 
         Caller { call_fn }
     }
 }
 
-impl<T: Message> Clone for Caller<T> {
-    fn clone(&self) -> Self {
-        Caller {
-            call_fn: self.call_fn.clone(),
-        }
+/// Caller of a specific message type.
+pub struct WeakCaller<M: Message> {
+    call_fn: Box<dyn CallerFn<M>>,
+}
+
+impl<M> WeakCaller<M>
+where
+    M: Message,
+{
+    pub fn try_call(&self, msg: M) -> Pin<Box<dyn Future<Output = Result<M::Result>>>> {
+        self.call_fn.call(msg)
     }
 }
 
-/// Caller of a specific message type. You need to upgrade it to a `Caller` before you can use it.
-///
-/// Like [`WeakSender<T>`](`super::WeakSender<T>`), `Caller` has a weak reference to the recipient of the message type,
-/// and so will not prevent an actor from stopping if all [`Addr`](`crate::Addr`)'s have been dropped elsewhere.
-pub struct WeakCaller<T: Message> {
-    pub(crate) call_fn: Weak<dyn CallerFn<T>>,
-}
+impl<M, A> From<ChanTx<A>> for WeakCaller<M>
+where
+    A: Actor + Handler<M>,
+    M: Message,
+{
+    fn from(tx: ChanTx<A>) -> Self {
+        let call_fn = Box::new(move |msg| {
+            let wtx: Weak<_> = Arc::downgrade(&tx);
+            Box::pin(async move {
+                let Some(tx) = wtx.upgrade() else {
+                    return Err(anyhow::anyhow!("failed to upgrade"));
+                };
+                let (response_tx, response) = oneshot::channel();
 
-impl<T: Message> Clone for WeakCaller<T> {
-    fn clone(&self) -> Self {
-        WeakCaller {
-            call_fn: self.call_fn.clone(),
-        }
-    }
-}
+                tx.send(ActorEvent::exec(move |actor, ctx| {
+                    Box::pin(async move {
+                        let res = Handler::handle(&mut *actor, ctx, msg).await;
+                        let _ = response_tx.send(res);
+                    })
+                }))?;
 
-impl<T: Message> Caller<T> {
-    pub async fn call(&self, msg: T) -> Result<T::Result> {
-        self.call_fn.call(msg).await
-    }
+                Ok(response.await?)
+            }) as Pin<Box<dyn Future<Output = Result<M::Result>>>>
+        });
 
-    pub fn downgrade(&self) -> WeakCaller<T> {
-        WeakCaller {
-            call_fn: Arc::downgrade(&self.call_fn),
-        }
-    }
-}
-
-impl<T: Message> WeakCaller<T> {
-    pub fn upgrade(&self) -> Option<Caller<T>> {
-        self.call_fn.upgrade().map(|call_fn| Caller { call_fn })
-    }
-
-    pub fn can_upgrade(&self) -> bool {
-        Weak::strong_count(&self.call_fn) > 1
-    }
-
-    pub async fn try_call(&self, msg: T) -> Result<T::Result> {
-        let call_fn = self
-            .call_fn
-            .upgrade()
-            .ok_or_else(|| anyhow!("Actor dropped"))?;
-        call_fn.call(msg).await
+        WeakCaller { call_fn }
     }
 }
