@@ -1,14 +1,13 @@
 use futures::{channel::mpsc, SinkExt};
 use std::{marker::PhantomData, sync::Arc};
 
-use super::{ActorOuter, Actor, Addr, Handler, Payload};
+use super::{Actor, Addr, Handler, Payload};
 use crate::ActorResult;
 
 #[derive(Clone)]
 pub struct Sender<M> {
-    tx: Arc<mpsc::Sender<Payload>>,
-    actor: ActorOuter<M>,
-    marker: PhantomData<M>,
+    // tx: Arc<mpsc::Sender<Payload>>,
+    // marker: PhantomData<M>,
 }
 
 impl<M, A> From<Addr<A>> for Sender<M>
@@ -16,12 +15,10 @@ where
     A: Handler<M> + 'static,
     A: Actor + 'static,
 {
-    fn from(Addr { ctx, actor }: Addr<A>) -> Self {
-        Sender {
-            tx: ctx.tx.clone(),
-            actor: actor.clone(),
-            marker: PhantomData,
-        }
+    fn from(Addr { ctx }: Addr<A>) -> Self {
+        todo!()
+        // Sender {
+        // }
     }
 }
 

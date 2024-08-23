@@ -1,18 +1,16 @@
-use std::{marker::PhantomData, sync::Arc};
+use std::sync::Arc;
 
 use super::{Actor, Context, Handler, Sender};
 use crate::ActorResult;
 
 pub struct Addr<A: Actor> {
-    pub(crate) ctx: Arc<Context>,
-    pub(crate) marker: PhantomData<A>,
+    pub(crate) ctx: Arc<Context<A>>,
 }
 
 impl<A: Actor> Clone for Addr<A> {
     fn clone(&self) -> Self {
         Addr {
             ctx: self.ctx.clone(),
-            marker: PhantomData,
         }
     }
 }

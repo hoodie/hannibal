@@ -8,16 +8,16 @@ use futures::{
     StreamExt,
 };
 
-type Execution = dyn for<'a> FnOnce(&'a mut dyn Actor) -> Pin<Box<dyn Future<Output = ActorResult<()>> + Send>>
+type Execution<A: Actor> = dyn for<'a> FnOnce(&'a mut A) -> Pin<Box<dyn Future<Output = ActorResult<()>> + Send>>
     + Send
     + 'static;
 
-pub enum Payload {
-    Exec(Box<Execution>),
+pub enum Payload<A> {
+    Exec(Box<Execution<A>>),
     Stop,
 }
 
-impl<F> From<F> for Payload
+impl<F> From<F> for Payload<_>
 where
     F: FnOnce() -> Pin<Box<dyn Future<Output = ActorResult<()>> + Send>> + Send + 'static,
 {
@@ -27,29 +27,22 @@ where
 }
 
 #[derive(Default)]
-pub struct EventLoop {
-    pub ctx: Context,
+pub struct EventLoop<A: Actor> {
+    pub ctx: Context<A>,
 }
 
-impl EventLoop {
-    pub async fn start<A>(mut self, actor: A) -> ActorResult<Addr<A>>
-    where
-        A: Actor + Send + Sync + 'static,
-    {
+impl<A: Actor> EventLoop<A> {
+    pub async fn start(mut self, actor: A) -> ActorResult<Addr<A>> {
         self.spawn(actor).await.unwrap();
         Ok(Addr {
             ctx: Arc::new(self.ctx),
-            marker: PhantomData::<A>,
         })
     }
 
-    pub(crate) fn async_loop<A>(
+    fn async_loop(
         mut actor: A,
-        mut rx: mpsc::Receiver<Payload>,
-    ) -> impl Future<Output = ActorResult<()>>
-    where
-        A: Actor + Send + Sync + 'static,
-    {
+        mut rx: mpsc::Receiver<Payload<A>>,
+    ) -> impl Future<Output = ActorResult<()>> {
         async move {
             actor.started().await?;
             eprintln!("waiting for events");
@@ -57,7 +50,7 @@ impl EventLoop {
                 match payload {
                     Payload::Exec(exec) => {
                         eprintln!("received Exec");
-                        exec().await?;
+                        exec(&mut actor).await?;
                     }
                     Payload::Stop => break,
                 }
@@ -67,15 +60,13 @@ impl EventLoop {
         }
     }
 
-    pub async fn spawn<A>(&mut self, actor: A) -> ActorResult<()>
-    where
-        A: Actor + Send + Sync + 'static,
-    {
+    // TODO: return a handle to the spawned task for cancellation
+    async fn spawn(&mut self, actor: A) -> ActorResult<()> {
         let Some(rx) = self.ctx.take_rx() else {
             eprintln!("Cannot spawn context");
             return Err(SpawnError);
         };
         tokio::spawn(async { Self::async_loop(actor, rx).await.unwrap() });
-        todo!();
+        Ok(())
     }
 }
