@@ -1,13 +1,11 @@
 use std::sync::Arc;
 
-use async_lock::RwLock;
-
-use super::{AsyncActor, AsyncContext, AsyncHandler, AsyncSender};
+use super::{ActorOuter, AsyncActor, AsyncContext, AsyncHandler, AsyncSender};
 use crate::ActorResult;
 
 pub struct AsyncAddr<A: AsyncActor> {
     pub(crate) ctx: Arc<AsyncContext>,
-    pub(crate) actor: Arc<RwLock<A>>,
+    pub(crate) actor: ActorOuter<A>,
 }
 
 impl<A: AsyncActor> Clone for AsyncAddr<A> {
@@ -33,18 +31,21 @@ impl<A: AsyncActor> AsyncAddr<A> {
         self.ctx.stop().await
     }
 
-    // pub fn downgrade(&self) -> WeakAddr<A> {
-    //     WeakAddr {
-    //         ctx: Arc::downgrade(&self.ctx),
-    //         actor: Arc::downgrade(&self.actor),
-    //     }
-    // }
-
     pub fn sender<M>(&self) -> AsyncSender<M>
     where
         A: AsyncHandler<M> + 'static,
         M: Send + 'static,
     {
         (*self).clone().into()
+    }
+
+    // TODO: write send method at a time when you still know A but then hand out a
+
+    pub fn sender_fn<M>(&self, f: impl Fn(M) -> ActorResult<()> + Send + Sync + 'static) -> AsyncSender<M>
+    where
+        M: Send + 'static,
+    {
+        let actor = self.actor.clone();
+        let tx = self.ctx.tx.clone();
     }
 }

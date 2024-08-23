@@ -1,5 +1,3 @@
-use std::sync::{Arc, RwLock};
-
 use minibal::{Actor, ActorResult, EventLoop, Handler};
 
 struct MyActor(&'static str);
@@ -33,18 +31,19 @@ fn halt() {
     std::io::stdin().read_line(&mut String::new()).unwrap();
 }
 
-fn internal_api() {
-    let actor = Arc::new(RwLock::new(MyActor("actor 0")));
-    let mut life_cycle = EventLoop::default();
-    life_cycle.spawn(actor.clone()).unwrap();
+fn internal_api() { /*
+                    let actor = Arc::new(RwLock::new(MyActor("actor 0")));
+                    let mut life_cycle = EventLoop::default();
+                    life_cycle.spawn(actor.clone()).unwrap();
 
-    let ctx = life_cycle.ctx;
+                    let ctx = life_cycle.ctx;
 
-    ctx.send(String::from("hello world"), actor.clone())
-        .unwrap();
-    ctx.send(1337, actor.clone()).unwrap();
-    ctx.send(4711, actor.clone()).unwrap();
-    ctx.stop().unwrap();
+                    ctx.send(String::from("hello world"), actor.clone())
+                        .unwrap();
+                    ctx.send(1337, actor.clone()).unwrap();
+                    ctx.send(4711, actor.clone()).unwrap();
+                    ctx.stop().unwrap();
+                    */
 }
 
 fn main() {

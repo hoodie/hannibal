@@ -1,5 +1,3 @@
-use std::pin::Pin;
-
 mod addr;
 mod context;
 mod event_loop;
@@ -13,10 +11,13 @@ pub use self::event_loop::{AsyncEventLoop, Payload};
 pub use self::sender::AsyncSender;
 
 pub trait AsyncActor: Send + Sync + 'static {
-    fn started(&mut self) -> Pin<Box<dyn std::future::Future<Output = ActorResult<()>> + Send>>;
-    fn stopped(&mut self) -> Pin<Box<dyn std::future::Future<Output = ActorResult<()>> + Send>>;
+    async fn started(self: &mut Self) -> ActorResult<()>;
+    async fn stopped(self: &mut Self) -> ActorResult<()>;
 }
 
-pub trait AsyncHandler<M>: AsyncActor + Send + Sync {
-    fn handle(&self, msg: M) -> Pin<Box<dyn std::future::Future<Output = ActorResult<()>> + Send>>;
+// pub trait AsyncHandler<M>: asyncactor {
+pub trait AsyncHandler<M> {
+    async fn handle(&mut self, msg: M) -> ActorResult<()>;
 }
+
+pub type ActorOuter<A> = std::sync::Arc<async_lock::RwLock<A>>;

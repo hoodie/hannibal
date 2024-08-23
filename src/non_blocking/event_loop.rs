@@ -25,19 +25,19 @@ where
     }
 }
 
-type BoxedAsyncActor = Arc<RwLock<dyn AsyncActor>>;
+// type BoxedAsyncActor = Arc<RwLock<dyn AsyncActor>>;
 
-impl AsyncActor for BoxedAsyncActor {
-    fn started(&mut self) -> Pin<Box<dyn std::future::Future<Output = ActorResult<()>> + Send>> {
-        let actor = self.clone();
-        Box::pin(async move { actor.as_ref().write().await.started().await })
-    }
+// impl AsyncActor for BoxedAsyncActor {
+//     fn started(&mut self) -> Pin<Box<dyn std::future::Future<Output = ActorResult<()>> + Send>> {
+//         let actor = self.clone();
+//         Box::pin(async move { actor.as_ref().write().await.started().await })
+//     }
 
-    fn stopped(&mut self) -> Pin<Box<dyn std::future::Future<Output = ActorResult<()>> + Send>> {
-        let actor = self.clone();
-        Box::pin(async move { actor.as_ref().write().await.stopped().await })
-    }
-}
+//     fn stopped(&mut self) -> Pin<Box<dyn std::future::Future<Output = ActorResult<()>> + Send>> {
+//         let actor = self.clone();
+//         Box::pin(async move { actor.as_ref().write().await.stopped().await })
+//     }
+// }
 
 #[derive(Default)]
 pub struct AsyncEventLoop {
@@ -51,18 +51,22 @@ impl AsyncEventLoop {
     {
         let actor = Arc::new(RwLock::new(actor));
         self.spawn(actor.clone()).await.unwrap();
-        Ok(AsyncAddr {
+        let addr = AsyncAddr {
             ctx: Arc::new(self.ctx),
             actor,
-        })
+        };
+        Ok(addr)
     }
 
-    pub(crate) fn async_loop(
-        mut actor: BoxedAsyncActor,
+    pub(crate) fn async_loop<A>(
+        actor: Arc<RwLock<A>>,
         mut rx: mpsc::Receiver<Payload>,
-    ) -> impl Future<Output = ActorResult<()>> {
+    ) -> impl Future<Output = ActorResult<()>>
+    where
+        A: AsyncActor + Send + Sync + 'static,
+    {
         async move {
-            actor.started().await?;
+            actor.write().await.started().await?;
             eprintln!("waiting for events");
             while let Some(payload) = rx.next().await {
                 match payload {
@@ -73,17 +77,20 @@ impl AsyncEventLoop {
                     Payload::Stop => break,
                 }
             }
-            actor.stopped().await?;
+            actor.write().await.stopped().await?;
             Ok(())
         }
     }
 
-    pub async fn spawn(&mut self, actor: BoxedAsyncActor) -> ActorResult<()> {
+    pub async fn spawn<A>(&mut self, actor: Arc<RwLock<A>>) -> ActorResult<()>
+    where
+        A: AsyncActor + Send + Sync + 'static,
+    {
         let Some(rx) = self.ctx.take_rx() else {
             eprintln!("Cannot spawn context");
             return Err(SpawnError);
         };
-        Self::async_loop(actor, rx).await?;
+        tokio::spawn(async { Self::async_loop(actor, rx).await.unwrap() });
         todo!();
     }
 }
