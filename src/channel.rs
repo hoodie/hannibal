@@ -43,18 +43,19 @@ where
 }
 
 pub struct ChannelWrapper<A> {
+    async_tx_fn: Arc<dyn Fn(ActorEvent<A>) -> Pin<Box<dyn Future<Output = Result<()>>>>>,
     tx_fn: ChanTx<A>,
     rx_fn: Option<ChanRx<A>>,
 }
 
-impl<A> ChannelWrapper<A> {
-    fn wrap(tx_fn: ChanTx<A>, rx_fn: ChanRx<A>) -> Self {
-        ChannelWrapper {
-            tx_fn,
-            rx_fn: Some(rx_fn),
-        }
-    }
-}
+// impl<A> ChannelWrapper<A> {
+//     fn wrap(tx_fn: ChanTx<A>, rx_fn: ChanRx<A>) -> Self {
+//         ChannelWrapper {
+//             tx_fn,
+//             rx_fn: Some(rx_fn),
+//         }
+//     }
+// }
 
 impl<A> ChannelWrapper<A>
 where
@@ -103,7 +104,7 @@ where
         ),
     ) -> Self {
         let atx = tx.clone();
-        let _send_async = Arc::new(
+        let async_tx_fn = Arc::new(
             move |event: ActorEvent<A>| -> Pin<Box<dyn Future<Output = Result<()>>>> {
                 let mut tx = atx.clone();
                 Box::pin(async move {
@@ -115,21 +116,25 @@ where
             },
         );
 
-        let send = Arc::new(move |event: ActorEvent<A>| -> Result<()> {
+        let tx_fn = Arc::new(move |event: ActorEvent<A>| -> Result<()> {
             let mut tx = tx.clone();
             tx.start_send(event)?;
             Ok(())
         });
 
         let rx = Arc::new(async_lock::Mutex::new(rx));
-        let recv = Box::new(move || {
+        let rx_fn = Box::new(move || {
             let rx = rx.clone();
             Box::pin(async move {
                 let mut rx = rx.lock().await;
                 rx.next().await
             }) as RecvFuture<A>
         });
-        Self::wrap(send, recv)
+        Self {
+            async_tx_fn,
+            tx_fn,
+            rx_fn: Some(rx_fn),
+        }
     }
 }
 
@@ -147,9 +152,8 @@ where
             futures::channel::mpsc::Receiver<ActorEvent<A>>,
         ),
     ) -> Self {
-
         let atx = tx.clone();
-        let _send_async = Arc::new(
+        let async_tx_fn = Arc::new(
             move |event: ActorEvent<A>| -> Pin<Box<dyn Future<Output = Result<()>>>> {
                 let mut tx = atx.clone();
                 Box::pin(async move {
@@ -161,20 +165,25 @@ where
             },
         );
 
-        let send = Arc::new(move |event: ActorEvent<A>| -> anyhow::Result<()> {
+        let tx_fn = Arc::new(move |event: ActorEvent<A>| -> anyhow::Result<()> {
             let mut wtx = tx.clone();
             wtx.start_send(event)?;
             Ok(())
         });
 
         let rx = Arc::new(async_lock::Mutex::new(rx));
-        let recv = Box::new(move || {
+        let rx_fn = Box::new(move || {
             let rx = rx.clone();
             Box::pin(async move {
                 let mut rx = rx.lock().await;
                 rx.next().await
             }) as RecvFuture<A>
         });
-        Self::wrap(send, recv)
+
+        Self {
+            async_tx_fn,
+            tx_fn,
+            rx_fn: Some(rx_fn),
+        }
     }
 }
