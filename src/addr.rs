@@ -1,16 +1,15 @@
 use self::{caller::Caller, sender::Sender};
 use crate::{
-    channel::ChanTx, context::RunningFuture, weak_addr::WeakAddr, Actor, ActorId, Context, Error,
-    Handler, Message, Result,
+    channel::{AsyncChanTx, ChanTx},
+    context::RunningFuture,
+    weak_addr::WeakAddr,
+    Actor, ActorId, Context, Error, Handler, Message, Result,
 };
 use caller::WeakCaller;
 use futures::{channel::oneshot, Future};
 use sender::WeakSender;
 use std::{
-    future::ready,
-    hash::{Hash, Hasher},
-    pin::Pin,
-    sync::Arc,
+    future::ready, hash::{Hash, Hasher}, ops::AsyncFnOnce, pin::Pin, sync::Arc
 };
 
 pub(crate) mod caller;
@@ -21,8 +20,12 @@ type ExecFuture<'a> = Pin<Box<dyn Future<Output = ()> + Send + 'a>>;
 pub(crate) type ExecFn<A> =
     Box<dyn for<'a> FnOnce(&'a mut A, &'a mut Context<A>) -> ExecFuture<'a> + Send + 'static>;
 
+pub(crate) type AsyncExecFn<A> =
+    Box<dyn for<'a> AsyncFnOnce(&'a mut A, &'a mut Context<A>) -> ExecFuture<'a, CallOnceFuture = ()> + Send + 'static>;
+
 pub(crate) enum ActorEvent<A> {
     Exec(ExecFn<A>),
+    AsyncExec(AsyncExecFn<A>),
     Stop(Option<Error>),
     StopSupervisor(Option<Error>),
     RemoveStream(usize),
@@ -35,6 +38,12 @@ impl<A: Actor> ActorEvent<A> {
     {
         ActorEvent::Exec(Box::new(f))
     }
+    pub fn async_exec<F>(f: F) -> ActorEvent<A>
+    where
+        F: for<'a> FnOnce(&'a mut A, &'a mut Context<A>) -> ExecFuture<'a> + Send + 'static,
+    {
+        ActorEvent::AsyncExec(Box::new(f))
+    }
 }
 
 /// The address of an actor.
@@ -43,6 +52,7 @@ impl<A: Actor> ActorEvent<A> {
 /// You can use the [`Clone`] trait to create multiple copies of [`Addr<A>`].
 pub struct Addr<A: ?Sized> {
     pub(crate) actor_id: ActorId,
+    pub(crate) async_tx: AsyncChanTx<A>,
     pub(crate) tx: ChanTx<A>,
     pub(crate) rx_exit: Option<RunningFuture>,
 }
@@ -61,6 +71,7 @@ impl<A> Clone for Addr<A> {
         Self {
             actor_id: self.actor_id,
             tx: self.tx.clone(),
+            async_tx: self.async_tx.clone(),
             rx_exit: self.rx_exit.clone(),
         }
     }
@@ -137,6 +148,19 @@ impl<A: Actor> Addr<A> {
         self.tx.send(ActorEvent::Exec(Box::new(move |actor, ctx| {
             Box::pin(Handler::handle(actor, ctx, msg))
         })))?;
+        Ok(())
+    }
+
+    /// Send a message `msg` to the actor without waiting for the return value.
+    pub async fn async_send<T: Message<Result = ()>>(&self, msg: T) -> Result<()>
+    where
+        A: Handler<T>,
+    {
+        // TODO: only waits for the message to be sent, not for the message to be processed
+        (self.async_tx)(ActorEvent::exec_async(async |actor, ctx| {
+            Handler::handle(actor, ctx, msg).await
+        }))
+        .await?;
         Ok(())
     }
 

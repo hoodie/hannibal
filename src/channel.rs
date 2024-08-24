@@ -11,6 +11,7 @@ use crate::addr::ActorEvent;
 
 pub type RecvFuture<A> = Pin<Box<dyn Future<Output = Option<ActorEvent<A>>> + Send>>;
 pub type WeakChanTx<A> = Weak<dyn TxFn<A>>;
+pub type AsyncChanTx<A> = Arc<dyn Fn(ActorEvent<A>) -> Pin<Box<dyn Future<Output = Result<()>>>>>;
 pub type ChanTx<A> = Arc<dyn TxFn<A>>;
 pub type ChanRx<A> = Box<dyn RxFn<A>>;
 
@@ -43,7 +44,7 @@ where
 }
 
 pub struct ChannelWrapper<A> {
-    async_tx_fn: Arc<dyn Fn(ActorEvent<A>) -> Pin<Box<dyn Future<Output = Result<()>>>>>,
+    async_tx_fn: AsyncChanTx<A>,
     tx_fn: ChanTx<A>,
     rx_fn: Option<ChanRx<A>>,
 }
@@ -75,6 +76,10 @@ impl<A> ChannelWrapper<A> {
     /// This is for the [`Addr`] (and for the [`LifeCycle`] to create new [`Addr`]esses)
     pub fn tx(&self) -> ChanTx<A> {
         self.tx_fn.clone()
+    }
+
+    pub fn async_tx(&self) -> AsyncChanTx<A> {
+        self.async_tx_fn.clone()
     }
 
     /// Returns a weak reference to the send function

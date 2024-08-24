@@ -52,6 +52,8 @@
 //! | [Tokio](https://tokio.rs/)                         | a supported runtime      |
 //! | [Xactor](https://github.com/sunli829/xactor)       | original version of this |
 
+#![feature(async_closure)]
+
 #![allow(clippy::type_complexity)]
 #![warn(clippy::doc_markdown)]
 
