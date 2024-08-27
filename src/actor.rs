@@ -120,6 +120,16 @@ pub trait Actor: Sized + Send + 'static {
         async { LifeCycle::new().start_actor(self).await }
     }
 
+    /// Start a new actor with a bounded buffer, returning its address.
+    /// The buffer is the maximum number of messages that can be queued for the actor.
+    /// If the buffer is full, the actor will stop processing messages until the buffer is no longer full.
+    fn start_bounded(
+        self,
+        buffer: usize,
+    ) -> impl std::future::Future<Output = Result<Addr<Self>>> + Send {
+        async move { LifeCycle::new_bounded(buffer).start_actor(self).await }
+    }
+
     fn name(&self) -> Cow<'static, str> {
         Cow::from(Self::NAME)
     }
