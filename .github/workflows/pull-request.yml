@@ -1,6 +1,6 @@
 name: Pull request
 
-on: 
+on:
   pull_request:
   workflow_dispatch:
 
@@ -22,6 +22,33 @@ jobs:
           rm convco
 
 
+  semver:
+    name: cargo-semver-checks
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        features:
+          - default
+          - anyhow, runtime-tokio
+          - anyhow, runtime-async-std
+          - eyre, runtime-tokio
+          - eyre, runtime-async-std
+          # - anyhow, runtime-tokio, tracing
+          # - anyhow, runtime-async-std, tracing
+          # - eyre, runtime-tokio, tracing
+          # - eyre, runtime-async-std, tracing
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+
+      - name: check semver
+        uses: obi1kenobi/cargo-semver-checks-action@v2.6
+        env:
+          RUSTFLAGS: --cfg tokio_unstable
+        with:
+          feature-group: "only-explicit-features"
+          features: ${{ matrix.features}}
 
   fmt:
     name: Rustfmt
