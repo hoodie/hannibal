@@ -86,17 +86,16 @@ pub trait LocalService: Actor + Default {
                     .get_mut(&TypeId::of::<Self>())
                     .map(|addr| addr.downcast_ref::<Addr<Self>>().unwrap().clone())
             });
-            match res {
-                Some(addr) => Ok(addr),
-                None => {
-                    let addr = LifeCycle::new().start_actor(Self::default()).await?;
-                    LOCAL_REGISTRY.with(|registry| {
-                        registry
-                            .borrow_mut()
-                            .insert(TypeId::of::<Self>(), Box::new(addr.clone()));
-                    });
-                    Ok(addr)
-                }
+            if let Some(addr) = res {
+                Ok(addr)
+            } else {
+                let addr = LifeCycle::new().start_actor(Self::default()).await?;
+                LOCAL_REGISTRY.with(|registry| {
+                    registry
+                        .borrow_mut()
+                        .insert(TypeId::of::<Self>(), Box::new(addr.clone()));
+                });
+                Ok(addr)
             }
         }
     }
