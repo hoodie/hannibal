@@ -12,7 +12,7 @@ repository = "https://github.com/hoodie/hannibal"
 keywords = ["actor", "async", "hannibal", "xactor", "async-std"]
 categories = ["network-programming", "asynchronous"]
 readme = "README.md"
-rust-version = "1.56.0"
+rust-version = "1.74.0"
 
 [dependencies]
 futures = { version = "0.3", default-features = false, features = ["std", "async-await"]}
