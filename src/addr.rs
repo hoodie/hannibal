@@ -115,9 +115,9 @@ impl<A: Actor> Addr<A> {
     }
 
     /// Send a message `msg` to the actor and wait for the return value.
-    pub async fn call<T: Message>(&self, msg: T) -> Result<T::Result>
+    pub async fn call<M: Message>(&self, msg: M) -> Result<M::Result>
     where
-        A: Handler<T>,
+        A: Handler<M>,
     {
         let (repsonse_tx, response) = oneshot::channel();
         self.tx.send(ActorEvent::exec(move |actor, ctx| {
@@ -131,9 +131,9 @@ impl<A: Actor> Addr<A> {
     }
 
     /// Send a message `msg` to the actor without waiting for the return value.
-    pub fn send<T: Message<Result = ()>>(&self, msg: T) -> Result<()>
+    pub fn send<M: Message<Result = ()>>(&self, msg: M) -> Result<()>
     where
-        A: Handler<T>,
+        A: Handler<M>,
     {
         self.tx.send(ActorEvent::Exec(Box::new(move |actor, ctx| {
             Box::pin(Handler::handle(actor, ctx, msg))
@@ -141,10 +141,10 @@ impl<A: Actor> Addr<A> {
         Ok(())
     }
 
-    /// Create a [`Caller<T>`] for a specific message type
-    pub fn caller<T: Message>(&self) -> Caller<T>
+    /// Create a [`Caller<M>`] for a specific message type
+    pub fn caller<M: Message>(&self) -> Caller<M>
     where
-        A: Handler<T>,
+        A: Handler<M>,
     {
         let weak_tx = Arc::downgrade(&self.tx);
 
@@ -161,7 +161,7 @@ impl<A: Actor> Addr<A> {
                     }))?;
 
                     Ok(response.await?)
-                }) as Pin<Box<dyn Future<Output = Result<T::Result>>>>
+                }) as Pin<Box<dyn Future<Output = Result<M::Result>>>>
             } else {
                 Box::pin(ready(Error::AlreadyStopped.into()))
             }
@@ -177,10 +177,10 @@ impl<A: Actor> Addr<A> {
         }
     }
 
-    /// Create a [`Sender<T>`] for a specific message type
-    pub fn sender<T: Message<Result = ()>>(&self) -> Sender<T>
+    /// Create a [`Sender<M>`] for a specific message type
+    pub fn sender<M: Message<Result = ()>>(&self) -> Sender<M>
     where
-        A: Handler<T>,
+        A: Handler<M>,
     {
         let weak_tx = Arc::downgrade(&self.tx);
 

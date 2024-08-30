@@ -10,8 +10,8 @@ pub trait Message: 'static + Send {
 
 /// Describes how to handle messages of a specific type.
 /// Implementing Handler is a general way to handle incoming messages.
-/// The type `T` is a message which can be handled by the actor.
-pub trait Handler<T: Message>: Actor
+/// The type `M` is a message which can be handled by the actor.
+pub trait Handler<M: Message>: Actor
 where
     Self: std::marker::Sized,
 {
@@ -19,21 +19,21 @@ where
     fn handle(
         &mut self,
         ctx: &mut Context<Self>,
-        msg: T,
-    ) -> impl futures::Future<Output = T::Result> + Send;
+        msg: M,
+    ) -> impl futures::Future<Output = M::Result> + Send;
 }
 
 /// Describes how to handle messages of a specific type.
 /// Implementing Handler is a general way to handle incoming streams.
-/// The type T is a stream message which can be handled by the actor.
+/// The type `M` is a stream message which can be handled by the actor.
 /// Stream messages do not need to implement the [`Message`] trait.
 #[allow(unused_variables)]
-pub trait StreamHandler<T: 'static>: Actor {
+pub trait StreamHandler<M: 'static>: Actor {
     /// Method is called for every message received by this Actor.
     fn handle(
         &mut self,
         ctx: &mut Context<Self>,
-        msg: T,
+        msg: M,
     ) -> impl futures::Future<Output = ()> + Send;
 
     /// Method is called when stream get polled first time.
@@ -56,7 +56,7 @@ pub trait StreamHandler<T: 'static>: Actor {
 ///
 /// Roles communicate by exchanging messages.
 /// The requester can wait for a response.
-/// By [`Addr`] referring to the actors, the actors must provide an [`Handler<T>`] implementation for this message.
+/// By [`Addr`] referring to the actors, the actors must provide an [`Handler<M>`] implementation for this message.
 /// All messages are statically typed.
 #[allow(unused_variables)]
 pub trait Actor: Sized + Send + 'static {

@@ -7,38 +7,35 @@ use std::{
     pin::Pin,
 };
 
-pub(crate) trait CallerFn<T>: DynClone + Send + Sync + 'static
-where
-    T: Message,
-{
-    fn call(&self, msg: T) -> Pin<Box<dyn Future<Output = Result<T::Result>>>>;
+pub(crate) trait CallerFn<M: Message>: DynClone + Send + Sync + 'static {
+    fn call(&self, msg: M) -> Pin<Box<dyn Future<Output = Result<M::Result>>>>;
 }
 
-impl<F, T> CallerFn<T> for F
+impl<F, M> CallerFn<M> for F
 where
-    F: Fn(T) -> Pin<Box<dyn Future<Output = Result<T::Result>>>>,
+    F: Fn(M) -> Pin<Box<dyn Future<Output = Result<M::Result>>>>,
     F: 'static + Send + Sync + DynClone,
-    T: Message,
+    M: Message,
 {
-    fn call(&self, msg: T) -> Pin<Box<dyn Future<Output = Result<T::Result>>>> {
+    fn call(&self, msg: M) -> Pin<Box<dyn Future<Output = Result<M::Result>>>> {
         self(msg)
     }
 }
 
 /// Caller of a specific message type
 ///
-/// Like [`Sender<T>`](`super::Sender<T>`), `Caller` has a weak reference to the recipient of the message type,
+/// Like [`Sender<M>`](`super::Sender<M>`), `Caller` has a weak reference to the recipient of the message type,
 /// and so will not prevent an actor from stopping if all [`Addr`](`crate::Addr`)'s have been dropped elsewhere.
 
-pub struct Caller<T: Message> {
+pub struct Caller<M: Message> {
     /// Id of the corresponding [`Actor<A>`](crate::Actor<A>)
     pub actor_id: ActorId,
-    pub(crate) caller_fn: Box<dyn CallerFn<T>>,
+    pub(crate) caller_fn: Box<dyn CallerFn<M>>,
     pub(crate) test_fn: Box<dyn TestFn>,
 }
 
-impl<T: Message> Caller<T> {
-    pub async fn call(&self, msg: T) -> Result<T::Result> {
+impl<M: Message> Caller<M> {
+    pub async fn call(&self, msg: M) -> Result<M::Result> {
         self.caller_fn.call(msg).await
     }
     pub fn can_upgrade(&self) -> bool {
@@ -46,19 +43,19 @@ impl<T: Message> Caller<T> {
     }
 }
 
-impl<T: Message<Result = ()>> PartialEq for Caller<T> {
+impl<M: Message<Result = ()>> PartialEq for Caller<M> {
     fn eq(&self, other: &Self) -> bool {
         self.actor_id == other.actor_id
     }
 }
 
-impl<T: Message<Result = ()>> Hash for Caller<T> {
+impl<M: Message<Result = ()>> Hash for Caller<M> {
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.actor_id.hash(state);
     }
 }
 
-impl<T: Message> Clone for Caller<T> {
+impl<M: Message> Clone for Caller<M> {
     fn clone(&self) -> Self {
         Self {
             actor_id: self.actor_id,

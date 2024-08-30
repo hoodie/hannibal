@@ -48,9 +48,9 @@ impl<A> WeakAddr<A> {
     }
 
     /// Try to upgrade to [`Addr`] and call [`Addr::send`]
-    pub fn upgrade_send<T: Message<Result = ()>>(&self, msg: T) -> Result<()>
+    pub fn upgrade_send<M: Message<Result = ()>>(&self, msg: M) -> Result<()>
     where
-        A: Handler<T>,
+        A: Handler<M>,
     {
         if let Some(addr) = self.upgrade() {
             addr.send(msg)

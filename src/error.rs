@@ -1,6 +1,6 @@
 use thiserror::Error;
 
-pub type Result<T> = std::result::Result<T, Error>;
+pub type Result<M> = std::result::Result<M, Error>;
 
 #[derive(Error, Debug)]
 pub enum Error {
@@ -20,7 +20,7 @@ pub enum Error {
     Canceled(#[from] futures::channel::oneshot::Canceled),
 }
 
-impl<T> From<Error> for Result<T> {
+impl<M> From<Error> for Result<M> {
     fn from(val: Error) -> Self {
         Err(val)
     }
