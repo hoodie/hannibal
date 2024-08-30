@@ -1,6 +1,6 @@
 use crate::{
-    channel::WeakChanTx, context::RunningFuture, error::bail, Actor, ActorId, Addr, Handler,
-    Message, Result,
+    channel::WeakChanTx, context::RunningFuture, Actor, ActorId, Addr, Error, Handler, Message,
+    Result,
 };
 use std::hash::{Hash, Hasher};
 
@@ -55,7 +55,7 @@ impl<A> WeakAddr<A> {
         if let Some(addr) = self.upgrade() {
             addr.send(msg)
         } else {
-            bail!("cannot upgrade");
+            Error::AlreadyStopped.into()
         }
     }
 }

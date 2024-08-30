@@ -1,6 +1,6 @@
 use crate::{
-    channel::ChanTx, context::RunningFuture, error::anyhow, weak_addr::WeakAddr, Actor, ActorId,
-    Context, Error, Handler, Message, Result,
+    channel::ChanTx, context::RunningFuture, error::Error, weak_addr::WeakAddr, Actor, ActorId,
+    Context, Handler, Message, Result,
 };
 use futures::{channel::oneshot, Future};
 use std::{
@@ -17,13 +17,15 @@ pub use self::{caller::Caller, sender::Sender};
 
 type ExecFuture<'a> = Pin<Box<dyn Future<Output = ()> + Send + 'a>>;
 
+pub type StopReason = Option<Box<dyn std::error::Error + Send + 'static>>;
+
 pub(crate) type ExecFn<A> =
     Box<dyn for<'a> FnOnce(&'a mut A, &'a mut Context<A>) -> ExecFuture<'a> + Send + 'static>;
 
 pub(crate) enum ActorEvent<A> {
     Exec(ExecFn<A>),
-    Stop(Option<Error>),
-    StopSupervisor(Option<Error>),
+    Stop(StopReason),
+    StopSupervisor(StopReason),
     RemoveStream(usize),
 }
 
@@ -95,7 +97,7 @@ impl<A: Actor> Addr<A> {
     }
 
     /// Stop the actor.
-    pub fn stop(&mut self, err: Option<Error>) -> Result<()> {
+    pub fn stop(&mut self, err: StopReason) -> Result<()> {
         self.tx.send(ActorEvent::Stop(err))?;
         Ok(())
     }
@@ -103,7 +105,7 @@ impl<A: Actor> Addr<A> {
     /// Stop the supervisor.
     ///
     /// this is ignored by normal actors
-    pub fn stop_supervisor(&mut self, err: Option<Error>) -> Result<()> {
+    pub fn stop_supervisor(&mut self, err: StopReason) -> Result<()> {
         self.tx.send(ActorEvent::StopSupervisor(err))?;
         Ok(())
     }
@@ -161,7 +163,7 @@ impl<A: Actor> Addr<A> {
                     Ok(response.await?)
                 }) as Pin<Box<dyn Future<Output = Result<T::Result>>>>
             } else {
-                Box::pin(ready(Err(anyhow!("Actor Dropped"))))
+                Box::pin(ready(Error::AlreadyStopped.into()))
             }
         };
 
@@ -188,7 +190,7 @@ impl<A: Actor> Addr<A> {
                     Box::pin(Handler::handle(&mut *actor, ctx, msg))
                 }))
             } else {
-                Err(anyhow!("Actor Dropped"))
+                Error::AlreadyStopped.into()
             }
         };
 

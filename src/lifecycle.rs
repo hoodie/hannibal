@@ -62,7 +62,10 @@ where
             while let Some(event) = rx.recv().await {
                 match event {
                     ActorEvent::Exec(f) => f(&mut actor, &mut ctx).await,
-                    ActorEvent::Stop(_err) => break,
+                    ActorEvent::Stop(reason) => {
+                        actor.stopping(&mut ctx, reason).await;
+                        break;
+                    }
                     ActorEvent::StopSupervisor(_err) => {}
                     ActorEvent::RemoveStream(id) => {
                         if ctx.streams.contains(id) {
@@ -72,10 +75,10 @@ where
                 }
             }
 
-            actor.stopped(&mut ctx).await;
-
             ctx.abort_streams();
             ctx.abort_intervals();
+
+            actor.stopped(&mut ctx).await;
 
             tx_exit.send(()).ok();
         };
@@ -125,7 +128,10 @@ where
                 'event_loop: loop {
                     match rx.recv().await {
                         None => break 'restart_loop,
-                        Some(ActorEvent::Stop(_err)) => break 'event_loop,
+                        Some(ActorEvent::Stop(reason)) => {
+                            actor.stopping(&mut ctx, reason).await;
+                            break 'event_loop;
+                        }
                         Some(ActorEvent::StopSupervisor(_err)) => break 'restart_loop,
                         Some(ActorEvent::Exec(f)) => f(&mut actor, &mut ctx).await,
                         Some(ActorEvent::RemoveStream(id)) => {
@@ -136,9 +142,10 @@ where
                     }
                 }
 
-                actor.stopped(&mut ctx).await;
                 ctx.abort_streams();
                 ctx.abort_intervals();
+
+                actor.stopped(&mut ctx).await;
 
                 actor = f();
                 actor.started(&mut ctx).await.ok();
