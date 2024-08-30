@@ -201,10 +201,9 @@ where
     ///
     /// We use `Sender` instead of `Addr` so that the interval doesn't keep reference to address and prevent the actor from being dropped and stopped
 
-    pub fn send_later<T>(&mut self, msg: T, after: Duration)
+    pub fn send_later<M: Message<Result = ()>>(&mut self, msg: M, after: Duration)
     where
-        A: Handler<T>,
-        T: Message<Result = ()>,
+        A: Handler<M>,
     {
         let sender = self.address().sender();
         let entry = self.intervals.vacant_entry();
@@ -222,11 +221,10 @@ where
 
     /// Sends the message  to self, at a specified fixed interval.
     /// The message is created each time using a closure `f`.
-    pub fn send_interval_with<T, F>(&mut self, f: F, dur: Duration)
+    pub fn send_interval_with<M: Message<Result = ()>, F>(&mut self, f: F, dur: Duration)
     where
-        A: Handler<T>,
-        F: Fn() -> T + Sync + Send + 'static,
-        T: Message<Result = ()>,
+        A: Handler<M>,
+        F: Fn() -> M + Sync + Send + 'static,
     {
         let sender = self.address().sender();
 
@@ -248,20 +246,20 @@ where
     }
 
     /// Sends the message `msg` to self, at a specified fixed interval.
-    pub fn send_interval<T>(&mut self, msg: T, dur: Duration)
+    pub fn send_interval<M>(&mut self, msg: M, dur: Duration)
     where
-        A: Handler<T>,
-        T: Message<Result = ()> + Clone + Sync,
+        A: Handler<M>,
+        M: Message<Result = ()> + Clone + Sync,
     {
         self.send_interval_with(move || msg.clone(), dur);
     }
 
     /// Subscribes to a message of a specified type.
-    pub async fn subscribe<T: Message<Result = ()>>(&self) -> Result<()>
+    pub async fn subscribe<M: Message<Result = ()>>(&self) -> Result<()>
     where
-        A: Handler<T>,
+        A: Handler<M>,
     {
-        let broker = Broker::<T>::from_registry().await?;
+        let broker = Broker::<M>::from_registry().await?;
         let sender = self.address().sender();
         broker
             .send(Subscribe {
@@ -273,8 +271,8 @@ where
     }
 
     /// Unsubscribe to a message of a specified type.
-    pub async fn unsubscribe<T: Message<Result = ()>>(&self) -> Result<()> {
-        let broker = Broker::<T>::from_registry().await?;
+    pub async fn unsubscribe<M: Message<Result = ()>>(&self) -> Result<()> {
+        let broker = Broker::<M>::from_registry().await?;
         broker.send(Unsubscribe { id: self.actor_id })
     }
 }

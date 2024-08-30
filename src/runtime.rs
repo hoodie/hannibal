@@ -14,9 +14,9 @@ use futures::Future;
 pub use tokio::{task::spawn, time::sleep, time::timeout};
 
 #[cfg(feature = "runtime-tokio")]
-pub fn block_on<F, T>(future: F) -> T
+pub fn block_on<F, M>(future: F) -> M
 where
-    F: Future<Output = T>,
+    F: Future<Output = M>,
 {
     let rt = tokio::runtime::Runtime::new().unwrap();
     rt.block_on(future)
