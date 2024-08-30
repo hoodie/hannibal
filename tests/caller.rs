@@ -46,9 +46,9 @@ fn caller_stop() {
 
         std::mem::drop(addr);
 
-        assert_eq!(caller.can_upgrade(), false);
-        assert_eq!(caller2.can_upgrade(), false);
-        assert_eq!(sender.can_upgrade(), false);
+        assert!(!caller.can_upgrade());
+        assert!(!caller2.can_upgrade());
+        assert!(!sender.can_upgrade());
 
         assert!(caller.call(Count(10)).await.is_err());
         assert!(caller2.call(Count(10)).await.is_err());

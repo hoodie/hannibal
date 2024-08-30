@@ -54,7 +54,7 @@ async fn main() -> Result<()> {
 
     std::mem::drop(addr);
 
-    assert_eq!(caller.can_upgrade(), false);
+    assert!(!caller.can_upgrade());
     assert!(sender.send(Pow).is_err());
 
     let res = caller.call(Ping(10)).await?;

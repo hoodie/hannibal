@@ -21,6 +21,9 @@ jobs:
           ./convco check ${{ github.event.pull_request.base.sha }}..${{ github.event.pull_request.head.sha }}
           rm convco
 
+  ci:
+    name: build & test
+    uses: ./.github/workflows/build_test.yml
 
   # semver:
   #   name: cargo-semver-checks
