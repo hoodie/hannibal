@@ -72,10 +72,10 @@ where
                 }
             }
 
-            actor.stopped(&mut ctx).await;
-
             ctx.abort_streams();
             ctx.abort_intervals();
+
+            actor.stopped(&mut ctx).await;
 
             tx_exit.send(()).ok();
         };
@@ -136,9 +136,10 @@ where
                     }
                 }
 
-                actor.stopped(&mut ctx).await;
                 ctx.abort_streams();
                 ctx.abort_intervals();
+
+                actor.stopped(&mut ctx).await;
 
                 actor = f();
                 actor.started(&mut ctx).await.ok();
