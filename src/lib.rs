@@ -57,6 +57,7 @@
 
 mod actor;
 mod addr;
+mod error;
 mod weak_addr;
 
 mod broker;
@@ -66,27 +67,7 @@ mod runtime;
 mod service;
 mod supervisor;
 
-#[cfg(all(feature = "anyhow", feature = "eyre"))]
-compile_error!(
-    r#"
-    features `hannibal/anyhow` and `hannibal/eyre` are mutually exclusive.
-    If you are trying to disable anyhow set `default-features = false`.
-"#
-);
-
-#[cfg(feature = "anyhow")]
-pub use anyhow as error;
-
-#[cfg(feature = "eyre")]
-pub use eyre as error;
-
-#[cfg_attr(feature = "eyre", doc = "Alias of [`eyre::Result`]")]
-#[cfg_attr(not(feature = "eyre"), doc = "Alias of [`anyhow::Result`]")]
-pub type Result<T> = error::Result<T>;
-
-#[cfg_attr(feature = "eyre", doc = "Alias of [`eyre::Error`]")]
-#[cfg_attr(not(feature = "eyre"), doc = "Alias of [`anyhow::Error`]")]
-pub type Error = error::Error;
+pub use error::{Error, Result};
 
 pub type ActorId = u64;
 

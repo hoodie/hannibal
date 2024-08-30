@@ -29,14 +29,10 @@ jobs:
       matrix:
         features:
           - default
-          - anyhow, runtime-tokio
-          - anyhow, runtime-async-std
-          - eyre, runtime-tokio
-          - eyre, runtime-async-std
-          # - anyhow, runtime-tokio, tracing
-          # - anyhow, runtime-async-std, tracing
-          # - eyre, runtime-tokio, tracing
-          # - eyre, runtime-async-std, tracing
+          - runtime-tokio
+          - runtime-async-std
+          # - runtime-tokio, tracing
+          # - runtime-async-std, tracing
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable

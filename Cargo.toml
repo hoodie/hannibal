@@ -22,6 +22,7 @@ fnv = "1.0"
 slab = "0.4"
 dyn-clone = "1"
 async-lock = "3"
+thiserror = "1"
 
 [dependencies.async-std]
 version = "1.12"
@@ -37,14 +38,6 @@ optional = true
 path = "hannibal-derive"
 version = "0.10"
 
-[dependencies.anyhow]
-version = "1.0"
-optional = true
-
-[dependencies.eyre]
-version = "0.6"
-optional = true
-
 [dev-dependencies]
 color-backtrace = "0.6.0"
 ctor = "0.2.6"
@@ -59,4 +52,4 @@ members = ["hannibal-derive"]
 runtime-tokio = ["tokio/rt-multi-thread", "tokio/macros", "tokio/time"]
 runtime-async-std = ["async-std"]
 tracing = ["tokio/tracing"]
-default = ["runtime-async-std", "anyhow"]
+default = ["runtime-async-std"]
