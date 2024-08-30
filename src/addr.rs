@@ -17,15 +17,15 @@ pub use self::{caller::Caller, sender::Sender};
 
 type ExecFuture<'a> = Pin<Box<dyn Future<Output = ()> + Send + 'a>>;
 
-pub(crate) type OptionalError = Option<Box<dyn std::error::Error + Send + 'static>>;
+pub type StopReason = Option<Box<dyn std::error::Error + Send + 'static>>;
 
 pub(crate) type ExecFn<A> =
     Box<dyn for<'a> FnOnce(&'a mut A, &'a mut Context<A>) -> ExecFuture<'a> + Send + 'static>;
 
 pub(crate) enum ActorEvent<A> {
     Exec(ExecFn<A>),
-    Stop(OptionalError),
-    StopSupervisor(OptionalError),
+    Stop(StopReason),
+    StopSupervisor(StopReason),
     RemoveStream(usize),
 }
 
@@ -97,7 +97,7 @@ impl<A: Actor> Addr<A> {
     }
 
     /// Stop the actor.
-    pub fn stop(&mut self, err: OptionalError) -> Result<()> {
+    pub fn stop(&mut self, err: StopReason) -> Result<()> {
         self.tx.send(ActorEvent::Stop(err))?;
         Ok(())
     }
@@ -105,7 +105,7 @@ impl<A: Actor> Addr<A> {
     /// Stop the supervisor.
     ///
     /// this is ignored by normal actors
-    pub fn stop_supervisor(&mut self, err: OptionalError) -> Result<()> {
+    pub fn stop_supervisor(&mut self, err: StopReason) -> Result<()> {
         self.tx.send(ActorEvent::StopSupervisor(err))?;
         Ok(())
     }

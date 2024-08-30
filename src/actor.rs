@@ -1,6 +1,6 @@
 use std::borrow::Cow;
 
-use crate::{error::Result, lifecycle::LifeCycle, Addr, Context};
+use crate::{addr::StopReason, error::Result, lifecycle::LifeCycle, Addr, Context};
 
 pub trait Message: 'static + Send {
     /// The return value type of the message
@@ -68,6 +68,15 @@ pub trait Actor: Sized + Send + 'static {
         ctx: &mut Context<Self>,
     ) -> impl std::future::Future<Output = Result<()>> + Send {
         async { Ok(()) }
+    }
+
+    /// Called with stop reason before an actor is stopped.
+    fn stopping(
+        &mut self,
+        ctx: &mut Context<Self>,
+        reason: StopReason,
+    ) -> impl std::future::Future<Output = ()> + Send {
+        async {}
     }
 
     /// Called after an actor is stopped.

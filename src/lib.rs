@@ -73,7 +73,7 @@ pub type ActorId = u64;
 
 pub use actor::{Actor, Handler, Message, StreamHandler};
 
-pub use addr::{caller::Caller, sender::Sender, Addr};
+pub use addr::{caller::Caller, sender::Sender, Addr, StopReason};
 pub use weak_addr::WeakAddr;
 
 pub use broker::Broker;

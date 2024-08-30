@@ -1,5 +1,5 @@
 use crate::{
-    addr::{ActorEvent, OptionalError},
+    addr::{ActorEvent, StopReason},
     broker::{Subscribe, Unsubscribe},
     channel::{ChannelWrapper, WeakChanTx},
     runtime::{sleep, spawn},
@@ -66,7 +66,7 @@ where
     }
 
     /// Stop the actor.
-    pub fn stop(&self, err: OptionalError) {
+    pub fn stop(&self, err: StopReason) {
         if let Some(tx) = self.weak_tx.upgrade() {
             tx.send(ActorEvent::Stop(err)).ok();
         }
@@ -75,7 +75,7 @@ where
     /// Stop the supervisor.
     ///
     /// this is ignored by normal actors
-    pub fn stop_supervisor(&self, err: OptionalError) {
+    pub fn stop_supervisor(&self, err: StopReason) {
         if let Some(tx) = self.weak_tx.upgrade() {
             tx.send(ActorEvent::StopSupervisor(err)).ok();
         }
