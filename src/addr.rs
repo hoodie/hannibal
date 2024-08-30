@@ -1,6 +1,6 @@
 use crate::{
-    channel::ChanTx, context::RunningFuture, error::anyhow, weak_addr::WeakAddr, Actor, ActorId,
-    Context, Error, Handler, Message, Result,
+    channel::ChanTx, context::RunningFuture, error::Error, weak_addr::WeakAddr, Actor, ActorId,
+    Context, Handler, Message, Result,
 };
 use futures::{channel::oneshot, Future};
 use std::{
@@ -161,7 +161,7 @@ impl<A: Actor> Addr<A> {
                     Ok(response.await?)
                 }) as Pin<Box<dyn Future<Output = Result<T::Result>>>>
             } else {
-                Box::pin(ready(Err(anyhow!("Actor Dropped"))))
+                Box::pin(ready(Error::AlreadyStopped.into()))
             }
         };
 
@@ -188,7 +188,7 @@ impl<A: Actor> Addr<A> {
                     Box::pin(Handler::handle(&mut *actor, ctx, msg))
                 }))
             } else {
-                Err(anyhow!("Actor Dropped"))
+                Error::AlreadyStopped.into()
             }
         };
 
