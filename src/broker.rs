@@ -1,4 +1,4 @@
-use crate::{addr::sender::Sender, Actor, Addr, Context, Handler, Message, Result, Service};
+use crate::{addr::WeakSender, Actor, Addr, Context, Handler, Message, Result, Service};
 use fnv::FnvHasher;
 use std::{any::Any, collections::HashMap, hash::BuildHasherDefault, marker::PhantomData};
 
@@ -6,7 +6,7 @@ type SubscriptionId = u64;
 
 pub(crate) struct Subscribe<M: Message<Result = ()>> {
     pub(crate) id: SubscriptionId,
-    pub(crate) sender: Sender<M>,
+    pub(crate) sender: WeakSender<M>,
 }
 
 impl<M: Message<Result = ()>> Message for Subscribe<M> {
@@ -112,8 +112,12 @@ impl<M: Message<Result = ()>> Handler<Unsubscribe> for Broker<M> {
 impl<M: Message<Result = ()> + Clone> Handler<Publish<M>> for Broker<M> {
     async fn handle(&mut self, _ctx: &mut Context<Self>, msg: Publish<M>) {
         for sender in self.subscribes.values_mut() {
-            if let Some(sender) = sender.downcast_mut::<Sender<M>>() {
-                sender.send(msg.0.clone()).ok();
+            if let Some(Err(err)) = sender
+                .downcast_mut::<WeakSender<M>>()
+                .map(|s| s.try_send(msg.0.clone()))
+            {
+                // TODO: log the error
+                eprintln!("Failed to send message: {:?}", err)
             }
         }
     }

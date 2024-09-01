@@ -1,16 +1,14 @@
-//! # Hannibal is a rust actors framework based on async-std
+//! # Hannibal Actor framework.
 //!
-//! ## Documentation
-//!
-//! * [GitHub repository](https://github.com/hoodie/hannibal)
-//! * [Cargo package](https://crates.io/crates/hannibal)
-//! * Minimum supported Rust version: 1.56 or later
+//! Hannibal is similar to actix but uses futures and async/await.
 //!
 //! ## Features
 //!
 //! * Async actors.
 //! * Actor communication in a local context.
 //! * Using Futures for asynchronous message handling.
+//! * Weak and strong references to actors via `Addr`, `Sender` and `Caller`.
+//! * Brokers and Services.
 //! * Typed messages (No `Any` type). Generic messages are allowed.
 //!
 //! ## Examples
@@ -42,18 +40,10 @@
 //!     Ok(())
 //! }
 //! ```
-//!
-//! ## References
-//!
-//! |                                                    |                          |
-//! | -------------------------------------------------- | ------------------------ |
-//! | [Actix](https://github.com/actix/actix)            | the original inspiration |
-//! | [Async-std](https://github.com/async-rs/async-std) | a supported runtime      |
-//! | [Tokio](https://tokio.rs/)                         | a supported runtime      |
-//! | [Xactor](https://github.com/sunli829/xactor)       | original version of this |
 
 #![allow(clippy::type_complexity)]
 #![warn(clippy::doc_markdown)]
+#![deny(trivial_numeric_casts, unsafe_code, unused_import_braces)]
 
 mod actor;
 mod addr;
@@ -73,7 +63,7 @@ pub type ActorId = u64;
 
 pub use actor::{Actor, Handler, Message, StreamHandler};
 
-pub use addr::{caller::Caller, sender::Sender, Addr, StopReason};
+pub use addr::{Addr, Caller, Sender, StopReason, WeakCaller, WeakSender};
 pub use weak_addr::WeakAddr;
 
 pub use broker::Broker;

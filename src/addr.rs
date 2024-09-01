@@ -1,6 +1,6 @@
 use crate::{
-    channel::ChanTx, context::RunningFuture, error::Error, weak_addr::WeakAddr, Actor, ActorId,
-    Context, Handler, Message, Result,
+    channel::ChanTx, context::RunningFuture, weak_addr::WeakAddr, Actor, ActorId, Context, Handler,
+    Message, Result,
 };
 use futures::{channel::oneshot, Future};
 use std::{
@@ -10,10 +10,12 @@ use std::{
     sync::Arc,
 };
 
-pub(crate) mod caller;
-pub(crate) mod sender;
-pub(crate) mod tester;
-pub use self::{caller::Caller, sender::Sender};
+mod caller;
+mod sender;
+mod weak_caller;
+mod weak_sender;
+
+pub use self::{caller::Caller, sender::Sender, weak_caller::WeakCaller, weak_sender::WeakSender};
 
 type ExecFuture<'a> = Pin<Box<dyn Future<Output = ()> + Send + 'a>>;
 
@@ -141,40 +143,24 @@ impl<A: Actor> Addr<A> {
         Ok(())
     }
 
+    fn pieces(&self) -> (ActorId, ChanTx<A>) {
+        (self.actor_id, self.tx.clone())
+    }
+
     /// Create a [`Caller<M>`] for a specific message type
     pub fn caller<M: Message>(&self) -> Caller<M>
     where
         A: Handler<M>,
     {
-        let weak_tx = Arc::downgrade(&self.tx);
+        Caller::from(self.to_owned())
+    }
 
-        let caller_fn = move |msg| {
-            if let Some(tx) = weak_tx.upgrade() {
-                Box::pin(async move {
-                    let (response_tx, response) = oneshot::channel();
-
-                    tx.send(ActorEvent::exec(move |actor, ctx| {
-                        Box::pin(async move {
-                            let res = Handler::handle(&mut *actor, ctx, msg).await;
-                            let _ = response_tx.send(res);
-                        })
-                    }))?;
-
-                    Ok(response.await?)
-                }) as Pin<Box<dyn Future<Output = Result<M::Result>>>>
-            } else {
-                Box::pin(ready(Error::AlreadyStopped.into()))
-            }
-        };
-
-        let weak_tx = Arc::downgrade(&self.tx);
-        let test_fn = Box::new(move || weak_tx.strong_count() > 0);
-
-        Caller {
-            actor_id: self.actor_id,
-            caller_fn: Box::new(caller_fn),
-            test_fn,
-        }
+    /// Create a [`Caller<T>`] for a specific message type
+    pub fn weak_caller<M: Message>(&self) -> WeakCaller<M>
+    where
+        A: Handler<M>,
+    {
+        WeakCaller::from(self.pieces())
     }
 
     /// Create a [`Sender<M>`] for a specific message type
@@ -182,26 +168,15 @@ impl<A: Actor> Addr<A> {
     where
         A: Handler<M>,
     {
-        let weak_tx = Arc::downgrade(&self.tx);
+        Sender::from(self.pieces())
+    }
 
-        let sender_fn = move |msg| {
-            if let Some(tx) = weak_tx.upgrade() {
-                tx.send(ActorEvent::exec(move |actor, ctx| {
-                    Box::pin(Handler::handle(&mut *actor, ctx, msg))
-                }))
-            } else {
-                Error::AlreadyStopped.into()
-            }
-        };
-
-        let weak_tx = Arc::downgrade(&self.tx);
-        let test_fn = Box::new(move || weak_tx.strong_count() > 0);
-
-        Sender {
-            actor_id: self.actor_id,
-            sender_fn: Box::new(sender_fn),
-            test_fn,
-        }
+    /// Create a [`WeakSender<T>`] for a specific message type
+    pub fn weak_sender<M: Message<Result = ()>>(&self) -> WeakSender<M>
+    where
+        A: Handler<M>,
+    {
+        WeakSender::from(self.pieces())
     }
 
     /// Wait for an actor to finish, and if the actor has finished, the function returns immediately.

@@ -34,30 +34,30 @@ async fn main() -> Result<()> {
     // start new actor
     let addr = CountActor { count: 10 }.start().await?;
 
-    let caller: Caller<Ping> = addr.caller();
+    let caller: WeakCaller<Ping> = addr.weak_caller();
     let caller2 = caller.clone();
 
-    let sender: Sender<Pow> = addr.sender();
+    let sender: WeakSender<Pow> = addr.weak_sender();
 
-    assert!(sender.send(Pow).is_ok());
+    assert!(sender.try_send(Pow).is_ok());
 
-    let res = caller.call(Ping(10)).await?;
+    let res = caller.try_call(Ping(10)).await?;
     println!("RESULT: {}", res == 20);
     assert_eq!(res, 20);
 
-    let res = caller2.call(Ping(10)).await?;
+    let res = caller2.try_call(Ping(10)).await?;
     println!("RESULT: {}", res == 30);
     assert_eq!(res, 30);
 
-    println!("caller can upgrade: {}", caller.can_upgrade());
-    assert!(caller.can_upgrade());
+    println!("caller can upgrade: {}", caller.upgrade().is_some());
+    assert!(caller.upgrade().is_some());
 
     std::mem::drop(addr);
 
-    assert!(!caller.can_upgrade());
-    assert!(sender.send(Pow).is_err());
+    assert!(caller.upgrade().is_none());
+    assert!(sender.try_send(Pow).is_err());
 
-    let res = caller.call(Ping(10)).await?;
+    let res = caller.try_call(Ping(10)).await?;
     println!("RESULT: {}", res == 20);
 
     Ok(())

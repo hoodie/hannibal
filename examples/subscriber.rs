@@ -89,7 +89,7 @@ impl Actor for Subscriber {
     async fn started(&mut self, ctx: &mut Context<Self>) -> Result<()> {
         // Send subscription request message to the Message Producer
         println!("Child Subscriber Started - id {:?}", self.id);
-        let self_sender = ctx.address().sender();
+        let self_sender = ctx.address().weak_sender();
         let _ = self.message_producer_addr.send(SubscribeToProducer {
             sender: self_sender,
         });
@@ -110,7 +110,7 @@ impl Handler<RandomMessage> for Subscriber {
 // Message Producer - C
 
 struct MessageProducer {
-    subscribers: Vec<Sender<RandomMessage>>,
+    subscribers: Vec<WeakSender<RandomMessage>>,
 }
 
 impl MessageProducer {
@@ -132,7 +132,7 @@ impl Actor for MessageProducer {
 
 #[message]
 struct SubscribeToProducer {
-    sender: Sender<RandomMessage>,
+    sender: WeakSender<RandomMessage>,
 }
 
 #[message]
@@ -153,7 +153,7 @@ impl Handler<Broadcast> for MessageProducer {
         let _: Vec<_> = self
             .subscribers
             .iter()
-            .map(|subscriber| subscriber.send(broadcast_message.clone()))
+            .map(|subscriber| subscriber.try_send(broadcast_message.clone()))
             .collect();
     }
 }

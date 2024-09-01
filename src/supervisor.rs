@@ -1,6 +1,6 @@
 use crate::{error::Result, lifecycle::LifeCycle, Actor, Addr};
 
-/// Actor supervisor
+/// Actor supervisor.
 ///
 /// Supervisor gives the actor the ability to restart after failure.
 /// When the actor fails, recreate a new actor instance and replace it.
