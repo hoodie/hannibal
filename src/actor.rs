@@ -24,6 +24,7 @@ where
 }
 
 /// Describes how to handle messages of a specific type.
+///
 /// Implementing Handler is a general way to handle incoming streams.
 /// The type `M` is a stream message which can be handled by the actor.
 /// Stream messages do not need to implement the [`Message`] trait.
@@ -50,6 +51,7 @@ pub trait StreamHandler<M: 'static>: Actor {
 }
 
 /// Actors are objects which encapsulate state and behavior.
+///
 /// Actors run within a specific execution context [`Context<A>`].
 /// The context object is available only during execution.
 /// Each actor has a separate execution context.
