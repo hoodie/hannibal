@@ -45,7 +45,6 @@ async fn main() -> Result<()> {
     a1.stop(reason("halt and catch fire")).unwrap();
     a2.stop(None).unwrap();
 
-    futures::join!(a1.wait_for_stop(), a2.wait_for_stop(), a3.wait_for_stop(),);
-
+    futures::try_join!(a1, a2, a3)?;
     Ok(())
 }

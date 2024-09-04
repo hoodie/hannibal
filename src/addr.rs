@@ -10,6 +10,7 @@ use std::{
     sync::Arc,
 };
 
+mod addr_future;
 mod caller;
 mod sender;
 mod weak_caller;

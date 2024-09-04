@@ -40,6 +40,25 @@ fn stop_addr() {
     hannibal::block_on(main()).unwrap();
 }
 
+#[test]
+fn await_stop_addr() {
+    async fn main() -> hannibal::Result<()> {
+        let mut addr = hannibal::Actor::start(PingActor).await?;
+        let addr2 = addr.clone();
+
+        assert!(!addr.stopped(), "expected addr not to be stopped");
+        assert!(!addr2.stopped(), "expected addr2 not to be stopped");
+
+        addr.stop(None).unwrap();
+        addr.await.unwrap();
+
+        assert!(addr2.stopped(), "expected addr2 to be stopped");
+
+        Ok(())
+    }
+
+    hannibal::block_on(main()).unwrap();
+}
 mod callers {
     use super::*;
 
