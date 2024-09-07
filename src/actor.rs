@@ -6,6 +6,7 @@ pub trait Message: 'static + Send {
     /// The return value type of the message
     /// This type can be set to () if the message does not return a value, or if it is a notification message
     type Result: 'static + Send;
+    const TYPE_NAME: &'static str = "hannibal::Message";
 }
 
 /// Describes how to handle messages of a specific type.

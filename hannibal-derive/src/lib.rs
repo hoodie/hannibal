@@ -43,6 +43,7 @@ pub fn message(args: TokenStream, input: TokenStream) -> TokenStream {
         #input
         impl hannibal::Message for #ident {
             type Result = #result_type;
+            const TYPE_NAME: &'static str = stringify!(#ident);
         }
     };
     expanded.into()

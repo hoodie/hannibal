@@ -34,6 +34,14 @@ impl<M: Message<Result = ()>> WeakSender<M> {
     }
 }
 
+impl<M: Message<Result = ()>> std::fmt::Debug for WeakSender<M> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct(&format!("WeakSender<{}>", M::TYPE_NAME))
+            .field("actor_id", &self.actor_id)
+            .finish()
+    }
+}
+
 impl<M: Message<Result = ()>> PartialEq for WeakSender<M> {
     fn eq(&self, other: &Self) -> bool {
         self.actor_id.eq(&other.actor_id)

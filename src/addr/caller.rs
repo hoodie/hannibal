@@ -50,6 +50,14 @@ impl<M: Message> Caller<M> {
     }
 }
 
+impl<M: Message> std::fmt::Debug for Caller<M> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct(&format!("Caller<{}>", M::TYPE_NAME))
+            .field("actor_id", &self.actor_id)
+            .finish()
+    }
+}
+
 impl<M: Message> PartialEq for Caller<M> {
     fn eq(&self, other: &Self) -> bool {
         self.actor_id.eq(&other.actor_id)
