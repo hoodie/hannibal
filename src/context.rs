@@ -115,6 +115,11 @@ where
             handle.abort();
         }
     }
+    pub(crate) fn abort_streams_and_intervals(&mut self) {
+        self.abort_streams();
+        self.abort_intervals();
+
+    }
 
     /// Create a stream handler for the actor.
     ///

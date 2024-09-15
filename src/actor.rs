@@ -50,6 +50,61 @@ pub trait StreamHandler<M: 'static>: Actor {
         async { ctx.stop(None) }
     }
 
+    /// Start an actor with a stream.
+    ///
+    /// This function starts an actor and adds this stream to the actor's context.
+    /// This is a shorthand for calling [`Actor::start`] and then [`Context::add_stream`] in the actor's [`Actor::started`] method.
+    ///
+    /// But since you don't have access to the actor's context before the actor is started,
+    /// you will need to store the stream in the actor like this:
+    ///
+    /// ```rust
+    /// #[derive(Debug)]
+    /// struct StartsStreamOnStarted(Option<futures::stream::Iter<Range<u32>>>);
+    /// impl Actor for StartsStreamOnStarted {
+    ///     async fn started(&mut self, ctx: &mut Context<Self>) -> Result<()> {
+    ///         println!("{self:?} started");
+    ///         ctx.add_stream(self.0.take().unwrap());
+    ///         Ok(())
+    ///     }
+    ///     async fn stopped(&mut self, _ctx: &mut Context<Self>) {
+    ///         println!("{self:?} stopped");
+    ///     }
+    /// }
+    ///
+    /// StartsStreamOnStarted::from(0..10)
+    ///     .start()
+    ///     .await?
+    ///     .wait_for_stop()
+    ///     .await;
+    /// ```
+    ///
+    /// This method lets you avoid this boilerplate.
+    /// ```rust
+    /// #[derive(Debug)]
+    /// struct StopsOnFinished;
+    /// impl Actor for StopsOnFinished {
+    ///     async fn started(&mut self, _ctx: &mut Context<Self>) -> Result<()> {
+    ///         println!("{self:?} started");
+    ///         Ok(())
+    ///     }
+    ///     async fn stopped(&mut self, _ctx: &mut Context<Self>) {
+    ///         println!("{self:?} stopped");
+    ///     }
+    /// }
+    ///
+    /// impl StreamHandler<u32> for StopsOnFinished {
+    /// }
+    ///
+    /// // get stream added by lifecycle
+    /// StopsOnFinished
+    ///     .start_with_stream(stream::iter(0..10))
+    ///     .await?
+    ///     .wait_for_stop()
+    ///     .await;
+    ///
+    /// ```
+
     fn start_with_stream<S>(
         self,
         stream: S,
@@ -62,7 +117,7 @@ pub trait StreamHandler<M: 'static>: Actor {
         async { LifeCycle::new().start_with_stream(self, stream).await }
     }
 
-    fn start_with_stream_efficient<S>(
+    fn start_bound_to_stream<S>(
         self,
         stream: S,
     ) -> impl std::future::Future<Output = Result<Addr<Self>>> + Send

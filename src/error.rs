@@ -6,6 +6,11 @@ pub type Result<M> = std::result::Result<M, Error>;
 /// Error type for things that might go wrong in the actor system.
 #[derive(Error, Debug)]
 pub enum Error {
+
+    /// Indicates that an error occurred while trying to start an actor.
+    #[error("Failed to start actor")]
+    StartFailed,
+
     /// Indicates that the actor has already been stopped by the time the operation was attempted.
     #[error("Actor already stopped")]
     AlreadyStopped,

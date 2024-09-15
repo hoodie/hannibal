@@ -58,11 +58,10 @@ pub trait Service: Actor + Default {
                 Some(addr) => Ok(addr.downcast_ref::<Addr<Self>>().unwrap().clone()),
                 None => {
                     let life_cycle = LifeCycle::new();
-
-                    registry.insert(TypeId::of::<Self>(), Box::new(life_cycle.address()));
+                    let (actor_loop, addr, actor_name) = life_cycle.cycle(Self::default()).await?;
+                    registry.insert(TypeId::of::<Self>(), Box::new(addr.clone()));
                     drop(registry);
-
-                    life_cycle.start_actor(Self::default()).await
+                    Ok(LifeCycle::start((actor_loop, addr, actor_name)))
                 }
             }
         }
