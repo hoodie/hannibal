@@ -2,7 +2,10 @@ use dyn_clone::DynClone;
 
 use std::sync::Arc;
 
-use crate::{channel::ChanTx, Actor, ActorId, Error, Handler};
+use crate::{
+    channel::{ChanTx, WeakChanTx},
+    Actor, ActorId, Error, Handler,
+};
 
 use super::{caller::Caller, Addr, Message, Result};
 
@@ -63,8 +66,16 @@ where
     M: Message,
 {
     fn from((actor_id, tx): (ActorId, ChanTx<A>)) -> Self {
-        let weak_tx = Arc::downgrade(&tx);
+        (actor_id, Arc::downgrade(&tx)).into()
+    }
+}
 
+impl<M, A> From<(ActorId, WeakChanTx<A>)> for WeakCaller<M>
+where
+    A: Actor + Handler<M>,
+    M: Message,
+{
+    fn from((actor_id, weak_tx): (ActorId, WeakChanTx<A>)) -> Self {
         let upgrade = Box::new(move || weak_tx.upgrade().map(|tx| Caller::from((actor_id, tx))));
 
         WeakCaller { actor_id, upgrade }
