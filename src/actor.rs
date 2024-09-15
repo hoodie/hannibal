@@ -49,6 +49,30 @@ pub trait StreamHandler<M: 'static>: Actor {
     fn finished(&mut self, ctx: &mut Context<Self>) -> impl futures::Future<Output = ()> + Send {
         async { ctx.stop(None) }
     }
+
+    fn start_with_stream<S>(
+        self,
+        stream: S,
+    ) -> impl std::future::Future<Output = Result<Addr<Self>>> + Send
+    where
+        S: futures::Stream + Unpin + Send + 'static,
+        S::Item: 'static + Send,
+        Self: crate::StreamHandler<S::Item>,
+    {
+        async { LifeCycle::new().start_with_stream(self, stream).await }
+    }
+
+    fn start_with_stream_efficient<S>(
+        self,
+        stream: S,
+    ) -> impl std::future::Future<Output = Result<Addr<Self>>> + Send
+    where
+        S: futures::Stream + Unpin + Send + 'static,
+        S::Item: 'static + Send,
+        Self: crate::StreamHandler<S::Item>,
+    {
+        async { LifeCycle::new().start_with_stream_efficient(self, stream).await }
+    }
 }
 
 /// Actors are objects which encapsulate state and behavior.

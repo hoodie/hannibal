@@ -15,7 +15,7 @@ impl Actor for MyActor {}
 /// Handler for `Ping` message
 impl Handler<Ping> for MyActor {
     async fn handle(&mut self, _ctx: &mut Context<Self>, msg: Ping) -> usize {
-        eprintln!("PING: {}", <Ping as Message>::NAME);
+        eprintln!("PING: {}", <Ping as Message>::TYPE_NAME);
         self.count += msg.0;
         self.count
     }

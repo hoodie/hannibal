@@ -1,8 +1,8 @@
-use std::future::Future;
+use std::{borrow::Cow, future::Future};
 
 use crate::{addr::ActorEvent, channel::ChannelWrapper, error::Result, Actor, Addr, Context};
 
-use futures::FutureExt;
+use futures::{FutureExt, StreamExt};
 
 pub(crate) struct LifeCycle<A: Actor> {
     ctx: Context<A>,
@@ -35,8 +35,6 @@ impl<A: Actor> LifeCycle<A> {
 }
 
 impl<A: Actor> LifeCycle<A> {
-    /// TODO: why now implement this here in stead of in Context?
-    #[deprecated(note = "use `Context::address` instead")]
     pub fn address(&self) -> Addr<A> {
         Addr {
             actor_id: self.ctx.actor_id(),
@@ -48,27 +46,18 @@ impl<A: Actor> LifeCycle<A> {
     async fn cycle(
         self,
         mut actor: A,
-    ) -> Result<(impl Future<Output = ()>, Addr<A>)> {
+    ) -> Result<(impl Future<Output = ()>, Addr<A>, Cow<'static, str>)> {
+        let addr = self.address();
         let Self {
             mut ctx,
             mut channel,
             tx_exit,
         } = self;
 
-        let rx_exit = ctx.rx_exit.clone();
-        let actor_id = ctx.actor_id();
-
         // Call started
         actor.started(&mut ctx).await?;
 
-        let _actor_name = actor.name();
-        let tx = channel.tx();
-
-        let addr = Addr {
-            actor_id,
-            tx,
-            rx_exit,
-        };
+        let actor_name = actor.name();
 
         let mut rx = channel.rx().unwrap();
         let actor_loop = async move {
@@ -96,10 +85,130 @@ impl<A: Actor> LifeCycle<A> {
             tx_exit.send(()).ok();
         };
 
-        Ok((actor_loop, addr))
+        Ok((actor_loop, addr, actor_name))
     }
 
-    pub async fn supervised_cycle<F>(self, f: F) -> Result<(impl Future<Output = ()>, Addr<A>)>
+    async fn stream_cycle<S>(
+        self,
+        mut actor: A,
+        stream: S,
+    ) -> Result<(impl Future<Output = ()>, Addr<A>, Cow<'static, str>)>
+    where
+        S: futures::Stream + Unpin + Send + 'static,
+        S::Item: 'static + Send,
+        A: crate::StreamHandler<S::Item>,
+    {
+        let addr = self.address();
+        let Self {
+            mut ctx,
+            mut channel,
+            tx_exit,
+        } = self;
+
+        ctx.add_stream(stream);
+
+        Actor::started(&mut actor, &mut ctx).await?;
+
+        let actor_name = actor.name();
+
+        let mut rx = channel.rx().unwrap();
+        let actor_loop = async move {
+            while let Some(event) = rx.recv().await {
+                match event {
+                    ActorEvent::Exec(f) => f(&mut actor, &mut ctx).await,
+                    ActorEvent::Stop(reason) => {
+                        actor.stopping(&mut ctx, reason).await;
+                        break;
+                    }
+                    ActorEvent::StopSupervisor(_err) => {}
+                    ActorEvent::RemoveStream(id) => {
+                        if ctx.streams.contains(id) {
+                            ctx.streams.remove(id);
+                        }
+                    }
+                }
+            }
+
+            ctx.abort_streams();
+            ctx.abort_intervals();
+
+            actor.stopped(&mut ctx).await;
+
+            tx_exit.send(()).ok();
+        };
+
+        Ok((actor_loop, addr, actor_name))
+    }
+
+    async fn stream_cycle_efficient<S>(
+        self,
+        mut actor: A,
+        mut stream: S,
+    ) -> Result<(impl Future<Output = ()>, Addr<A>, Cow<'static, str>)>
+    where
+        S: futures::Stream + Unpin + Send + 'static,
+        S::Item: 'static + Send,
+        A: crate::StreamHandler<S::Item>,
+    {
+        let addr = self.address();
+        let Self {
+            mut ctx,
+            mut channel,
+            tx_exit,
+        } = self;
+
+        Actor::started(&mut actor, &mut ctx).await?;
+
+        let actor_name = actor.name();
+
+        let mut rx = channel.rx().unwrap();
+        let actor_loop = async move {
+            // let stream = stream.fuse();
+            loop {
+                futures::select! {
+                    event = rx.recv().fuse() => {
+                            match event.unwrap() {
+                                ActorEvent::Exec(f) => f(&mut actor, &mut ctx).await,
+                                ActorEvent::Stop(reason) => {
+                                    actor.stopping(&mut ctx, reason).await;
+                                    break;
+                                }
+                                ActorEvent::StopSupervisor(_err) => {}
+                                ActorEvent::RemoveStream(id) => {
+                                    if ctx.streams.contains(id) {
+                                        ctx.streams.remove(id);
+                                    }
+                                }
+                            }
+                    },
+                    msg = stream.next().fuse() => {
+                        if let Some(msg) = msg {
+                            actor.handle(&mut ctx, msg).await;
+                        } else {
+                            break;
+                        }
+                    },
+                    complete => break,
+                    default => break,
+                }
+            }
+
+            ctx.abort_streams();
+            ctx.abort_intervals();
+
+            actor.finished(&mut ctx).await;
+            actor.stopped(&mut ctx).await;
+
+            tx_exit.send(()).ok();
+        };
+
+        Ok((actor_loop, addr, actor_name))
+    }
+
+    async fn supervised_cycle<F>(
+        self,
+        f: F,
+    ) -> Result<(impl Future<Output = ()>, Addr<A>, Cow<'static, str>)>
     where
         F: Fn() -> A + Send + 'static,
     {
@@ -160,11 +269,33 @@ impl<A: Actor> LifeCycle<A> {
             ctx.abort_intervals();
         };
 
-        Ok((actor_loop, addr))
+        Ok((actor_loop, addr, _actor_name))
     }
 
     pub(crate) async fn start_actor(self, actor: A) -> Result<Addr<A>> {
-        let (actor_loop, addr) = self.cycle(actor).await?;
+        let (actor_loop, addr, _actor_name) = self.cycle(actor).await?;
+        Self::start(actor_loop);
+        Ok(addr)
+    }
+
+    pub(crate) async fn start_with_stream<S>(self, actor: A, stream: S) -> Result<Addr<A>>
+    where
+        S: futures::Stream + Unpin + Send + 'static,
+        S::Item: 'static + Send,
+        A: crate::StreamHandler<S::Item>,
+    {
+        let (actor_loop, addr, _actor_name) = self.stream_cycle(actor, stream).await?;
+        Self::start(actor_loop);
+        Ok(addr)
+    }
+
+    pub(crate) async fn start_with_stream_efficient<S>(self, actor: A, stream: S) -> Result<Addr<A>>
+    where
+        S: futures::Stream + Unpin + Send + 'static,
+        S::Item: 'static + Send,
+        A: crate::StreamHandler<S::Item>,
+    {
+        let (actor_loop, addr, _actor_name) = self.stream_cycle_efficient(actor, stream).await?;
         Self::start(actor_loop);
         Ok(addr)
     }
@@ -173,7 +304,7 @@ impl<A: Actor> LifeCycle<A> {
     where
         F: Fn() -> A + Send + 'static,
     {
-        let (loop_fut, addr) = self.supervised_cycle(f).await?;
+        let (loop_fut, addr, _actor_name) = self.supervised_cycle(f).await?;
         Self::start(loop_fut);
         Ok(addr)
     }

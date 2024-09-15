@@ -49,7 +49,11 @@ async fn main() -> Result<()> {
     println!("RESULT: {}", res == 30);
     assert_eq!(res, 30);
 
-    println!("caller can upgrade: {}", caller.upgrade().is_some());
+    println!(
+        "caller  {:?} can upgrade: {}",
+        caller,
+        caller.upgrade().is_some()
+    );
     assert!(caller.upgrade().is_some());
 
     std::mem::drop(addr);
