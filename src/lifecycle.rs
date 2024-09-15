@@ -1,3 +1,5 @@
+use std::future::Future;
+
 use crate::{addr::ActorEvent, channel::ChannelWrapper, error::Result, Actor, Addr, Context};
 
 use futures::FutureExt;
@@ -32,11 +34,9 @@ impl<A: Actor> LifeCycle<A> {
     }
 }
 
-impl<A: Actor> LifeCycle<A>
-where
-    for<'a> A: 'a,
-{
+impl<A: Actor> LifeCycle<A> {
     /// TODO: why now implement this here in stead of in Context?
+    #[deprecated(note = "use `Context::address` instead")]
     pub fn address(&self) -> Addr<A> {
         Addr {
             actor_id: self.ctx.actor_id(),
@@ -45,7 +45,10 @@ where
         }
     }
 
-    pub(crate) async fn start_actor(self, mut actor: A) -> Result<Addr<A>> {
+    async fn cycle(
+        self,
+        mut actor: A,
+    ) -> Result<(impl Future<Output = ()>, Addr<A>)> {
         let Self {
             mut ctx,
             mut channel,
@@ -60,6 +63,12 @@ where
 
         let _actor_name = actor.name();
         let tx = channel.tx();
+
+        let addr = Addr {
+            actor_id,
+            tx,
+            rx_exit,
+        };
 
         let mut rx = channel.rx().unwrap();
         let actor_loop = async move {
@@ -87,24 +96,10 @@ where
             tx_exit.send(()).ok();
         };
 
-        #[cfg(all(feature = "tracing", tokio_unstable))]
-        tokio::task::Builder::new()
-            //.name(<A as Actor>::NAME)
-            .name(_actor_name.as_ref())
-            .spawn(actor_loop);
-        #[cfg(any(not(tokio_unstable), not(feature = "tracing")))]
-        crate::runtime::spawn(actor_loop);
-        #[cfg(all(feature = "tracing", not(tokio_unstable)))]
-        compile_error!("you need to build with --rustflags tokio_unstable");
-
-        Ok(Addr {
-            actor_id,
-            tx,
-            rx_exit,
-        })
+        Ok((actor_loop, addr))
     }
 
-    pub async fn start_supervised<F>(self, f: F) -> Result<Addr<A>>
+    pub async fn supervised_cycle<F>(self, f: F) -> Result<(impl Future<Output = ()>, Addr<A>)>
     where
         F: Fn() -> A + Send + 'static,
     {
@@ -125,6 +120,12 @@ where
         let _actor_name = actor.name();
 
         let tx = channel.tx();
+
+        let addr = Addr {
+            actor_id,
+            tx,
+            rx_exit,
+        };
 
         let mut rx = channel.rx().unwrap();
         let actor_loop = async move {
@@ -159,20 +160,36 @@ where
             ctx.abort_intervals();
         };
 
+        Ok((actor_loop, addr))
+    }
+
+    pub(crate) async fn start_actor(self, actor: A) -> Result<Addr<A>> {
+        let (actor_loop, addr) = self.cycle(actor).await?;
+        Self::start(actor_loop);
+        Ok(addr)
+    }
+
+    pub async fn start_supervised<F>(self, f: F) -> Result<Addr<A>>
+    where
+        F: Fn() -> A + Send + 'static,
+    {
+        let (loop_fut, addr) = self.supervised_cycle(f).await?;
+        Self::start(loop_fut);
+        Ok(addr)
+    }
+
+    fn start<F>(future: F)
+    where
+        F: Future<Output = ()> + Send + 'static,
+    {
         #[cfg(all(feature = "tracing", tokio_unstable))]
         tokio::task::Builder::new()
             //.name(<A as Actor>::NAME)
             .name(_actor_name.as_ref())
             .spawn(actor_loop);
         #[cfg(any(not(tokio_unstable), not(feature = "tracing")))]
-        crate::runtime::spawn(actor_loop);
+        crate::runtime::spawn(future);
         #[cfg(all(feature = "tracing", not(tokio_unstable)))]
         compile_error!("you need to build with --rustflags tokio_unstable");
-
-        Ok(Addr {
-            actor_id,
-            tx,
-            rx_exit,
-        })
     }
 }
