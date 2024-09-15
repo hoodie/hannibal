@@ -47,6 +47,14 @@ impl<M: Message<Result = ()>> Sender<M> {
     }
 }
 
+impl<M: Message<Result = ()>> std::fmt::Debug for Sender<M> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct(&format!("Sender<{}>", M::TYPE_NAME))
+            .field("actor_id", &self.actor_id)
+            .finish()
+    }
+}
+
 impl<M: Message<Result = ()>> PartialEq for Sender<M> {
     fn eq(&self, other: &Self) -> bool {
         self.actor_id.eq(&other.actor_id)
