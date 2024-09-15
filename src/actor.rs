@@ -71,7 +71,7 @@ pub trait StreamHandler<M: 'static>: Actor {
         S::Item: 'static + Send,
         Self: crate::StreamHandler<S::Item>,
     {
-        async { LifeCycle::new().start_with_stream_efficient(self, stream).await }
+        async { LifeCycle::new().bind_to_stream(self, stream).await }
     }
 }
 

@@ -140,7 +140,7 @@ impl<A: Actor> LifeCycle<A> {
         Ok((actor_loop, addr, actor_name))
     }
 
-    async fn stream_cycle_efficient<S>(
+    async fn stream_cycle_bound<S>(
         self,
         mut actor: A,
         mut stream: S,
@@ -289,13 +289,13 @@ impl<A: Actor> LifeCycle<A> {
         Ok(addr)
     }
 
-    pub(crate) async fn start_with_stream_efficient<S>(self, actor: A, stream: S) -> Result<Addr<A>>
+    pub(crate) async fn bind_to_stream<S>(self, actor: A, stream: S) -> Result<Addr<A>>
     where
         S: futures::Stream + Unpin + Send + 'static,
         S::Item: 'static + Send,
         A: crate::StreamHandler<S::Item>,
     {
-        let (actor_loop, addr, _actor_name) = self.stream_cycle_efficient(actor, stream).await?;
+        let (actor_loop, addr, _actor_name) = self.stream_cycle_bound(actor, stream).await?;
         Self::start(actor_loop);
         Ok(addr)
     }
