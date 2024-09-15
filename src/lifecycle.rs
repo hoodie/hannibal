@@ -38,7 +38,11 @@ where
 {
     /// TODO: why now implement this here in stead of in Context?
     pub fn address(&self) -> Addr<A> {
-        self.ctx.address()
+        Addr {
+            actor_id: self.ctx.actor_id(),
+            tx: self.channel.tx(),
+            rx_exit: self.ctx.rx_exit.clone(),
+        }
     }
 
     pub(crate) async fn start_actor(self, mut actor: A) -> Result<Addr<A>> {

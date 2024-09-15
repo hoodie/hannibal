@@ -32,7 +32,7 @@ impl SubscriberParent {
 impl Actor for SubscriberParent {
     async fn started(&mut self, ctx: &mut Context<Self>) -> Result<()> {
         println!("Subscriber Parent Started");
-        let _ = ctx.address().send(InitializeChildSubscribers);
+        let _ = ctx.address()?.send(InitializeChildSubscribers);
         Ok(())
     }
 }
@@ -89,7 +89,7 @@ impl Actor for Subscriber {
     async fn started(&mut self, ctx: &mut Context<Self>) -> Result<()> {
         // Send subscription request message to the Message Producer
         println!("Child Subscriber Started - id {:?}", self.id);
-        let self_sender = ctx.address().weak_sender();
+        let self_sender = ctx.weak_sender();
         let _ = self.message_producer_addr.send(SubscribeToProducer {
             sender: self_sender,
         });

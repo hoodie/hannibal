@@ -2,8 +2,9 @@ use crate::{
     addr::{ActorEvent, StopReason},
     broker::{Subscribe, Unsubscribe},
     channel::{ChannelWrapper, WeakChanTx},
+    error::{Error::AlreadyStopped, Result},
     runtime::{sleep, spawn},
-    Actor, ActorId, Addr, Broker, Handler, Message, Result, Service, StreamHandler,
+    Actor, ActorId, Addr, Broker, Handler, Message, Service, StreamHandler, WeakCaller, WeakSender,
 };
 use futures::{
     future::{AbortHandle, Abortable},
@@ -51,13 +52,31 @@ where
     }
 
     /// Returns the address of the actor.
-    pub fn address(&self) -> Addr<A> {
-        Addr {
-            actor_id: self.actor_id,
-            // This getting unwrap panics
-            tx: self.weak_tx.upgrade().unwrap(),
-            rx_exit: self.rx_exit.clone(),
-        }
+    pub fn address(&self) -> Result<Addr<A>> {
+        self.weak_tx
+            .upgrade()
+            .map(|tx| Addr {
+                actor_id: self.actor_id,
+                tx,
+                rx_exit: self.rx_exit.clone(),
+            })
+            .ok_or(AlreadyStopped)
+    }
+
+    pub fn weak_sender<M>(&self) -> WeakSender<M>
+    where
+        A: Actor + Handler<M>,
+        M: Message<Result = ()>,
+    {
+        (self.actor_id, self.weak_tx.clone()).into()
+    }
+
+    pub fn weak_caller<M>(&self) -> WeakCaller<M>
+    where
+        A: Actor + Handler<M>,
+        M: Message,
+    {
+        (self.actor_id, self.weak_tx.clone()).into()
     }
 
     /// Returns the id of the actor.
@@ -204,7 +223,7 @@ where
     where
         A: Handler<M>,
     {
-        let sender = self.address().weak_sender();
+        let sender = self.weak_sender();
         let entry = self.intervals.vacant_entry();
         let (handle, registration) = futures::future::AbortHandle::new_pair();
         entry.insert(handle);
@@ -225,7 +244,7 @@ where
         A: Handler<M>,
         F: Fn() -> M + Sync + Send + 'static,
     {
-        let sender = self.address().weak_sender();
+        let sender = self.weak_sender();
 
         let entry = self.intervals.vacant_entry();
         let (handle, registration) = futures::future::AbortHandle::new_pair();
@@ -259,7 +278,7 @@ where
         A: Handler<M>,
     {
         let broker = Broker::<M>::from_registry().await?;
-        let sender = self.address().weak_sender();
+        let sender = self.weak_sender();
         broker
             .send(Subscribe {
                 id: self.actor_id,
