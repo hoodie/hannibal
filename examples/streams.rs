@@ -1,3 +1,4 @@
+use futures::stream;
 use hannibal::*;
 
 #[derive(Debug)]
@@ -5,7 +6,7 @@ struct StartsStreamOnStarted;
 impl Actor for StartsStreamOnStarted {
     async fn started(&mut self, ctx: &mut Context<Self>) -> Result<()> {
         println!("{self:?} started");
-        ctx.add_stream(futures::stream::iter(0..10));
+        ctx.add_stream(stream::iter(0..10));
         Ok(())
     }
     async fn stopped(&mut self, _ctx: &mut Context<Self>) {
@@ -84,21 +85,21 @@ impl StreamHandler<u32> for Passive {
 
 #[hannibal::main]
 async fn main() -> Result<()> {
-    // adds stream on start
-    let addr = StartsStreamOnStarted.start().await?;
-    addr.wait_for_stop().await;
+    // adds stream on start by itself
+    StartsStreamOnStarted.start().await?.wait_for_stop().await;
 
     // get stream added by lifecycle
-    let addr = StopsOnFinished
-        .start_with_stream(futures::stream::iter(0..10))
-        .await?;
-    addr.wait_for_stop().await;
+    StopsOnFinished
+        .start_with_stream(stream::iter(0..10))
+        .await?
+        .wait_for_stop()
+        .await;
 
     // get stream added by lifecycle
-    let addr = Passive
-        .start_with_stream_efficient(futures::stream::iter(0..10))
-        .await?;
-
-    addr.wait_for_stop().await;
+    Passive
+        .start_with_stream_efficient(stream::iter(0..10))
+        .await?
+        .wait_for_stop()
+        .await;
     Ok(())
 }
