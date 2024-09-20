@@ -20,3 +20,5 @@ A minimalistic reimplementation of the [Hannibal](https://lib.rs/hannibal) actor
 - [ ] maybe impl async AND blocking sending
 - [ ] impl Caller
 - [ ] logging and console subscriber
+- [ ] can we select!() ?
+

@@ -2,6 +2,7 @@ mod addr;
 mod context;
 mod event_loop;
 mod sender;
+mod channel;
 
 mod error;
 
