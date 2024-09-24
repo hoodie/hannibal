@@ -1,74 +1,56 @@
-use std::sync::{Arc, RwLock};
-
-use minibal::{Actor, ActorResult, EventLoop, Handler};
+use minibal::{
+    actor::{Actor, Handler},
+    addr::{start, Message},
+    context::Context,
+    error::Result,
+};
 
 struct MyActor(&'static str);
 
+struct Greet(&'static str);
+impl Message for Greet {
+    type Result = ();
+}
+
+struct Add(i32, i32);
+impl Message for Add {
+    type Result = i32;
+}
+
 impl Actor for MyActor {
-    fn started(&mut self) -> ActorResult<()> {
+    async fn started(&mut self, _ctx: &mut Context<Self>) -> Result<()> {
         println!("[Actor {}] started", self.0);
         Ok(())
     }
 
-    fn stopped(&mut self) -> ActorResult<()> {
+    async fn stopped(&mut self, _ctx: &mut Context<Self>) {
         println!("[Actor {}] stopped", self.0);
-        Ok(())
     }
 }
 
-impl Handler<i32> for MyActor {
-    fn handle(&mut self, msg: i32) {
-        println!("[Actor {}] received an number {}", self.0, msg);
+impl Handler<Greet> for MyActor {
+    async fn handle(&mut self, _ctx: &mut Context<Self>, msg: Greet) {
+        println!(
+            "[Actor {me}] Hello {you}, my name is {me}",
+            me = self.0,
+            you = msg.0,
+        );
     }
 }
 
-impl Handler<String> for MyActor {
-    fn handle(&mut self, msg: String) {
-        println!("[Actor {}] received a string {}", self.0, msg);
+impl Handler<Add> for MyActor {
+    async fn handle(&mut self, _ctx: &mut Context<Self>, msg: Add) -> i32 {
+        msg.0 + msg.1
     }
 }
 
-fn halt() {
-    eprintln!("Press Enter to exit");
-    std::io::stdin().read_line(&mut String::new()).unwrap();
-}
+#[tokio::main]
+async fn main() {
+    let (event_loop, mut addr) = start(MyActor("Caesar"));
+    tokio::spawn(event_loop);
+    addr.send(Greet("Cornelius")).unwrap();
+    let addition = addr.call(Add(1, 2)).await;
 
-fn internal_api() {
-    let actor = Arc::new(RwLock::new(MyActor("actor 0")));
-    let mut life_cycle = EventLoop::default();
-    life_cycle.spawn(actor.clone()).unwrap();
-
-    let ctx = life_cycle.ctx;
-
-    ctx.send(String::from("hello world"), actor.clone())
-        .unwrap();
-    ctx.send(1337, actor.clone()).unwrap();
-    ctx.send(4711, actor.clone()).unwrap();
-    ctx.stop().unwrap();
-}
-
-fn main() {
-    internal_api();
-
-    let addr1 = EventLoop::default().start(MyActor("actor 1")).unwrap();
-    let addr2 = EventLoop::default().start(MyActor("actor 2")).unwrap();
-    let sender = addr1.sender::<i32>();
-    let sender2 = addr2.sender::<i32>();
-
-    addr1.send(42).unwrap();
-    sender.send(43).unwrap();
-
-    let weak_sender = sender.downgrade();
-    weak_sender.try_send(44).unwrap();
-
-    drop(addr1);
-    drop(sender);
-    eprintln!("{}:{} {:?}", file!(), line!(), weak_sender.try_send(45));
-    halt();
-
-    sender2.send(46).unwrap();
-    addr2.stop().unwrap();
-    sender2.send(47).unwrap(); // lost TODO: make
-
-    halt();
+    println!("The Actor Calculated: {:?}", addition);
+    println!("{:#?}", addr.stop());
 }

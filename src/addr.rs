@@ -1,75 +1,121 @@
-use std::sync::{Arc, RwLock, Weak};
+use futures::{channel::oneshot, Future, FutureExt};
+use std::{pin::Pin, task::Poll};
 
-use crate::{error::ActorError, Actor, ActorResult, Context, Handler, Sender};
+use crate::{
+    actor::{Actor, Handler},
+    channel::{ChanTx, ChannelWrapper},
+    context::{Context, RunningFuture},
+    error::Result,
+};
 
-pub struct Addr<A: Actor> {
-    pub(crate) ctx: Arc<Context>,
-    pub(crate) actor: Arc<RwLock<A>>,
+type TaskFuture<'a> = Pin<Box<dyn Future<Output = ()> + Send + 'a>>;
+
+type TaskFn<A> =
+    Box<dyn for<'a> FnOnce(&'a mut A, &'a mut Context<A>) -> TaskFuture<'a> + Send + 'static>;
+
+pub(crate) enum Payload<A> {
+    Task(TaskFn<A>),
+    Stop,
+}
+
+impl<A: Actor> Payload<A> {
+    pub fn task<F>(f: F) -> Self
+    where
+        F: for<'a> FnOnce(&'a mut A, &'a mut Context<A>) -> TaskFuture<'a> + Send + 'static,
+    {
+        Self::Task(Box::new(f))
+    }
+}
+
+pub trait Message: 'static + Send {
+    type Result: 'static + Send;
+}
+
+pub struct Addr<A> {
+    tx: ChanTx<A>,
+    running: RunningFuture,
 }
 
 impl<A: Actor> Clone for Addr<A> {
     fn clone(&self) -> Self {
         Addr {
-            ctx: self.ctx.clone(),
-            actor: self.actor.clone(),
+            tx: self.tx.clone(),
+            running: self.running.clone(),
         }
     }
 }
 
 impl<A: Actor> Addr<A> {
-    pub fn send<M>(&self, msg: M) -> ActorResult<()>
-    where
-        A: Handler<M> + 'static,
-        M: Send + Sync + 'static,
-    {
-        self.ctx.send(msg, self.actor.clone())?;
+    pub fn stop(&mut self) -> Result<()> {
+        self.tx.send(Payload::Stop)?;
         Ok(())
     }
 
-    pub fn stop(&self) -> ActorResult<()> {
-        self.ctx.stop()
+    pub fn stopped(&self) -> bool {
+        self.running.peek().is_some()
     }
 
-    pub fn downgrade(&self) -> WeakAddr<A> {
-        WeakAddr {
-            ctx: Arc::downgrade(&self.ctx),
-            actor: Arc::downgrade(&self.actor),
-        }
-    }
-
-    pub fn sender<M>(&self) -> Sender<M>
+    pub async fn call<M: Message>(&self, msg: M) -> Result<M::Result>
     where
-        A: Handler<M> + 'static,
-        M: Send + 'static,
+        A: Handler<M>,
     {
-        (*self).clone().into()
+        let (repsonse_tx, response) = oneshot::channel();
+        self.tx.send(Payload::task(move |actor, ctx| {
+            Box::pin(async move {
+                let res = Handler::handle(actor, ctx, msg).await;
+                let _ = repsonse_tx.send(res);
+            })
+        }))?;
+
+        Ok(response.await?)
+    }
+
+    pub fn send<M: Message<Result = ()>>(&self, msg: M) -> Result<()>
+    where
+        A: Handler<M>,
+    {
+        self.tx.send(Payload::task(move |actor, ctx| {
+            Box::pin(Handler::handle(actor, ctx, msg))
+        }))?;
+        Ok(())
     }
 }
 
-#[derive(Clone)]
-pub struct WeakAddr<A: Actor> {
-    ctx: Weak<Context>,
-    actor: Weak<RwLock<A>>,
+impl<A> std::future::Future for Addr<A> {
+    type Output = Result<()>;
+    fn poll(self: Pin<&mut Self>, cx: &mut std::task::Context<'_>) -> Poll<Self::Output> {
+        self.get_mut()
+            .running
+            .poll_unpin(cx)
+            .map(|p| p.map_err(Into::into))
+    }
 }
 
-impl<A: Actor> WeakAddr<A> {
-    pub fn upgrade(&self) -> Option<Addr<A>> {
-        Some(Addr {
-            ctx: self.ctx.upgrade()?,
-            actor: self.actor.upgrade()?,
-        })
-    }
+pub fn start<A: Actor>(mut actor: A) -> (impl Future<Output = A>, Addr<A>) {
+    let channel = ChannelWrapper::unbounded();
+    let (mut ctx, stopped) = Context::new(&channel);
+    let (tx, mut rx) = channel.break_up();
 
-    pub fn try_send<M>(&self, msg: M) -> ActorResult<()>
-    where
-        A: Handler<M> + 'static,
-        M: Send + Sync + 'static,
-    {
-        if let Some(addr) = self.upgrade() {
-            addr.send(msg)?;
-            Ok(())
-        } else {
-            Err(ActorError::AlreadyStopped)
+    let addr = Addr {
+        tx,
+        running: ctx.running.clone(),
+    };
+
+    let actor_loop = async move {
+        while let Some(event) = rx.recv().await {
+            match event {
+                Payload::Task(f) => f(&mut actor, &mut ctx).await,
+                Payload::Stop => {
+                    break;
+                }
+            }
         }
-    }
+
+        actor.stopped(&mut ctx).await;
+
+        stopped.notify();
+        actor
+    };
+
+    (actor_loop, addr)
 }

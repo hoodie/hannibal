@@ -5,3 +5,19 @@ edition = "2021"
 
 [dependencies]
 thiserror = "1.0"
+futures-executor = "0.3"
+futures = { version = "0.3" }
+color-backtrace = "0.6"
+async-lock = "3"
+
+tokio = { version = "1.39", features = ["full"], optional = true }
+[dev-dependencies]
+tokio = { version = "1.39", features = ["full"] }
+
+[features]
+# TODO: make tokio optional
+default = ["tokio"]
+
+[[example]]
+name = "simple"
+required-features = ["tokio"]
