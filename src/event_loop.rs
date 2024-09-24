@@ -1,43 +1,48 @@
 use crate::{
+    addr::Addr,
+    channel,
+    context::Context,
     error::ActorError::{SpawnError, WriteError},
-    Actor, ActorResult, Addr, Context,
+    Actor, ActorResult,
 };
-use std::sync::{mpsc, Arc, RwLock};
+use std::{
+    future::Future,
+    pin::Pin,
+    sync::{mpsc, Arc, RwLock},
+};
 
-type Exec = dyn FnOnce() -> ActorResult<()> + Send + Sync + 'static;
+type ExecFuture<'a> = Pin<Box<dyn Future<Output = ()> + Send + 'a>>;
 
-pub enum Payload {
-    Exec(Box<Exec>),
-    Stop,
+pub type StopReason = Option<Box<dyn std::error::Error + Send + 'static>>;
+
+pub(crate) type ExecFn<A: Actor> =
+    Box<dyn for<'a> FnOnce(&'a mut A, &'a mut Context<A>) -> ExecFuture<'a> + Send + 'static>;
+
+pub enum Payload<A: Actor> {
+    Exec(ExecFn<A>),
+    Stop(StopReason),
 }
 
-impl<F> From<F> for Payload
+impl<F, A> From<F> for Payload<A>
 where
     F: FnOnce() -> ActorResult<()> + Send + Sync + 'static,
+    F: for<'a> FnOnce(&'a mut A, &'a mut Context<A>) -> ExecFuture<'a> + Send + 'static,
+    A: Actor,
 {
     fn from(f: F) -> Self {
         Payload::Exec(Box::new(f))
     }
 }
 
-type BoxedActor = Arc<RwLock<dyn Actor + Send + Sync + 'static>>;
 
-impl Actor for BoxedActor {
-    fn started(&mut self) -> ActorResult<()> {
-        self.as_ref().write().map_err(|_| WriteError)?.started()
-    }
-
-    fn stopped(&mut self) -> ActorResult<()> {
-        self.as_ref().write().map_err(|_| WriteError)?.stopped()
-    }
+pub struct EventLoop<A: Actor> {
+    ctx: Context<A>,
+    addr: Addr<A>,
+    rx: channel::ChanRx<A>,
+    tx_exit: futures::channel::oneshot::Sender<()>,
 }
 
-#[derive(Default)]
-pub struct EventLoop {
-    pub ctx: Context,
-}
-
-impl EventLoop {
+impl<A: Actor> EventLoop<A> {
     pub fn start<A>(mut self, actor: A) -> ActorResult<Addr<A>>
     where
         A: Actor + Send + Sync + 'static,

@@ -1,10 +1,12 @@
 use std::sync::{Arc, RwLock, Weak};
 
-use crate::{error::ActorError, Actor, ActorResult, Context, Handler, Sender};
+use crate::{
+    channel::ChanTx, error::ActorError, Actor, ActorResult, Context, Handler, RunningFuture, Sender,
+};
 
 pub struct Addr<A: Actor> {
-    pub(crate) ctx: Arc<Context>,
-    pub(crate) actor: Arc<RwLock<A>>,
+    pub(crate) tx: ChanTx<A>,
+    pub(crate) rx_exit: Option<RunningFuture>,
 }
 
 impl<A: Actor> Clone for Addr<A> {
