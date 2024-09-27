@@ -22,7 +22,9 @@ impl Actor for MyActor {}
 
 impl Handler<Stop> for MyActor {
     async fn handle(&mut self, ctx: &mut Context<Self>, _: Stop) {
-        ctx.stop();
+        if let Err(e) = ctx.stop() {
+            eprintln!("{}", e);
+        }
     }
 }
 
