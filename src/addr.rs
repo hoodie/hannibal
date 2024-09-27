@@ -1,5 +1,5 @@
 use futures::{channel::oneshot, Future, FutureExt};
-use std::{pin::Pin, task::Poll};
+use std::{pin::Pin, sync::Arc, task::Poll};
 
 use crate::{
     actor::{Actor, Handler},
@@ -39,7 +39,7 @@ pub struct Addr<A> {
 impl<A: Actor> Clone for Addr<A> {
     fn clone(&self) -> Self {
         Addr {
-            tx: self.tx.clone(),
+            tx: Arc::clone(&self.tx),
             running: self.running.clone(),
         }
     }
@@ -59,11 +59,11 @@ impl<A: Actor> Addr<A> {
     where
         A: Handler<M>,
     {
-        let (repsonse_tx, response) = oneshot::channel();
+        let (tx_response, response) = oneshot::channel();
         self.tx.send(Payload::task(move |actor, ctx| {
             Box::pin(async move {
                 let res = Handler::handle(actor, ctx, msg).await;
-                let _ = repsonse_tx.send(res);
+                let _ = tx_response.send(res);
             })
         }))?;
 
@@ -93,7 +93,7 @@ impl<A> std::future::Future for Addr<A> {
 
 pub fn start<A: Actor>(mut actor: A) -> (impl Future<Output = A>, Addr<A>) {
     let channel = ChannelWrapper::unbounded();
-    let (mut ctx, stopped) = Context::new(&channel);
+    let (mut ctx, stopper) = Context::new(&channel);
     let (tx, mut rx) = channel.break_up();
 
     let addr = Addr {
@@ -105,15 +105,13 @@ pub fn start<A: Actor>(mut actor: A) -> (impl Future<Output = A>, Addr<A>) {
         while let Some(event) = rx.recv().await {
             match event {
                 Payload::Task(f) => f(&mut actor, &mut ctx).await,
-                Payload::Stop => {
-                    break;
-                }
+                Payload::Stop => break,
             }
         }
 
         actor.stopped(&mut ctx).await;
 
-        stopped.notify();
+        stopper.notify();
         actor
     };
 
