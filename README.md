@@ -4,7 +4,7 @@ A minimalistic reimplementation of the [Hannibal](https://lib.rs/hannibal) actor
 
 ## Differences and Plans
 
-- Typefree Context (not parameterized over concrete actor)
+- ~Typefree Context (not parameterized over concrete actor)~
 - Strong and Weak Senders and Callers (as in actix)
 - Exchangeable Channel Implementation ((un)bound, std, futures, tokio, lets see)
 - Exchangable Runtime (no compiletime feature, no hannibal::block_on())
