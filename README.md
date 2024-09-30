@@ -15,8 +15,8 @@ A minimalistic reimplementation of the [Hannibal](https://lib.rs/hannibal) actor
 
 - [x] Async EventLoop
 - [x] Stopping actors + Notifying Addrs
-- [ ] lifecycle builder
-  - return actor after stop
+- [x] environment builder
+  - [x] return actor after stop
 - [ ] impl Caller/Sender
   - same old, same old
   - [ ] stream handling
