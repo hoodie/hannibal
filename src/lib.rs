@@ -43,7 +43,7 @@ mod environment;
 pub mod error;
 
 pub use self::{
-    actor::{Actor, Handler},
+    actor::{Actor, ActorResult, Handler},
     addr::{Addr, Message},
     context::Context,
     environment::Environment,

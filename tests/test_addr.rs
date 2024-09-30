@@ -1,6 +1,6 @@
 use std::future::Future;
 
-use minibal::{Actor, Addr, Context, Handler, Message, Result};
+use minibal::{Actor, ActorResult, Addr, Context, Handler, Message};
 
 #[derive(Debug, Default)]
 struct MyActor(Option<&'static str>);
@@ -42,7 +42,7 @@ impl Handler<Add> for MyActor {
     }
 }
 
-fn start<A: Actor>(actor: A) -> (impl Future<Output = Result<A>>, Addr<A>) {
+fn start<A: Actor>(actor: A) -> (impl Future<Output = ActorResult<A>>, Addr<A>) {
     let (event_loop, addr) = minibal::Environment::unbounded().launch(actor);
     (event_loop, addr)
 }
