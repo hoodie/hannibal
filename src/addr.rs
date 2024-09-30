@@ -91,8 +91,20 @@ impl<A> std::future::Future for Addr<A> {
     }
 }
 
-pub fn start<A: Actor>(mut actor: A) -> (impl Future<Output = A>, Addr<A>) {
+pub fn start<A: Actor>(actor: A) -> (impl Future<Output = A>, Addr<A>) {
     let channel = ChannelWrapper::unbounded();
+    start_from_channel(actor, channel)
+}
+
+pub fn start_bounded<A: Actor>(actor: A, buffer: usize) -> (impl Future<Output = A>, Addr<A>) {
+    let channel = ChannelWrapper::bounded(buffer);
+    start_from_channel(actor, channel)
+}
+
+fn start_from_channel<A: Actor>(
+    mut actor: A,
+    channel: ChannelWrapper<A>,
+) -> (impl Future<Output = A>, Addr<A>) {
     let (mut ctx, stopper) = Context::new(&channel);
     let (tx, mut rx) = channel.break_up();
 

@@ -14,11 +14,24 @@ A minimalistic reimplementation of the [Hannibal](https://lib.rs/hannibal) actor
 
 ## TODO
 
-- [ ] Async EventLoop
-- [ ] Stopping actors + Notifying Addrs
+- [x] Async EventLoop
+- [x] Stopping actors + Notifying Addrs
+- [ ] lifecycle builder
+  - return actor after stop
+- [ ] impl Caller/Sender
+  - same old, same old
+  - [ ] stream handling
+    - attach api
+- [ ] service
+  - do they require supervision?
+- [ ] broker
+  - look into why there should be a thread local broker
+- [ ] intervals and timeouts
+  - injectable spawner/sleeper or at least separte impls
+- [ ] logging and console subscriber
+- [ ] test with rstest
+
+## Stretch Goals
+- [ ] can we select!() ?
 - [ ] maybe impl SinkExt for Addr/Sender
 - [ ] maybe impl async AND blocking sending
-- [ ] impl Caller
-- [ ] logging and console subscriber
-- [ ] can we select!() ?
-

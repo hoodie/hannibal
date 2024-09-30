@@ -36,7 +36,7 @@ impl Handler<Store> for MyActor {
 
 impl Handler<Add> for MyActor {
     async fn handle(&mut self, _: &mut Context<Self>, msg: Add) -> i32 {
-        return msg.0 + msg.1;
+        msg.0 + msg.1
     }
 }
 
@@ -91,4 +91,19 @@ async fn ctx_stop() {
 
     addr2.await.unwrap();
     addr.await.unwrap();
+}
+
+
+#[tokio::test]
+async fn addr_stopped_after_stop() {
+    let (event_loop, addr) = start(MyActor::default());
+    tokio::spawn(event_loop);
+
+    let addr2 = addr.clone();
+    assert!(!addr2.stopped(), "addr2 should not be stopped");
+
+    addr.send(Stop).unwrap();
+
+    addr.await.unwrap();
+    assert!(addr2.stopped(), "addr2 should be stopped");
 }
