@@ -1,6 +1,6 @@
 use std::future::Future;
 
-use minibal::{Actor, Addr, Context, Handler, Message};
+use minibal::{Actor, Addr, Context, Handler, Message, Result};
 
 #[derive(Debug, Default)]
 struct MyActor(Option<&'static str>);
@@ -42,7 +42,7 @@ impl Handler<Add> for MyActor {
     }
 }
 
-fn start<A: Actor>(actor: A) -> (impl Future<Output = A>, Addr<A>) {
+fn start<A: Actor>(actor: A) -> (impl Future<Output = Result<A>>, Addr<A>) {
     let (event_loop, addr) = minibal::Environment::unbounded().launch(actor);
     (event_loop, addr)
 }
@@ -62,7 +62,7 @@ async fn addr_send() {
     let task = tokio::spawn(event_loop);
     addr.send(Store("password")).unwrap();
     addr.stop().unwrap();
-    let actor = task.await.unwrap();
+    let actor = task.await.unwrap().unwrap();
     assert_eq!(actor.0, Some("password"))
 }
 

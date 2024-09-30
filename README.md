@@ -11,7 +11,6 @@ A minimalistic reimplementation of the [Hannibal](https://lib.rs/hannibal) actor
 - maybe no extra proc_macro derive for messages necessary
 -
 
-
 ## TODO
 
 - [x] Async EventLoop

@@ -47,9 +47,13 @@ impl<A: Actor> Environment<A> {
         }
     }
 
-    pub fn launch(mut self, mut actor: A) -> (impl Future<Output = A>, Addr<A>) {
+    pub fn launch(mut self, mut actor: A) -> (impl Future<Output = crate::Result<A>>, Addr<A>) {
         let actor_loop = async move {
-            while let Some(event) = self.receiver.recv().await {
+            if let Err(error) = actor.started(&mut self.ctx).await {
+                return Err(error);
+            }
+
+            while let Some(event) = self.payload_rx.recv().await {
                 match event {
                     Payload::Task(f) => f(&mut actor, &mut self.ctx).await,
                     Payload::Stop => break,
@@ -59,9 +63,50 @@ impl<A: Actor> Environment<A> {
             actor.stopped(&mut self.ctx).await;
 
             self.stop.notify();
-            actor
+            Ok(actor)
         };
 
         (actor_loop, self.addr)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::actor::Actor;
+
+    #[derive(Default)]
+    struct MyActor {
+        started: bool,
+        stopped: bool,
+    }
+
+    impl Actor for MyActor {
+        async fn started(&mut self, _ctx: &mut Context<Self>) -> crate::Result<()> {
+            self.started = true;
+            Ok(())
+        }
+
+        async fn stopped(&mut self, _: &mut Context<Self>) {
+            self.stopped = true;
+        }
+    }
+
+    #[tokio::test]
+    async fn calls_start() {
+        let (event_loop, mut addr) = Environment::unbounded().launch(MyActor::default());
+        let task = tokio::spawn(event_loop);
+        addr.stop().unwrap();
+        let actor = task.await.unwrap().unwrap();
+        assert!(actor.started);
+    }
+
+    #[tokio::test]
+    async fn calls_stop() {
+        let (event_loop, mut addr) = Environment::unbounded().launch(MyActor::default());
+        let task = tokio::spawn(event_loop);
+        addr.stop().unwrap();
+        let actor = task.await.unwrap().unwrap();
+        assert!(actor.stopped);
     }
 }
