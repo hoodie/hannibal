@@ -39,11 +39,13 @@ mod actor;
 mod addr;
 mod channel;
 mod context;
+mod environment;
 pub mod error;
 
 pub use self::{
     actor::{Actor, Handler},
-    addr::{start, start_bounded, Addr, Message},
+    addr::{Addr, Message},
     context::Context,
+    environment::Environment,
     error::Result,
 };

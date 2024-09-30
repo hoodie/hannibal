@@ -1,4 +1,6 @@
-use minibal::{start, Actor, Context, Handler, Message};
+use std::future::Future;
+
+use minibal::{Actor, Addr, Context, Handler, Message};
 
 #[derive(Debug, Default)]
 struct MyActor(Option<&'static str>);
@@ -38,6 +40,11 @@ impl Handler<Add> for MyActor {
     async fn handle(&mut self, _: &mut Context<Self>, msg: Add) -> i32 {
         msg.0 + msg.1
     }
+}
+
+fn start<A: Actor>(actor: A) -> (impl Future<Output = A>, Addr<A>) {
+    let (event_loop, addr) = minibal::Environment::unbounded().launch(actor);
+    (event_loop, addr)
 }
 
 #[tokio::test]
@@ -92,7 +99,6 @@ async fn ctx_stop() {
     addr2.await.unwrap();
     addr.await.unwrap();
 }
-
 
 #[tokio::test]
 async fn addr_stopped_after_stop() {

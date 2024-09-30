@@ -1,4 +1,4 @@
-use minibal::{error::Result, start, Actor, Context, Handler, Message};
+use minibal::{error::Result, Actor, Context, Environment, Handler, Message};
 
 struct MyActor(&'static str);
 
@@ -41,7 +41,7 @@ impl Handler<Add> for MyActor {
 
 #[tokio::main]
 async fn main() {
-    let (event_loop, mut addr) = start(MyActor("Caesar"));
+    let (event_loop, mut addr) = Environment::unbounded().launch(MyActor("Caesar"));
     tokio::spawn(event_loop);
     addr.send(Greet("Cornelius")).unwrap();
     let addition = addr.call(Add(1, 2)).await;
