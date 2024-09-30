@@ -1,7 +1,4 @@
-use futures::{
-    channel::mpsc::{Receiver, Sender, UnboundedReceiver, UnboundedSender},
-    StreamExt,
-};
+use futures::StreamExt;
 
 use std::{
     future::Future,
@@ -60,66 +57,48 @@ where
     for<'a> A: 'a,
 {
     pub fn bounded(buffer: usize) -> Self {
-        ChannelWrapper::from(futures::channel::mpsc::channel::<Payload<A>>(buffer))
+        let (tx, rx) = futures::channel::mpsc::channel::<Payload<A>>(buffer);
+        let send = Arc::new(move |event: Payload<A>| -> Result<()> {
+            let mut tx = tx.clone();
+            tx.start_send(event)?;
+            Ok(())
+        });
+
+        let rx = Arc::new(async_lock::Mutex::new(rx));
+        let recv = Box::new(move || -> RecvFuture<A> {
+            let rx = Arc::clone(&rx);
+            Box::pin(async move {
+                let mut rx = rx.lock().await;
+                rx.next().await
+            })
+        });
+        Self::wrap(send, recv)
     }
 
     pub fn unbounded() -> Self {
-        ChannelWrapper::from(futures::channel::mpsc::unbounded::<Payload<A>>())
+        let (tx, rx) = futures::channel::mpsc::unbounded::<Payload<A>>();
+        let send = Arc::new(move |event: Payload<A>| -> Result<()> {
+            let mut tx = tx.clone();
+            tx.start_send(event)?;
+            Ok(())
+        });
+
+        let rx = Arc::new(async_lock::Mutex::new(rx));
+        let recv = Box::new(move || -> RecvFuture<A> {
+            let rx = Arc::clone(&rx);
+            Box::pin(async move {
+                let mut rx = rx.lock().await;
+                rx.next().await
+            })
+        });
+        Self::wrap(send, recv)
     }
 
     pub fn break_up(self) -> (ChanTx<A>, ChanRx<A>) {
         (self.tx_fn, self.rx_fn)
     }
-}
 
-impl<A> ChannelWrapper<A> {
     pub fn weak_tx(&self) -> WeakChanTx<A> {
         Arc::downgrade(&self.tx_fn)
-    }
-}
-
-impl<A> From<(UnboundedSender<Payload<A>>, UnboundedReceiver<Payload<A>>)> for ChannelWrapper<A>
-where
-    for<'a> A: 'a,
-{
-    fn from((tx, rx): (UnboundedSender<Payload<A>>, UnboundedReceiver<Payload<A>>)) -> Self {
-        let send = Arc::new(move |event: Payload<A>| -> Result<()> {
-            let mut tx = tx.clone();
-            tx.start_send(event)?;
-            Ok(())
-        });
-
-        let rx = Arc::new(async_lock::Mutex::new(rx));
-        let recv = Box::new(move || -> RecvFuture<A> {
-            let rx = Arc::clone(&rx);
-            Box::pin(async move {
-                let mut rx = rx.lock().await;
-                rx.next().await
-            })
-        });
-        Self::wrap(send, recv)
-    }
-}
-
-impl<A> From<(Sender<Payload<A>>, Receiver<Payload<A>>)> for ChannelWrapper<A>
-where
-    for<'a> A: 'a,
-{
-    fn from((tx, rx): (Sender<Payload<A>>, Receiver<Payload<A>>)) -> Self {
-        let send = Arc::new(move |event: Payload<A>| -> Result<()> {
-            let mut tx = tx.clone();
-            tx.start_send(event)?;
-            Ok(())
-        });
-
-        let rx = Arc::new(async_lock::Mutex::new(rx));
-        let recv = Box::new(move || -> RecvFuture<A> {
-            let rx = Arc::clone(&rx);
-            Box::pin(async move {
-                let mut rx = rx.lock().await;
-                rx.next().await
-            })
-        });
-        Self::wrap(send, recv)
     }
 }
