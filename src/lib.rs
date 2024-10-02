@@ -44,8 +44,9 @@ pub mod error;
 
 pub use self::{
     actor::{Actor, ActorResult, Handler},
+    addr::{sender::Sender, weak_caller::WeakCaller, weak_sender::WeakSender},
     addr::{Addr, Message},
     context::Context,
     environment::Environment,
-    error::Result,
+    error::{ActorError, Result},
 };

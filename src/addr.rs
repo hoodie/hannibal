@@ -1,6 +1,11 @@
 use futures::{channel::oneshot, FutureExt};
 use std::{future::Future, pin::Pin, sync::Arc, task::Poll};
 
+pub mod caller;
+pub mod sender;
+pub mod weak_caller;
+pub mod weak_sender;
+
 use crate::{
     actor::{Actor, Handler},
     channel::ChanTx,
@@ -99,19 +104,19 @@ mod tests {
     use std::future::Future;
 
     #[derive(Debug, Default)]
-    struct MyActor(Option<&'static str>);
+    pub struct MyActor(pub Option<&'static str>);
 
-    struct Stop;
+    pub struct Stop;
     impl Message for Stop {
         type Result = ();
     }
 
-    struct Store(&'static str);
+    pub struct Store(pub &'static str);
     impl Message for Store {
         type Result = ();
     }
 
-    struct Add(i32, i32);
+    pub struct Add(pub i32, pub i32);
     impl Message for Add {
         type Result = i32;
     }
@@ -138,7 +143,7 @@ mod tests {
         }
     }
 
-    fn start<A: Actor>(actor: A) -> (impl Future<Output = ActorResult<A>>, Addr<A>) {
+    pub fn start<A: Actor>(actor: A) -> (impl Future<Output = ActorResult<A>>, Addr<A>) {
         let (event_loop, addr) = Environment::unbounded().launch(actor);
         (event_loop, addr)
     }
