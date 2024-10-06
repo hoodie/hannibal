@@ -90,6 +90,34 @@ impl<A: Actor> Addr<A> {
     pub fn downgrade(&self) -> WeakAddr<A> {
         WeakAddr::from(self)
     }
+
+    pub fn sender<M: Message<Result = ()>>(&self) -> sender::Sender<M>
+    where
+        A: Handler<M>,
+    {
+        sender::Sender::from(self)
+    }
+
+    pub fn weak_sender<M: Message<Result = ()>>(&self) -> weak_sender::WeakSender<M>
+    where
+        A: Handler<M>,
+    {
+        weak_sender::WeakSender::from(self)
+    }
+
+    pub fn caller<M: Message>(&self) -> caller::Caller<M>
+    where
+        A: Handler<M>,
+    {
+        caller::Caller::from(self)
+    }
+
+    pub fn weak_caller<M: Message>(&self) -> weak_caller::WeakCaller<M>
+    where
+        A: Handler<M>,
+    {
+        weak_caller::WeakCaller::from(self)
+    }
 }
 
 impl<A> Future for Addr<A> {

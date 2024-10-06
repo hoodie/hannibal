@@ -17,7 +17,7 @@ A minimalistic reimplementation of the [Hannibal](https://lib.rs/hannibal) actor
 - [x] Stopping actors + Notifying Addrs
 - [x] environment builder
   - [x] return actor after stop
-- [ ] impl Caller/Sender
+- [x] impl Caller/Sender
   - same old, same old
   - [ ] stream handling
     - attach api
