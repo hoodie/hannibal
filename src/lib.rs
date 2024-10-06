@@ -42,11 +42,13 @@ mod context;
 mod environment;
 pub mod error;
 
+mod handler;
+
 pub use self::{
-    actor::{Actor, ActorResult, Handler},
-    addr::{sender::Sender, weak_caller::WeakCaller, weak_sender::WeakSender},
-    addr::{Addr, Message},
+    actor::{Actor, ActorResult},
+    addr::{sender::Sender, weak_caller::WeakCaller, weak_sender::WeakSender, Addr, Message},
     context::Context,
     environment::Environment,
     error::{ActorError, Result},
+    handler::Handler,
 };

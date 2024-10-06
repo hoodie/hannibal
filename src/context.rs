@@ -1,6 +1,11 @@
 use futures::channel::oneshot;
 
-use crate::{actor::Actor, addr::Payload, channel::WeakChanTx, error::Result};
+use crate::{
+    actor::Actor,
+    addr::Payload,
+    channel::WeakChanTx,
+    error::{ActorError::AlreadyStopped, Result},
+};
 
 pub type RunningFuture = futures::future::Shared<oneshot::Receiver<()>>;
 pub struct StopNotifier(pub(crate) oneshot::Sender<()>);
@@ -20,7 +25,7 @@ impl<A: Actor> Context<A> {
         if let Some(tx) = self.weak_tx.upgrade() {
             Ok(tx.send(Payload::Stop)?)
         } else {
-            Err(crate::error::ActorError::AlreadyStopped)
+            Err(AlreadyStopped)
         }
     }
 }

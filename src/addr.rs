@@ -9,10 +9,11 @@ pub mod weak_caller;
 pub mod weak_sender;
 
 use crate::{
-    actor::{Actor, Handler},
+    actor::Actor,
     channel::ChanTx,
     context::{Context, RunningFuture},
     error::Result,
+    handler::Handler,
 };
 
 type TaskFuture<'a> = Pin<Box<dyn Future<Output = ()> + Send + 'a>>;
