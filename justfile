@@ -9,3 +9,4 @@ coverage:
     cargo +nightly test
     grcov . -s . --binary-path ./target/debug/ -t html --branch --ignore-not-existing -o ./target/debug/coverage/
     echo "Generated HTML coverage report in ./target/debug/coverage/index.html"
+    open ./target/debug/coverage/index.html
