@@ -1,8 +1,10 @@
 use futures::{channel::oneshot, FutureExt};
 use std::{future::Future, pin::Pin, sync::Arc, task::Poll};
+use weak_addr::WeakAddr;
 
 pub mod caller;
 pub mod sender;
+pub mod weak_addr;
 pub mod weak_caller;
 pub mod weak_sender;
 
@@ -83,6 +85,10 @@ impl<A: Actor> Addr<A> {
             Box::pin(Handler::handle(actor, ctx, msg))
         }))?;
         Ok(())
+    }
+
+    pub fn downgrade(&self) -> WeakAddr<A> {
+        WeakAddr::from(self)
     }
 }
 
@@ -213,5 +219,19 @@ mod tests {
 
         addr.await.unwrap();
         assert!(addr2.stopped(), "addr2 should be stopped");
+    }
+
+    #[tokio::test]
+    async fn weak_addr_does_not_prolong_life() {
+        let (event_loop, addr) = start(MyActor::default());
+        let actor = tokio::spawn(event_loop);
+
+        let weak_addr = WeakAddr::from(&addr);
+        weak_addr.upgrade().unwrap();
+
+        drop(addr);
+
+        assert!(weak_addr.upgrade().is_none());
+        actor.await.unwrap().unwrap();
     }
 }
