@@ -22,13 +22,17 @@ A minimalistic reimplementation of the [Hannibal](https://lib.rs/hannibal) actor
   - [ ] stream handling
     - attach api
 - [ ] service
-  - do they require supervision?
+  - [ ] restarting actors
 - [ ] broker
   - look into why there should be a thread local broker
 - [ ] intervals and timeouts
   - injectable spawner/sleeper or at least separte impls
+- [ ] stream handling service/broker
+   - [ ] allow a service that handles e.g. [signals](https://docs.rs/async-signals/latest/async_signals/struct.Signals.html)
+   - [ ] (optional) have utility services already?
 - [ ] logging and console subscriber
 - [ ] test with rstest
+- [ ] stop reason
 
 ## Stretch Goals
 - [ ] can we select!() ?
