@@ -2,9 +2,9 @@ use futures::channel::oneshot;
 
 use crate::{
     actor::Actor,
-    addr::Payload,
     channel::WeakChanTx,
     error::{ActorError::AlreadyStopped, Result},
+    payload::Payload,
 };
 
 pub type RunningFuture = futures::future::Shared<oneshot::Receiver<()>>;

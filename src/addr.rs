@@ -9,31 +9,9 @@ pub mod weak_caller;
 pub mod weak_sender;
 
 use crate::{
-    actor::Actor,
-    channel::ChanTx,
-    context::{Context, RunningFuture},
-    error::Result,
-    handler::Handler,
+    actor::Actor, channel::ChanTx, context::RunningFuture, error::Result, handler::Handler,
+    payload::Payload,
 };
-
-type TaskFuture<'a> = Pin<Box<dyn Future<Output = ()> + Send + 'a>>;
-
-type TaskFn<A> =
-    Box<dyn for<'a> FnOnce(&'a mut A, &'a mut Context<A>) -> TaskFuture<'a> + Send + 'static>;
-
-pub(crate) enum Payload<A> {
-    Task(TaskFn<A>),
-    Stop,
-}
-
-impl<A: Actor> Payload<A> {
-    pub fn task<F>(f: F) -> Self
-    where
-        F: for<'a> FnOnce(&'a mut A, &'a mut Context<A>) -> TaskFuture<'a> + Send + 'static,
-    {
-        Self::Task(Box::new(f))
-    }
-}
 
 pub trait Message: 'static + Send {
     type Result: 'static + Send;
@@ -133,7 +111,7 @@ impl<A> Future for Addr<A> {
 
 #[cfg(test)]
 mod tests {
-    use crate::{ActorResult, Environment};
+    use crate::{ActorResult, Context, Environment};
 
     use super::*;
     use std::future::Future;

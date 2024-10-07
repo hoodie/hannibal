@@ -6,7 +6,7 @@ use std::{
     sync::{Arc, Weak},
 };
 
-use crate::{addr::Payload, error::Result};
+use crate::{error::Result, payload::Payload};
 
 pub type RecvFuture<A> = Pin<Box<dyn Future<Output = Option<Payload<A>>> + Send>>;
 pub type WeakChanTx<A> = Weak<dyn TxFn<A>>;

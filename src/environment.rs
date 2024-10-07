@@ -1,13 +1,13 @@
 use std::future::Future;
 
-use futures::channel::oneshot;
+use futures::{channel::oneshot, FutureExt as _, StreamExt as _};
 
 use crate::{
     actor::Actor,
-    addr::Payload,
     channel::{ChanRx, ChannelWrapper},
     context::StopNotifier,
-    Addr, Context,
+    payload::Payload,
+    Addr, Context, Handler, Message,
 };
 
 pub struct Environment<A: Actor> {
