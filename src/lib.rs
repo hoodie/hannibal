@@ -34,6 +34,7 @@
     unstable_features,
     unused_import_braces,
 )]
+#![cfg_attr(test, allow(clippy::unwrap_used))]
 
 mod actor;
 mod addr;
