@@ -19,7 +19,7 @@ A minimalistic reimplementation of the [Hannibal](https://lib.rs/hannibal) actor
   - [x] return actor after stop
 - [x] impl Caller/Sender
   - same old, same old
-  - [ ] stream handling
+  - [x] stream handling
     - attach api
 - [ ] service
   - [ ] restarting actors

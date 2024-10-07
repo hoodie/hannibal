@@ -6,8 +6,9 @@ use crate::{
     actor::Actor,
     channel::{ChanRx, ChannelWrapper},
     context::StopNotifier,
+    handler::StreamHandler,
     payload::Payload,
-    Addr, Context, Handler, Message,
+    Addr, Context,
 };
 
 pub struct Environment<A: Actor> {
@@ -77,10 +78,8 @@ impl<A: Actor> Environment<A> {
     ) -> (impl Future<Output = crate::ActorResult<A>>, Addr<A>)
     where
         S: futures::Stream + Unpin + Send + 'static,
-        S::Item: Message, // TODO: remove this bound
-        S::Item: std::fmt::Debug,
         S::Item: 'static + Send,
-        A: Handler<S::Item>,
+        A: StreamHandler<S::Item>,
     {
         let actor_loop = async move {
             actor.started(&mut self.ctx).await?;
@@ -138,14 +137,9 @@ mod tests {
         }
     }
 
-    #[derive(Debug)]
-    struct IncBy(i32);
-    impl Message for IncBy {
-        type Result = ();
-    }
-    impl Handler<IncBy> for GoodActor {
-        async fn handle(&mut self, _ctx: &mut Context<Self>, msg: IncBy) {
-            self.count += msg.0;
+    impl StreamHandler<i32> for GoodActor {
+        async fn handle(&mut self, _ctx: &mut Context<Self>, msg: i32) {
+            self.count += msg;
         }
     }
 
@@ -157,8 +151,8 @@ mod tests {
         }
     }
 
-    impl Handler<IncBy> for BadActor {
-        async fn handle(&mut self, _: &mut Context<Self>, _: IncBy) {
+    impl StreamHandler<i32> for BadActor {
+        async fn handle(&mut self, _: &mut Context<Self>, _: i32) {
             // unreachable!()
         }
     }
@@ -200,9 +194,9 @@ mod tests {
         fn prepare<A>() -> (impl Future<Output = ActorResult<A>>, Addr<A>)
         where
             A: Actor + Default + 'static,
-            A: Handler<IncBy>,
+            A: StreamHandler<i32>,
         {
-            let counter = futures::stream::iter(0..100).map(IncBy);
+            let counter = futures::stream::iter(0..100);
             Environment::unbounded().launch_on_stream(A::default(), counter)
         }
 
