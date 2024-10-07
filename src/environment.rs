@@ -77,7 +77,7 @@ impl<A: Actor> Environment<A> {
     ) -> (impl Future<Output = crate::ActorResult<A>>, Addr<A>)
     where
         S: futures::Stream + Unpin + Send + 'static,
-        S::Item: Message,
+        S::Item: Message, // TODO: remove this bound
         S::Item: std::fmt::Debug,
         S::Item: 'static + Send,
         A: Handler<S::Item>,
@@ -117,18 +117,17 @@ impl<A: Actor> Environment<A> {
 
 #[cfg(test)]
 mod tests {
-
     use super::*;
     use crate::{Actor, ActorError, ActorResult};
 
     #[derive(Default)]
-    struct MyActor {
+    struct GoodActor {
         started: bool,
         stopped: bool,
         count: i32,
     }
 
-    impl Actor for MyActor {
+    impl Actor for GoodActor {
         async fn started(&mut self, _ctx: &mut Context<Self>) -> ActorResult {
             self.started = true;
             Ok(())
@@ -144,69 +143,116 @@ mod tests {
     impl Message for IncBy {
         type Result = ();
     }
-    impl Handler<IncBy> for MyActor {
+    impl Handler<IncBy> for GoodActor {
         async fn handle(&mut self, _ctx: &mut Context<Self>, msg: IncBy) {
             self.count += msg.0;
         }
     }
 
-    #[tokio::test]
-    async fn calls_start() {
-        let (event_loop, mut addr) = Environment::unbounded().launch(MyActor::default());
-        let task = tokio::spawn(event_loop);
-        addr.stop().unwrap();
-        let actor = task.await.unwrap().unwrap();
-        assert!(actor.started);
-    }
-
-    #[tokio::test]
-    async fn calls_stop() {
-        let (event_loop, mut addr) = Environment::unbounded().launch(MyActor::default());
-        let task = tokio::spawn(event_loop);
-        addr.stop().unwrap();
-        let actor = task.await.unwrap().unwrap();
-        assert!(actor.stopped);
-    }
-
-    #[derive(Debug)]
-    struct BadActor;
-
+    #[derive(Default, Debug)]
+    pub struct BadActor;
     impl Actor for BadActor {
         async fn started(&mut self, _ctx: &mut Context<Self>) -> ActorResult {
             Err(String::from("failed").into())
         }
     }
 
-    #[tokio::test]
-    async fn start_can_fail() {
-        let (event_loop, mut addr) = Environment::unbounded().launch(BadActor);
-        let task = tokio::spawn(event_loop);
-        addr.stop().unwrap();
-        let error = task.await.unwrap().unwrap_err().to_string();
-        assert_eq!(error, "failed");
+    impl Handler<IncBy> for BadActor {
+        async fn handle(&mut self, _: &mut Context<Self>, _: IncBy) {
+            // unreachable!()
+        }
     }
 
-    #[tokio::test]
-    async fn start_on_stream() {
-        let counter = futures::stream::iter(0..100).map(IncBy);
-        let (event_loop, mut addr) =
-            Environment::unbounded().launch_on_stream(MyActor::default(), counter);
+    mod normal_start {
+        use super::*;
 
-        let addr2 = addr.clone();
+        #[tokio::test]
+        async fn calls_actor_started() {
+            let (event_loop, mut addr) = Environment::unbounded().launch(GoodActor::default());
+            let task = tokio::spawn(event_loop);
+            addr.stop().unwrap();
+            let actor = task.await.unwrap().unwrap();
+            assert!(actor.started);
+        }
 
-        let task = tokio::spawn(event_loop);
-        tokio::time::sleep(std::time::Duration::from_millis(400)).await;
+        #[tokio::test]
+        async fn calls_actor_stopped() {
+            let (event_loop, mut addr) = Environment::unbounded().launch(GoodActor::default());
+            let task = tokio::spawn(event_loop);
+            addr.stop().unwrap();
+            let actor = task.await.unwrap().unwrap();
+            assert!(actor.stopped);
+        }
 
-        // TODO: should the stream always stop the actor?
-        assert!(matches!(
-            addr.stop().unwrap_err(),
-            ActorError::AsyncSendError(_)
-        ));
-        assert!(addr2.await.is_ok(), "other address should be cleanly awaitable");
+        #[tokio::test]
+        async fn start_can_fail() {
+            let (event_loop, mut addr) = Environment::unbounded().launch(BadActor);
+            let task = tokio::spawn(event_loop);
+            addr.stop().unwrap();
+            let error = task.await.unwrap().map(|_| ()).map_err(|e| e.to_string());
+            assert_eq!(error, Err(String::from("failed")), "start should fail");
+        }
+    }
 
-        let actor = task.await.unwrap().unwrap();
-        assert!(actor.started);
-        assert!(actor.stopped);
-        assert_eq!(actor.count, 4950);
+    mod start_on_stream {
+        use super::*;
+
+        fn prepare<A>() -> (impl Future<Output = ActorResult<A>>, Addr<A>)
+        where
+            A: Actor + Default + 'static,
+            A: Handler<IncBy>,
+        {
+            let counter = futures::stream::iter(0..100).map(IncBy);
+            Environment::unbounded().launch_on_stream(A::default(), counter)
+        }
+
+        #[tokio::test]
+        async fn calls_actor_started() {
+            let (event_loop, mut addr) = prepare::<GoodActor>();
+            let task = tokio::spawn(event_loop);
+            addr.stop().unwrap();
+            let actor = task.await.unwrap().unwrap();
+            assert!(actor.started);
+        }
+
+        #[tokio::test]
+        async fn calls_actor_stopped() {
+            let (event_loop, mut addr) = prepare::<GoodActor>();
+            let task = tokio::spawn(event_loop);
+            addr.stop().unwrap();
+            let actor = task.await.unwrap().unwrap();
+            assert!(actor.stopped);
+        }
+
+        #[tokio::test]
+        async fn start_can_fail() {
+            let (event_loop, mut addr) = prepare::<BadActor>();
+            let task = tokio::spawn(event_loop);
+            addr.stop().unwrap();
+            let error = task.await.unwrap().map(|_| ()).map_err(|e| e.to_string());
+            assert_eq!(error, Err(String::from("failed")), "start should fail");
+        }
+
+        #[tokio::test]
+        async fn ends_on_stream_finish() {
+            let (event_loop, mut addr) = prepare::<GoodActor>();
+            let addr2 = addr.clone();
+
+            let task = tokio::spawn(event_loop);
+            tokio::time::sleep(std::time::Duration::from_millis(400)).await;
+
+            // TODO: should the stream always stop the actor?
+            assert!(matches!(
+                addr.stop().unwrap_err(),
+                ActorError::AsyncSendError(_)
+            ));
+            assert!(
+                addr2.await.is_ok(),
+                "other address should be cleanly awaitable"
+            );
+
+            let actor = task.await.unwrap().unwrap();
+            assert_eq!(actor.count, 4950);
+        }
     }
 }
