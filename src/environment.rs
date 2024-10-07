@@ -97,7 +97,7 @@ impl<A: Actor> Environment<A> {
                             // stream is done, actor is done
                             break
                         };
-                        actor.handle(&mut self.ctx, msg).await;
+                        StreamHandler::handle(&mut actor, &mut self.ctx, msg).await;
                     },
                     complete => break,
                     default => break,
@@ -153,7 +153,7 @@ mod tests {
 
     impl StreamHandler<i32> for BadActor {
         async fn handle(&mut self, _: &mut Context<Self>, _: i32) {
-            // unreachable!()
+            unreachable!()
         }
     }
 
