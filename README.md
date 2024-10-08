@@ -9,7 +9,8 @@ A minimalistic reimplementation of the [Hannibal](https://lib.rs/hannibal) actor
 - Exchangeable Channel Implementation ((un)bound, std, futures, tokio, lets see)
 - Exchangable Runtime (no compiletime feature, no hannibal::block_on())
 - maybe no extra proc_macro derive for messages necessary
--
+- Streams are Handled by launching an actor together with a stream. This avoids extra tasks and simplifies the logic.
+  The actor lives only as long as the stream.
 
 ## TODO
 
@@ -20,9 +21,10 @@ A minimalistic reimplementation of the [Hannibal](https://lib.rs/hannibal) actor
 - [x] impl Caller/Sender
   - same old, same old
   - [x] stream handling
-    - attach api
+    - [ ] attach api (nope)
 - [ ] service
   - [ ] restarting actors
+  - [ ] special addr that only allows restarting
 - [ ] broker
   - look into why there should be a thread local broker
 - [ ] intervals and timeouts
@@ -33,6 +35,7 @@ A minimalistic reimplementation of the [Hannibal](https://lib.rs/hannibal) actor
 - [ ] logging and console subscriber
 - [ ] test with rstest
 - [ ] stop reason
+
 
 ## Stretch Goals
 - [ ] can we select!() ?

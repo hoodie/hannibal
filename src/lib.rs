@@ -42,7 +42,6 @@ mod channel;
 mod context;
 mod environment;
 pub mod error;
-mod payload;
 
 mod handler;
 

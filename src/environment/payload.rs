@@ -10,6 +10,7 @@ type TaskFn<A> =
 pub(crate) enum Payload<A> {
     Task(TaskFn<A>),
     Stop,
+    Restart,
 }
 
 impl<A: Actor> Payload<A> {

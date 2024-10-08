@@ -3,8 +3,8 @@ use futures::channel::oneshot;
 use crate::{
     actor::Actor,
     channel::WeakChanTx,
+    environment::Payload,
     error::{ActorError::AlreadyStopped, Result},
-    payload::Payload,
 };
 
 pub type RunningFuture = futures::future::Shared<oneshot::Receiver<()>>;

@@ -7,18 +7,23 @@ use crate::{
     channel::{ChanRx, ChannelWrapper},
     context::StopNotifier,
     handler::StreamHandler,
-    payload::Payload,
     Addr, Context,
 };
 
-pub struct Environment<A: Actor> {
+mod payload;
+mod restart_strategy;
+pub(crate) use payload::Payload;
+use restart_strategy::{RecreateFromDefault, RestartOnly, RestartStrategy};
+
+pub struct Environment<A: Actor, R: RestartStrategy<A> = RestartOnly> {
     ctx: Context<A>,
     addr: Addr<A>,
     stop: StopNotifier,
     payload_rx: ChanRx<A>,
+    phantom: std::marker::PhantomData<R>,
 }
 
-impl<A: Actor> Environment<A> {
+impl<A: Actor> Environment<A, RestartOnly> {
     pub fn bounded(capacity: usize) -> Self {
         Self::from_channel(ChannelWrapper::bounded(capacity))
     }
@@ -45,9 +50,12 @@ impl<A: Actor> Environment<A> {
             addr,
             stop,
             payload_rx,
+            phantom: std::marker::PhantomData,
         }
     }
+}
 
+impl<A: Actor, R: RestartStrategy<A>> Environment<A, R> {
     pub fn launch(
         mut self,
         mut actor: A,
@@ -59,6 +67,9 @@ impl<A: Actor> Environment<A> {
                 match event {
                     Payload::Task(f) => f(&mut actor, &mut self.ctx).await,
                     Payload::Stop => break,
+                    Payload::Restart => {
+                        actor = R::refresh(actor, &mut self.ctx).await?;
+                    }
                 }
             }
 
@@ -89,7 +100,11 @@ impl<A: Actor> Environment<A> {
                         match actor_msg {
                             Some(Payload::Task(f)) => f(&mut actor, &mut self.ctx).await,
                             Some(Payload::Stop)  =>  break,
-                            _ =>  break
+                            Some(Payload::Restart)  =>  {
+                                // TODO: what does this do with the
+                                // log::warn!("ignoring restart message in streamhandling actor")
+                            },
+                            None =>  break
                         }
                     },
                     stream_msg = stream.next().fuse() => {
@@ -111,6 +126,21 @@ impl<A: Actor> Environment<A> {
         };
 
         (actor_loop, self.addr)
+    }
+}
+
+impl<A: Actor, R: RestartStrategy<A>> Environment<A, R>
+where
+    A: Default,
+{
+    pub fn recreating(self) -> Environment<A, RecreateFromDefault> {
+        Environment {
+            ctx: self.ctx,
+            addr: self.addr,
+            stop: self.stop,
+            payload_rx: self.payload_rx,
+            phantom: std::marker::PhantomData,
+        }
     }
 }
 
@@ -247,6 +277,64 @@ mod tests {
 
             let actor = task.await.unwrap().unwrap();
             assert_eq!(actor.count, 4950);
+        }
+    }
+
+    mod restart {
+        use super::*;
+
+        #[derive(Debug, Default)]
+        struct RestartCounter {
+            started_count: usize,
+            stopped_count: usize,
+        }
+
+        impl RestartCounter {
+            fn new() -> Self {
+                Self {
+                    started_count: 0,
+                    stopped_count: 0,
+                }
+            }
+        }
+
+        impl Actor for RestartCounter {
+            async fn started(&mut self, _: &mut Context<Self>) -> ActorResult {
+                self.started_count += 1;
+                eprintln!("started: {:?}", self);
+                Ok(())
+            }
+
+            async fn stopped(&mut self, _: &mut Context<Self>) {
+                self.stopped_count += 1;
+                eprintln!("stopped: {:?}", self);
+            }
+        }
+
+        #[tokio::test]
+        async fn restarts_actor() {
+            let counter = RestartCounter::new();
+            let (event_loop, mut addr) = Environment::unbounded().launch(counter);
+            let task = tokio::spawn(event_loop);
+            addr.restart().unwrap();
+            addr.restart().unwrap();
+            addr.stop().unwrap();
+            let actor = task.await.unwrap().unwrap();
+            assert_eq!(actor.started_count, 3);
+            assert_eq!(actor.stopped_count, 3);
+        }
+
+        #[tokio::test]
+        async fn recreates_actor() {
+            let counter = RestartCounter::new();
+            let (event_loop, mut addr) = Environment::unbounded().recreating().launch(counter);
+            let task = tokio::spawn(event_loop);
+            addr.restart().unwrap();
+            addr.restart().unwrap();
+            addr.stop().unwrap();
+            let actor = task.await.unwrap().unwrap();
+            assert_eq!(actor.started_count, 1);
+            assert_eq!(actor.stopped_count, 1, "should only be stopped once");
         }
     }
 }
