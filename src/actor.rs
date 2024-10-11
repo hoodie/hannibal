@@ -2,6 +2,7 @@ use std::future::Future;
 
 use crate::context::Context;
 
+pub mod service;
 pub mod spawn_strategy;
 
 pub type DynResult<T = ()> = std::result::Result<T, Box<dyn std::error::Error + Send + Sync>>;

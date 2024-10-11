@@ -20,4 +20,7 @@ pub enum ActorError {
     /// Indicates that the actor has already been stopped by the time the operation was attempted.
     #[error("Actor already stopped")]
     AlreadyStopped,
+
+    #[error("Service not found")]
+    ServiceNotFound,
 }
