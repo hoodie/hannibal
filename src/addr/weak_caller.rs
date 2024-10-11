@@ -4,9 +4,8 @@ use std::sync::Arc;
 
 use crate::{
     channel::{ChanTx, WeakChanTx},
-    Actor,
-    ActorError::AlreadyStopped,
-    Handler,
+    error::ActorError::AlreadyStopped,
+    Actor, Handler,
 };
 
 use super::{caller::Caller, Addr, Message, Result};

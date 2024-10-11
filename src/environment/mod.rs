@@ -144,7 +144,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{Actor, ActorError, DynResult};
+    use crate::{error::ActorError, Actor, DynResult};
 
     #[derive(Default)]
     struct GoodActor {

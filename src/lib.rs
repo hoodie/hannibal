@@ -50,6 +50,5 @@ pub use self::{
     addr::{sender::Sender, weak_caller::WeakCaller, weak_sender::WeakSender, Addr, Message},
     context::Context,
     environment::Environment,
-    error::{ActorError, Result},
     handler::Handler,
 };

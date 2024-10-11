@@ -6,9 +6,8 @@ use crate::context::RunningFuture;
 #[allow(unused)]
 use crate::{
     channel::{ChanTx, WeakChanTx},
-    Actor,
-    ActorError::AlreadyStopped,
-    Addr, Handler,
+    error::ActorError::AlreadyStopped,
+    Actor, Addr, Handler,
 };
 
 pub struct WeakAddr<A: Actor> {
