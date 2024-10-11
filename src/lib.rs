@@ -46,7 +46,7 @@ pub mod error;
 mod handler;
 
 pub use self::{
-    actor::{Actor, DynResult},
+    actor::{Actor, DynResult, spawn_strategy},
     addr::{sender::Sender, weak_caller::WeakCaller, weak_sender::WeakSender, Addr, Message},
     context::Context,
     environment::Environment,
