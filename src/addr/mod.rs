@@ -116,7 +116,7 @@ impl<A> Future for Addr<A> {
 
 #[cfg(test)]
 mod tests {
-    use crate::{ActorResult, Context, Environment};
+    use crate::{Context, DynResult, Environment};
 
     use super::*;
     use std::future::Future;
@@ -161,7 +161,7 @@ mod tests {
         }
     }
 
-    pub fn start<A: Actor>(actor: A) -> (impl Future<Output = ActorResult<A>>, Addr<A>) {
+    pub fn start<A: Actor>(actor: A) -> (impl Future<Output = DynResult<A>>, Addr<A>) {
         let (event_loop, addr) = Environment::unbounded().launch(actor);
         (event_loop, addr)
     }

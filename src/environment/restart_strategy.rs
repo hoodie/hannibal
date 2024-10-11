@@ -1,9 +1,9 @@
 use std::future::Future;
 
-use crate::{context::Context, Actor, ActorResult};
+use crate::{context::Context, Actor, DynResult};
 
 pub trait RestartStrategy<A> {
-    fn refresh(actor: A, ctx: &mut Context<A>) -> impl Future<Output = ActorResult<A>> + Send;
+    fn refresh(actor: A, ctx: &mut Context<A>) -> impl Future<Output = DynResult<A>> + Send;
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -16,7 +16,7 @@ impl<A> RestartStrategy<A> for RestartOnly
 where
     A: Actor,
 {
-    async fn refresh(mut actor: A, ctx: &mut Context<A>) -> ActorResult<A> {
+    async fn refresh(mut actor: A, ctx: &mut Context<A>) -> DynResult<A> {
         eprintln!("restarting refresh");
         actor.stopped(ctx).await;
         actor.started(ctx).await?;
@@ -28,7 +28,7 @@ impl<A> RestartStrategy<A> for RecreateFromDefault
 where
     A: Actor + Default,
 {
-    async fn refresh(mut actor: A, ctx: &mut Context<A>) -> ActorResult<A> {
+    async fn refresh(mut actor: A, ctx: &mut Context<A>) -> DynResult<A> {
         eprintln!("recreating refresh");
         actor.stopped(ctx).await;
         actor = A::default();

@@ -2,11 +2,11 @@ use std::future::Future;
 
 use crate::context::Context;
 
-pub type ActorResult<T = ()> = std::result::Result<T, Box<dyn std::error::Error + Send + Sync>>;
+pub type DynResult<T = ()> = std::result::Result<T, Box<dyn std::error::Error + Send + Sync>>;
 
 pub trait Actor: Sized + Send + 'static {
     #[allow(unused)]
-    fn started(&mut self, ctx: &mut Context<Self>) -> impl Future<Output = ActorResult> + Send {
+    fn started(&mut self, ctx: &mut Context<Self>) -> impl Future<Output = DynResult> + Send {
         async { Ok(()) }
     }
 

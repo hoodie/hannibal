@@ -56,10 +56,7 @@ impl<A: Actor> Environment<A, RestartOnly> {
 }
 
 impl<A: Actor, R: RestartStrategy<A>> Environment<A, R> {
-    pub fn launch(
-        mut self,
-        mut actor: A,
-    ) -> (impl Future<Output = crate::ActorResult<A>>, Addr<A>) {
+    pub fn launch(mut self, mut actor: A) -> (impl Future<Output = crate::DynResult<A>>, Addr<A>) {
         let actor_loop = async move {
             actor.started(&mut self.ctx).await?;
 
@@ -86,7 +83,7 @@ impl<A: Actor, R: RestartStrategy<A>> Environment<A, R> {
         mut self,
         mut actor: A,
         mut stream: S,
-    ) -> (impl Future<Output = crate::ActorResult<A>>, Addr<A>)
+    ) -> (impl Future<Output = crate::DynResult<A>>, Addr<A>)
     where
         S: futures::Stream + Unpin + Send + 'static,
         S::Item: 'static + Send,
@@ -147,7 +144,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{Actor, ActorError, ActorResult};
+    use crate::{Actor, ActorError, DynResult};
 
     #[derive(Default)]
     struct GoodActor {
@@ -157,7 +154,7 @@ mod tests {
     }
 
     impl Actor for GoodActor {
-        async fn started(&mut self, _ctx: &mut Context<Self>) -> ActorResult {
+        async fn started(&mut self, _ctx: &mut Context<Self>) -> DynResult {
             self.started = true;
             Ok(())
         }
@@ -176,7 +173,7 @@ mod tests {
     #[derive(Default, Debug)]
     pub struct BadActor;
     impl Actor for BadActor {
-        async fn started(&mut self, _ctx: &mut Context<Self>) -> ActorResult {
+        async fn started(&mut self, _ctx: &mut Context<Self>) -> DynResult {
             Err(String::from("failed").into())
         }
     }
@@ -221,7 +218,7 @@ mod tests {
     mod start_on_stream {
         use super::*;
 
-        fn prepare<A>() -> (impl Future<Output = ActorResult<A>>, Addr<A>)
+        fn prepare<A>() -> (impl Future<Output = DynResult<A>>, Addr<A>)
         where
             A: Actor + Default + 'static,
             A: StreamHandler<i32>,
@@ -299,7 +296,7 @@ mod tests {
         }
 
         impl Actor for RestartCounter {
-            async fn started(&mut self, _: &mut Context<Self>) -> ActorResult {
+            async fn started(&mut self, _: &mut Context<Self>) -> DynResult {
                 self.started_count += 1;
                 eprintln!("started: {:?}", self);
                 Ok(())

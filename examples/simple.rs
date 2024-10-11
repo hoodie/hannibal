@@ -1,4 +1,4 @@
-use minibal::{Actor, ActorResult, Context, Environment, Handler, Message};
+use minibal::{Actor, Context, DynResult, Environment, Handler, Message};
 
 struct MyActor(&'static str);
 
@@ -13,7 +13,7 @@ impl Message for Add {
 }
 
 impl Actor for MyActor {
-    async fn started(&mut self, _ctx: &mut Context<Self>) -> ActorResult<()> {
+    async fn started(&mut self, _ctx: &mut Context<Self>) -> DynResult<()> {
         println!("[Actor {}] started", self.0);
         Ok(())
     }
