@@ -46,7 +46,10 @@ pub mod error;
 mod handler;
 
 pub use self::{
-    actor::{service, service::Service, spawn_strategy, Actor, DynResult},
+    actor::{
+        service::{self, register, Service},
+        spawn_strategy, Actor, DynResult,
+    },
     addr::{sender::Sender, weak_caller::WeakCaller, weak_sender::WeakSender, Addr, Message},
     context::Context,
     environment::Environment,

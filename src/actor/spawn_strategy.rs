@@ -29,6 +29,17 @@ pub trait Spawner<A: Actor> {
         F: Future<Output = crate::DynResult<A>> + Send + 'static;
 }
 
+pub trait SpawnableWith: Actor {
+    fn spawn_with<S: Spawner<Self>>(self) -> crate::error::Result<(Addr<Self>, DynJoiner<Self>)> {
+        let (event_loop, addr) = crate::Environment::unbounded().launch(self);
+        // let joiner = S::spawn(futures::FutureExt::map(event_loop, |fut| fut.unwrap()));
+        let joiner = S::spawn(event_loop);
+        Ok((addr, joiner))
+    }
+}
+
+impl <A: Actor> SpawnableWith for A {}
+
 pub trait Spawnable<S: Spawner<Self>>: Actor {
     fn spawn(self) -> crate::error::Result<(Addr<Self>, DynJoiner<Self>)> {
         let (event_loop, addr) = crate::Environment::unbounded().launch(self);
