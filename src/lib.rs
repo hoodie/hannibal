@@ -17,5 +17,15 @@ pub use self::{
     addr::{sender::Sender, weak_caller::WeakCaller, weak_sender::WeakSender, Addr, Message},
     context::Context,
     environment::Environment,
-    handler::Handler,
+    handler::{Handler, StreamHandler},
 };
+
+pub mod prelude {
+    pub use crate::{
+        actor::{service::Service, Actor, DynResult},
+        addr::{sender::Sender, weak_caller::WeakCaller, weak_sender::WeakSender, Addr, Message},
+        context::Context,
+        handler::{Handler, StreamHandler},
+        spawn_strategy::{Spawnable, StreamSpawnable},
+    };
+}

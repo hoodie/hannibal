@@ -39,7 +39,16 @@ where
     }
 }
 
-pub trait Service<S>: Actor + Default + Registerable<S>
+pub trait Service: Actor + Default {
+    fn from_registry() -> impl Future<Output = crate::error::Result<Addr<Self>>> {
+        <Self as SpawnableService<spawn_strategy::TokioSpawner>>::from_registry()
+    }
+}
+
+#[cfg(feature = "tokio")]
+impl<A> SpawnableService<spawn_strategy::TokioSpawner> for A where A: Service {}
+
+pub trait SpawnableService<S>: Actor + Default + Registerable<S>
 where
     S: Spawner<Self>,
 {
@@ -67,7 +76,7 @@ where
 
 impl<T, S> Registerable<S> for T
 where
-    T: Service<S>,
+    T: SpawnableService<S>,
     S: Spawner<Self>,
 {
 }
@@ -80,7 +89,7 @@ mod tests {
         use crate::{
             actor::tests::{spawned_with_tokio::TokioActor, Identify, Ping},
             spawn_strategy::{SpawnableWith, TokioSpawner},
-            Service,
+            SpawnableService,
         };
 
         #[tokio::test]
@@ -112,7 +121,7 @@ mod tests {
         use crate::{
             actor::tests::{spawned_with_asyncstd::AsyncStdActor, Identify, Ping},
             spawn_strategy::{AsyncStdSpawner, SpawnableWith},
-            Service,
+            SpawnableService,
         };
 
         #[tokio::test]

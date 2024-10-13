@@ -1,6 +1,6 @@
 use std::{future::Future, pin::Pin, sync::Arc};
 
-use crate::Addr;
+use crate::{Addr, StreamHandler};
 
 use super::{Actor, DynResult};
 
@@ -38,19 +38,47 @@ pub trait SpawnableWith: Actor {
     }
 }
 
-impl <A: Actor> SpawnableWith for A {}
+impl<A: Actor> SpawnableWith for A {}
 
 pub trait Spawnable<S: Spawner<Self>>: Actor {
-    fn spawn(self) -> crate::error::Result<(Addr<Self>, DynJoiner<Self>)> {
+    fn spawn(self) -> crate::error::Result<Addr<Self>> {
+        Ok(self.spawn_and_get_joiner()?.0)
+    }
+
+    fn spawn_and_get_joiner(self) -> crate::error::Result<(Addr<Self>, DynJoiner<Self>)> {
         let (event_loop, addr) = crate::Environment::unbounded().launch(self);
-        // let joiner = S::spawn(futures::FutureExt::map(event_loop, |fut| fut.unwrap()));
         let joiner = S::spawn(event_loop);
         Ok((addr, joiner))
     }
 }
 
+pub trait StreamSpawnable<S: Spawner<Self>, T>: Actor + StreamHandler<T::Item>
+where
+    T: futures::Stream + Unpin + Send + 'static,
+    T::Item: 'static + Send,
+    Self: StreamHandler<T::Item>,
+{
+    fn spawn_on_stream(self, stream: T) -> crate::error::Result<Addr<Self>> {
+        Ok(self.spawn_on_stream_and_get_joiner(stream)?.0)
+    }
+
+    fn spawn_on_stream_and_get_joiner(
+        self,
+        stream: T,
+    ) -> crate::error::Result<(Addr<Self>, DynJoiner<Self>)> {
+        let (event_loop, addr) = crate::Environment::unbounded().launch_on_stream(self, stream);
+        let joiner = S::spawn(event_loop);
+        println!("spawned");
+        Ok((addr, joiner))
+    }
+}
+
 pub trait DefaultSpawnable<S: Spawner<Self>>: Actor + Default {
-    fn spawn_default() -> crate::error::Result<(Addr<Self>, DynJoiner<Self>)> {
+    fn spawn_default() -> crate::error::Result<Addr<Self>> {
+        Ok(Self::spawn_default_and_get_joiner()?.0)
+    }
+
+    fn spawn_default_and_get_joiner() -> crate::error::Result<(Addr<Self>, DynJoiner<Self>)> {
         let (event_loop, addr) = crate::Environment::unbounded().launch(Self::default());
         let joiner = S::spawn(event_loop);
         Ok((addr, joiner))
@@ -86,6 +114,16 @@ impl<A: Actor> Spawner<A> for TokioSpawner {
 
 #[cfg(feature = "tokio")]
 impl<A> Spawnable<TokioSpawner> for A where A: Actor {}
+
+#[cfg(feature = "tokio")]
+impl<A, T> StreamSpawnable<TokioSpawner, T> for A where
+    A: Actor + StreamHandler<T::Item>,
+    // S: Spawner<A>,
+    T: futures::Stream + Unpin + Send + 'static,
+    T::Item: 'static + Send
+{
+}
+
 
 #[cfg(feature = "tokio")]
 impl<A> DefaultSpawnable<TokioSpawner> for A where A: Actor + Default {}
@@ -133,8 +171,7 @@ mod tests {
         #[tokio::test]
         async fn spawn() {
             let tokio_actor = TokioActor::default();
-            let (mut addr, _) =
-                <TokioActor as Spawnable<TokioSpawner>>::spawn(tokio_actor).unwrap();
+            let mut addr = <TokioActor as Spawnable<TokioSpawner>>::spawn(tokio_actor).unwrap();
             assert!(!addr.stopped());
 
             addr.call(Ping).await.unwrap();
@@ -144,8 +181,7 @@ mod tests {
 
         #[tokio::test]
         async fn spawn_default() {
-            let (mut addr, _) =
-                <TokioActor as DefaultSpawnable<TokioSpawner>>::spawn_default().unwrap();
+            let mut addr = <TokioActor as DefaultSpawnable<TokioSpawner>>::spawn_default().unwrap();
             assert!(!addr.stopped());
 
             addr.call(Ping).await.unwrap();
@@ -164,7 +200,7 @@ mod tests {
         #[async_std::test]
         async fn spawn() {
             let tokio_actor = AsyncStdActor::default();
-            let (mut addr, _) =
+            let mut addr =
                 <AsyncStdActor as Spawnable<AsyncStdSpawner>>::spawn(tokio_actor).unwrap();
             assert!(!addr.stopped());
 
@@ -175,7 +211,7 @@ mod tests {
 
         #[async_std::test]
         async fn spawn_default() {
-            let (mut addr, _) =
+            let mut addr =
                 <AsyncStdActor as DefaultSpawnable<AsyncStdSpawner>>::spawn_default().unwrap();
             assert!(!addr.stopped());
 
