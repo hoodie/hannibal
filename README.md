@@ -38,6 +38,7 @@ A minimalistic reimplementation of the [Hannibal](https://lib.rs/hannibal) actor
 
 
 ## Stretch Goals
-- [ ] can we select!() ?
+- [x] can we select!() ?
+  - yes, we do that for streams now
 - [ ] maybe impl SinkExt for Addr/Sender
 - [ ] maybe impl async AND blocking sending
