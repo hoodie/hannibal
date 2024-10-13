@@ -1,3 +1,5 @@
+use std::future::Future;
+
 use crate::{Actor, Context, Message};
 
 pub trait Handler<M: Message>: Actor {
@@ -14,4 +16,9 @@ pub trait StreamHandler<M: 'static>: Actor {
         ctx: &mut Context<Self>,
         msg: M,
     ) -> impl futures::Future<Output = ()> + Send;
+
+    #[allow(unused)]
+    fn finished(&mut self, ctx: &mut Context<Self>) -> impl Future<Output = ()> + Send {
+        async {}
+    }
 }

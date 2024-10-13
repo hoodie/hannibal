@@ -112,10 +112,11 @@ impl<A: Actor, R: RestartStrategy<A>> Environment<A, R> {
                         StreamHandler::handle(&mut actor, &mut self.ctx, msg).await;
                     },
                     complete => break,
-                    default => break,
+                    // default => break, // TODO: should this be here?
                 }
             }
 
+            actor.finished(&mut self.ctx).await;
             actor.stopped(&mut self.ctx).await;
 
             self.stop.notify();
