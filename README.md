@@ -22,8 +22,8 @@ A minimalistic reimplementation of the [Hannibal](https://lib.rs/hannibal) actor
   - same old, same old
   - [x] stream handling
     - [ ] attach api (nope)
-- [ ] service
-  - [ ] restarting actors
+- [x] service
+  - [x] restarting actors
   - [ ] special addr that only allows restarting
 - [ ] broker
   - look into why there should be a thread local broker
