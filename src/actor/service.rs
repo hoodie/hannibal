@@ -86,7 +86,7 @@ mod tests {
         #[tokio::test]
         async fn register_as_service() {
             let (addr, mut joiner) = TokioActor(1337).spawn_with::<TokioSpawner>().unwrap();
-            crate::register(addr).await.unwrap();
+            crate::register(addr).await;
             let mut svc_addr = TokioActor::from_registry().await.unwrap();
             assert_eq!(svc_addr.call(Identify).await.unwrap(), 1337);
             assert_eq!(svc_addr.call(Identify).await.unwrap(), 1337);
@@ -103,7 +103,7 @@ mod tests {
             svc_addr.call(Ping).await.unwrap();
 
             svc_addr.stop().unwrap();
-            dbg!(svc_addr.await.unwrap());
+            svc_addr.await.unwrap();
         }
     }
 
@@ -118,7 +118,7 @@ mod tests {
         #[tokio::test]
         async fn register_as_service() {
             let (addr, mut joiner) = AsyncStdActor(1337).spawn_with::<AsyncStdSpawner>().unwrap();
-            crate::actor::service::register(addr).await.unwrap();
+            crate::actor::service::register(addr).await;
             let mut svc_addr = AsyncStdActor::from_registry().await.unwrap();
             assert_eq!(svc_addr.call(Identify).await.unwrap(), 1337);
             assert_eq!(svc_addr.call(Identify).await.unwrap(), 1337);
