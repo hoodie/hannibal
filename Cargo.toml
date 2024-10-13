@@ -25,3 +25,35 @@ default = ["tokio"]
 [[example]]
 name = "simple"
 required-features = ["tokio"]
+
+[lints.rust]
+unsafe_code = "forbid"
+trivial_numeric_casts = "forbid"
+unused_import_braces = "forbid"
+missing_copy_implementations = "warn"
+# missing_debug_implementations = "warn"
+# missing_docs = "warn"
+trivial_casts = "warn"
+unstable_features = "warn"
+
+[lints.clippy]
+doc_markdown = "warn"
+cast_lossless = "warn"
+cast_possible_truncation = "warn"
+clone_on_ref_ptr = "warn"
+complexity = "warn"
+correctness = "warn"
+dbg_macro = "warn"
+expect_used = "warn"
+indexing_slicing = "warn"
+manual_filter_map = "warn"
+map_clone = "warn"
+missing_const_for_fn = "warn"
+missing_panics_doc = "warn"
+needless_collect = "warn"
+redundant_clone = "warn"
+redundant_closure_for_method_calls = "warn"
+style = "warn"
+too_many_arguments = "warn"
+unwrap_used = "warn"
+useless_format = "warn"
