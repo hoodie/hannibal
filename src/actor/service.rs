@@ -67,61 +67,39 @@ where
 #[cfg(test)]
 mod tests {
 
-    use crate::actor::service::Service;
-    use spawn_strategy::{AsyncStdSpawner, DefaultSpawnable, TokioSpawner};
+    #[cfg(feature = "tokio")]
+    mod spawned_with_tokio {
+        use crate::{
+            actor::tests::{spawned_with_tokio::TokioActor, Ping},
+            Service,
+        };
 
-    use crate::{Handler, Message};
+        #[tokio::test]
+        async fn get_service_from_registry() {
+            let mut svc_addr = TokioActor::from_registry().await.unwrap();
+            assert!(!svc_addr.stopped());
 
-    use super::*;
-
-    #[tokio::test]
-    async fn get_service_from_registry() {
-        struct Ping;
-        struct Pong;
-        impl Message for Ping {
-            type Result = Pong;
+            svc_addr.call(Ping).await.unwrap();
+            svc_addr.stop().unwrap();
+            svc_addr.await.unwrap()
         }
+    }
 
-        #[derive(Debug, Default)]
-        struct AsyncStdServiceActor;
-        impl Actor for AsyncStdServiceActor {}
-        impl Service<AsyncStdSpawner> for AsyncStdServiceActor {}
-        impl Handler<Ping> for AsyncStdServiceActor {
-            async fn handle(&mut self, _ctx: &mut Context<Self>, _msg: Ping) -> Pong {
-                Pong
-            }
+    #[cfg(feature = "async-std")]
+    mod spawned_with_asyncstd {
+        use crate::{
+            actor::tests::{spawned_with_asyncstd::AsyncStdActor, Ping},
+            Service,
+        };
+
+        #[async_std::test]
+        async fn get_service_from_registry() {
+            let mut svc_addr = AsyncStdActor::from_registry().await.unwrap();
+            assert!(!svc_addr.stopped());
+
+            svc_addr.call(Ping).await.unwrap();
+            svc_addr.stop().unwrap();
+            svc_addr.await.unwrap();
         }
-
-        #[derive(Debug, Default)]
-        struct TokioServiceActor;
-        impl Actor for TokioServiceActor {}
-        impl Service<TokioSpawner> for TokioServiceActor {}
-        impl Handler<Ping> for TokioServiceActor {
-            async fn handle(&mut self, _ctx: &mut Context<Self>, _msg: Ping) -> Pong {
-                Pong
-            }
-        }
-
-        let mut svc_addr_asyncstd = AsyncStdServiceActor::from_registry().await.unwrap();
-        assert!(!svc_addr_asyncstd.stopped());
-
-        svc_addr_asyncstd.call(Ping).await.unwrap();
-        svc_addr_asyncstd.stop().unwrap();
-        svc_addr_asyncstd.await.unwrap();
-
-        let mut addr_tokio = <TokioServiceActor as DefaultSpawnable<TokioSpawner>>::spawn_default()
-            .unwrap()
-            .0;
-        assert!(!addr_tokio.stopped());
-        addr_tokio.call(Ping).await.unwrap();
-        addr_tokio.stop().unwrap();
-        addr_tokio.await.unwrap();
-
-        let mut svc_addr_tokio = TokioServiceActor::from_registry().await.unwrap();
-        assert!(!svc_addr_tokio.stopped());
-
-        svc_addr_tokio.call(Ping).await.unwrap();
-        svc_addr_tokio.stop().unwrap();
-        svc_addr_tokio.await.unwrap()
     }
 }

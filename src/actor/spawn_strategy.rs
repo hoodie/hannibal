@@ -49,6 +49,7 @@ pub trait DefaultSpawnable<S: Spawner<Self>>: Actor + Default {
 #[cfg(feature = "tokio")]
 #[derive(Copy, Clone, Debug, Default)]
 pub struct TokioSpawner;
+#[cfg(feature = "tokio")]
 impl<A: Actor> Spawner<A> for TokioSpawner {
     fn spawn<F>(future: F) -> Box<dyn Joiner<A>>
     where
@@ -81,6 +82,7 @@ impl<A> DefaultSpawnable<TokioSpawner> for A where A: Actor + Default {}
 #[cfg(feature = "async-std")]
 #[derive(Copy, Clone, Debug, Default)]
 pub struct AsyncStdSpawner;
+#[cfg(feature = "async-std")]
 impl<A: Actor> Spawner<A> for AsyncStdSpawner {
     fn spawn<F>(future: F) -> Box<dyn Joiner<A>>
     where
@@ -107,3 +109,68 @@ impl<A: Actor> Spawner<A> for AsyncStdSpawner {
 impl<A> Spawnable<AsyncStdSpawner> for A where A: Actor {}
 #[cfg(feature = "async-std")]
 impl<A> DefaultSpawnable<AsyncStdSpawner> for A where A: Actor + Default {}
+
+#[cfg(test)]
+mod tests {
+    #[cfg(feature = "tokio")]
+    mod spawned_with_tokio {
+        use crate::{
+            actor::tests::{spawned_with_tokio::TokioActor, Ping},
+            spawn_strategy::{DefaultSpawnable, Spawnable, TokioSpawner},
+        };
+
+        #[tokio::test]
+        async fn spawn() {
+            let tokio_actor = TokioActor::default();
+            let (mut addr, _) =
+                <TokioActor as Spawnable<TokioSpawner>>::spawn(tokio_actor).unwrap();
+            assert!(!addr.stopped());
+
+            addr.call(Ping).await.unwrap();
+            addr.stop().unwrap();
+            addr.await.unwrap()
+        }
+
+        #[tokio::test]
+        async fn spawn_default() {
+            let (mut addr, _) =
+                <TokioActor as DefaultSpawnable<TokioSpawner>>::spawn_default().unwrap();
+            assert!(!addr.stopped());
+
+            addr.call(Ping).await.unwrap();
+            addr.stop().unwrap();
+            addr.await.unwrap()
+        }
+    }
+
+    #[cfg(feature = "async-std")]
+    mod spawned_with_asyncstd {
+        use crate::{
+            actor::tests::{spawned_with_asyncstd::AsyncStdActor, Ping},
+            spawn_strategy::{AsyncStdSpawner, DefaultSpawnable, Spawnable},
+        };
+
+        #[async_std::test]
+        async fn spawn() {
+            let tokio_actor = AsyncStdActor::default();
+            let (mut addr, _) =
+                <AsyncStdActor as Spawnable<AsyncStdSpawner>>::spawn(tokio_actor).unwrap();
+            assert!(!addr.stopped());
+
+            addr.call(Ping).await.unwrap();
+            addr.stop().unwrap();
+            addr.await.unwrap()
+        }
+
+        #[async_std::test]
+        async fn spawn_default() {
+            let (mut addr, _) =
+                <AsyncStdActor as DefaultSpawnable<AsyncStdSpawner>>::spawn_default().unwrap();
+            assert!(!addr.stopped());
+
+            addr.call(Ping).await.unwrap();
+            addr.stop().unwrap();
+            addr.await.unwrap()
+        }
+    }
+}

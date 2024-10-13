@@ -1,5 +1,5 @@
 default:
-    echo 'Hello, world!'
+    just --list
 
 coverage:
     cargo llvm-cov --html test
