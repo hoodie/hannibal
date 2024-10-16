@@ -35,14 +35,14 @@ pub mod tests {
     pub mod spawned_with_asyncstd {
         use super::{Identify, Ping, Pong};
         use crate::{
-            actor::{spawn_strategy::AsyncStdSpawner, Actor, Context},
-            Handler, SpawnableService,
+            actor::{Actor, Context},
+            Handler, Service,
         };
 
         #[derive(Debug, Default)]
         pub struct AsyncStdActor(pub usize);
         impl Actor for AsyncStdActor {}
-        impl Service<AsyncStdSpawner> for AsyncStdActor {}
+        impl Service for AsyncStdActor {}
         impl Handler<Ping> for AsyncStdActor {
             async fn handle(&mut self, _ctx: &mut Context<Self>, _msg: Ping) -> Pong {
                 Pong
@@ -64,8 +64,8 @@ pub mod tests {
 
         use super::{Identify, Ping, Pong};
         use crate::{
-            actor::{spawn_strategy::TokioSpawner, Actor, Context},
-            Handler, SpawnableService,
+            actor::{Actor, Context},
+            Handler, Service,
         };
 
         #[derive(Debug)]
@@ -79,7 +79,7 @@ pub mod tests {
         }
 
         impl Actor for TokioActor {}
-        impl SpawnableService<TokioSpawner> for TokioActor {}
+        impl Service for TokioActor {}
         impl Handler<Ping> for TokioActor {
             async fn handle(&mut self, _ctx: &mut Context<Self>, _msg: Ping) -> Pong {
                 Pong

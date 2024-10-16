@@ -1,8 +1,4 @@
-#![cfg_attr(
-    all(feature = "tokio", feature = "async-std"),
-    allow(dead_code, unused)
-)]
-use minibal::prelude::*;
+use minibal::{Actor, Context, DynResult, Environment, Handler, Message};
 
 struct MyActor(&'static str);
 
@@ -43,20 +39,13 @@ impl Handler<Add> for MyActor {
     }
 }
 
-#[cfg(any(
-    all(feature = "tokio", not(feature = "async-std")),
-    all(not(feature = "tokio"), feature = "async-std")
-))]
-#[cfg_attr(feature="tokio", tokio::main)]
-#[cfg_attr(feature="async-std", async_std::main)]
+#[tokio::main]
 async fn main() {
-    let mut addr = MyActor("Caesar").spawn().unwrap();
+    let (event_loop, mut addr) = Environment::unbounded().launch(MyActor("Caesar"));
+    tokio::spawn(event_loop);
     addr.send(Greet("Cornelius")).unwrap();
     let addition = addr.call(Add(1, 2)).await;
 
     println!("The Actor Calculated: {:?}", addition);
     println!("{:#?}", addr.stop());
 }
-
-#[cfg(all(feature = "tokio", feature = "async-std"))]
-fn main() {}

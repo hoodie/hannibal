@@ -1,3 +1,4 @@
+#![allow(unused_imports)]
 use std::{future::Future, pin::Pin, sync::Arc};
 
 use crate::{Addr, StreamHandler};
@@ -6,9 +7,8 @@ use super::{Actor, DynResult};
 
 pub type JoinFuture<A> = Pin<Box<dyn Future<Output = Option<A>> + Send>>;
 
-pub type DynJoiner<A> = Box<dyn Joiner<A>>;
+pub(crate) type DynJoiner<A> = Box<dyn Joiner<A>>;
 pub trait Joiner<A: Actor>: Send + Sync {
-    #[allow(unused)]
     fn join(&mut self) -> JoinFuture<A>;
 }
 
@@ -32,7 +32,6 @@ pub trait Spawner<A: Actor> {
 pub trait SpawnableWith: Actor {
     fn spawn_with<S: Spawner<Self>>(self) -> crate::error::Result<(Addr<Self>, DynJoiner<Self>)> {
         let (event_loop, addr) = crate::Environment::unbounded().launch(self);
-        // let joiner = S::spawn(futures::FutureExt::map(event_loop, |fut| fut.unwrap()));
         let joiner = S::spawn(event_loop);
         Ok((addr, joiner))
     }
@@ -112,25 +111,12 @@ impl<A: Actor> Spawner<A> for TokioSpawner {
     }
 }
 
-#[cfg(feature = "tokio")]
-impl<A> Spawnable<TokioSpawner> for A where A: Actor {}
-
-#[cfg(feature = "tokio")]
-impl<A, T> StreamSpawnable<TokioSpawner, T> for A where
-    A: Actor + StreamHandler<T::Item>,
-    // S: Spawner<A>,
-    T: futures::Stream + Unpin + Send + 'static,
-    T::Item: 'static + Send
-{
-}
-
-
-#[cfg(feature = "tokio")]
-impl<A> DefaultSpawnable<TokioSpawner> for A where A: Actor + Default {}
+// and now for async-std
 
 #[cfg(feature = "async-std")]
 #[derive(Copy, Clone, Debug, Default)]
 pub struct AsyncStdSpawner;
+
 #[cfg(feature = "async-std")]
 impl<A: Actor> Spawner<A> for AsyncStdSpawner {
     fn spawn<F>(future: F) -> Box<dyn Joiner<A>>
@@ -154,10 +140,39 @@ impl<A: Actor> Spawner<A> for AsyncStdSpawner {
         })
     }
 }
-#[cfg(feature = "async-std")]
-impl<A> Spawnable<AsyncStdSpawner> for A where A: Actor {}
-#[cfg(feature = "async-std")]
-impl<A> DefaultSpawnable<AsyncStdSpawner> for A where A: Actor + Default {}
+
+cfg_if::cfg_if! {
+    if #[cfg( all(feature = "tokio", not(feature = "async-std")))] {
+        impl<A> Spawnable<TokioSpawner> for A where A: Actor {}
+
+        impl<A, T> StreamSpawnable<TokioSpawner, T> for A
+        where
+            A: Actor + StreamHandler<T::Item>,
+            T: futures::Stream + Unpin + Send + 'static,
+            T::Item: 'static + Send,
+        {}
+
+        #[cfg(feature = "tokio")]
+        impl<A> DefaultSpawnable<TokioSpawner> for A where A: Actor + Default {}
+    } else if #[cfg( all(not(feature = "tokio"), feature = "async-std") )] {
+        impl<A> Spawnable<AsyncStdSpawner> for A where A: Actor {}
+
+        impl<A, T> StreamSpawnable<AsyncStdSpawner, T> for A
+        where
+            A: Actor + StreamHandler<T::Item>,
+            T: futures::Stream + Unpin + Send + 'static,
+            T::Item: 'static + Send,
+        {
+        }
+
+        impl<A> DefaultSpawnable<AsyncStdSpawner> for A where A: Actor + Default {}
+
+    } else if #[cfg(all(feature = "tokio", feature = "async-std") )] {
+        // if both are enabled, we can not provice a default spawner
+    } else {
+        // if both are enabled, we can not provice a default spawner either
+    }
+}
 
 #[cfg(test)]
 mod tests {

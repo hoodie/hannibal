@@ -1,5 +1,5 @@
 use async_signals::Signals;
-use minibal::{prelude::*, register};
+use minibal::prelude::*;
 
 #[derive(Debug, Default)]
 struct SignalService {
@@ -7,13 +7,24 @@ struct SignalService {
 }
 
 impl Actor for SignalService {}
-impl Service for SignalService {}
+impl Service for SignalService {
+    async fn setup() -> DynResult<()> {
+        let signals = Signals::new(vec![libc::SIGINT])?;
+
+        SignalService::default()
+            .spawn_on_stream(signals)?
+            .register()
+            .await;
+        Ok(())
+    }
+}
 
 impl StreamHandler<i32> for SignalService {
     async fn handle(&mut self, ctx: &mut Context<Self>, signal: i32) {
+        let limit = 3;
         self.sig_count += 1;
-        println!("{}. Received signal: {:?}", self.sig_count, signal);
-        if self.sig_count == 3 {
+        println!("Received signal {signal:?}: {}/{limit}", self.sig_count);
+        if self.sig_count == limit {
             ctx.stop().unwrap();
         }
     }
@@ -25,9 +36,8 @@ impl StreamHandler<i32> for SignalService {
 
 #[tokio::main(flavor = "current_thread")]
 async fn main() {
-    let signals = Signals::new(vec![libc::SIGINT]).unwrap();
-    let addr = SignalService::default().spawn_on_stream(signals).unwrap();
-    register(addr).await;
+    SignalService::setup().await.unwrap();
+
     let addr = SignalService::from_registry().await.unwrap();
 
     println!("kill me with Ctrl-C three times to stop the actor");

@@ -11,7 +11,7 @@ mod handler;
 
 pub use self::{
     actor::{
-        service::{self, register, Service},
+        service::{self, Service},
         spawn_strategy, Actor, DynResult,
     },
     addr::{sender::Sender, weak_caller::WeakCaller, weak_sender::WeakSender, Addr, Message},

@@ -5,7 +5,6 @@ edition = "2021"
 
 [dependencies]
 thiserror = "1.0"
-futures-executor = "0.3"
 futures = { version = "0.3" }
 color-backtrace = "0.6"
 async-lock = "3"
@@ -13,16 +12,23 @@ async-lock = "3"
 tokio = { version = "1.39", features = ["full"], optional = true }
 dyn-clone = "1.0.17"
 async-std = { version = "1.13.0", optional = true }
+cfg-if = "1.0.0"
 
 [dev-dependencies]
 tokio = { version = "1.39", features = ["full"] }
 async-std = { version = "1.13", features = ["attributes"] }
 async-signals = "0.5.0"
+futures-executor = { version = "0.3", features = ["thread-pool"] }
 libc = "0.2"
+ctor = "0.2.8"
+color-backtrace = "0.6"
 
 [features]
 # TODO: make tokio optional
-default = ["tokio"]
+default = [
+    # "tokio",
+    # "async-std"
+]
 
 [[example]]
 name = "simple"
@@ -30,9 +36,16 @@ path = "examples/simple.rs"
 required-features = ["tokio"]
 
 [[example]]
-name = "signals-service"
-path = "examples/signals-service.rs"
-required-features = ["tokio"]
+name = "custom_spawner"
+path = "examples/custom_spawner.rs"
+
+[[example]]
+name = "signal-service"
+path = "examples/signal-service.rs"
+required-features = [
+    "tokio",
+    # "async-std"
+]
 
 [lints.rust]
 unsafe_code = "forbid"

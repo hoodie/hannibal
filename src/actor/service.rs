@@ -4,8 +4,9 @@ use std::{
     sync::LazyLock,
 };
 
-use super::spawn_strategy::Spawner;
-use super::*;
+use futures::{FutureExt as _, TryFutureExt};
+
+use super::{spawn_strategy::Spawner, *};
 
 use crate::{Addr, Environment};
 
@@ -14,51 +15,60 @@ type AnyBox = Box<dyn Any + Send + Sync>;
 static REGISTRY: LazyLock<async_lock::Mutex<HashMap<TypeId, AnyBox>>> =
     LazyLock::new(Default::default);
 
-pub async fn register<S, A>(instance: Addr<A>) -> Option<Addr<A>>
-where
-    S: Spawner<A>,
-    A: Registerable<S>,
-{
-    Registerable::register(instance).await
-}
-
-pub trait Registerable<S>: Actor
-where
-    S: Spawner<Self>,
-{
-    fn register(instance: Addr<Self>) -> impl Future<Output = Option<Addr<Self>>> {
+/// register an actor with the registry
+#[cfg(any(feature = "tokio", feature = "async-std"))]
+impl<A: Actor + Service> Addr<A> {
+    pub fn register(self) -> impl Future<Output = Option<Addr<A>>> {
         async {
-            let key = TypeId::of::<Self>();
-            REGISTRY
-                .lock()
-                .await
-                .insert(key, Box::new(instance))
-                .and_then(|addr| addr.downcast::<Addr<Self>>().ok())
-                .map(|addr| *addr)
+            let key = TypeId::of::<A>();
+            let mut registry = REGISTRY.lock().await;
+
+            let replaced = registry
+                .insert(key, Box::new(self))
+                .and_then(|addr| addr.downcast::<Addr<A>>().ok())
+                .map(|addr| *addr);
+
+            eprintln!("elements in registry after: {:?}", registry.iter().count());
+
+            return replaced;
         }
     }
 }
 
+#[cfg(any(feature = "tokio", feature = "async-std"))]
 pub trait Service: Actor + Default {
+    fn setup() -> impl Future<Output = DynResult<()>> {
+        Self::from_registry_and_spawn()
+            .map(|res| res.map(|_| ()))
+            .map_err(Into::into)
+    }
+
     fn from_registry() -> impl Future<Output = crate::error::Result<Addr<Self>>> {
-        <Self as SpawnableService<spawn_strategy::TokioSpawner>>::from_registry()
+        Self::from_registry_and_spawn()
     }
 }
 
-#[cfg(feature = "tokio")]
-impl<A> SpawnableService<spawn_strategy::TokioSpawner> for A where A: Service {}
+#[cfg(not(any(feature = "tokio", feature = "async-std")))]
+pub trait Service<S: Spawner<Self>>: Actor + Default + SpawnableService<S> {
+    fn setup() -> impl Future<Output = DynResult<()>> {
+        Self::from_registry_and_spawn()
+            .map(|res| res.map(|_| ()))
+            .map_err(Into::into)
+    }
 
-pub trait SpawnableService<S>: Actor + Default + Registerable<S>
-where
-    S: Spawner<Self>,
-{
     fn from_registry() -> impl Future<Output = crate::error::Result<Addr<Self>>> {
+        Self::from_registry_and_spawn()
+    }
+}
+
+pub trait SpawnableService<S: Spawner<Self>>: Actor + Default {
+    fn from_registry_and_spawn() -> impl Future<Output = crate::error::Result<Addr<Self>>> {
         async {
             let key = TypeId::of::<Self>();
 
-            let mut entry = REGISTRY.lock().await;
+            let mut registry = REGISTRY.lock().await;
 
-            if let Some(addr) = entry
+            if let Some(addr) = registry
                 .get_mut(&key)
                 .and_then(|addr| addr.downcast_ref::<Addr<Self>>())
                 .map(ToOwned::to_owned)
@@ -67,17 +77,22 @@ where
             } else {
                 let (event_loop, addr) = Environment::unbounded().launch(Self::default());
                 S::spawn(event_loop);
-                entry.insert(key, Box::new(addr.clone()));
+                registry.insert(key, Box::new(addr.clone()));
                 Ok(addr)
             }
         }
     }
 }
 
-impl<T, S> Registerable<S> for T
+#[cfg(any(
+    all(feature = "tokio", not(feature = "async-std")),
+    all(not(feature = "tokio"), feature = "async-std")
+))]
+impl<A, S> SpawnableService<S> for A
 where
-    T: SpawnableService<S>,
-    S: Spawner<Self>,
+    A: Service,
+    A: spawn_strategy::Spawnable<S>,
+    S: Spawner<A>,
 {
 }
 
@@ -89,13 +104,13 @@ mod tests {
         use crate::{
             actor::tests::{spawned_with_tokio::TokioActor, Identify, Ping},
             spawn_strategy::{SpawnableWith, TokioSpawner},
-            SpawnableService,
+            Service,
         };
 
         #[tokio::test]
         async fn register_as_service() {
             let (addr, mut joiner) = TokioActor(1337).spawn_with::<TokioSpawner>().unwrap();
-            crate::register(addr).await;
+            addr.register().await;
             let mut svc_addr = TokioActor::from_registry().await.unwrap();
             assert_eq!(svc_addr.call(Identify).await.unwrap(), 1337);
             assert_eq!(svc_addr.call(Identify).await.unwrap(), 1337);
@@ -121,13 +136,13 @@ mod tests {
         use crate::{
             actor::tests::{spawned_with_asyncstd::AsyncStdActor, Identify, Ping},
             spawn_strategy::{AsyncStdSpawner, SpawnableWith},
-            SpawnableService,
+            Service,
         };
 
-        #[tokio::test]
+        #[async_std::test]
         async fn register_as_service() {
             let (addr, mut joiner) = AsyncStdActor(1337).spawn_with::<AsyncStdSpawner>().unwrap();
-            crate::actor::service::register(addr).await;
+            addr.register().await;
             let mut svc_addr = AsyncStdActor::from_registry().await.unwrap();
             assert_eq!(svc_addr.call(Identify).await.unwrap(), 1337);
             assert_eq!(svc_addr.call(Identify).await.unwrap(), 1337);
