@@ -152,9 +152,11 @@ cfg_if::cfg_if! {
             T::Item: 'static + Send,
         {}
 
-        #[cfg(feature = "tokio")]
         impl<A> DefaultSpawnable<TokioSpawner> for A where A: Actor + Default {}
+        pub type DefaultSpawner = TokioSpawner;
+
     } else if #[cfg( all(not(feature = "tokio"), feature = "async-std") )] {
+
         impl<A> Spawnable<AsyncStdSpawner> for A where A: Actor {}
 
         impl<A, T> StreamSpawnable<AsyncStdSpawner, T> for A
@@ -166,11 +168,12 @@ cfg_if::cfg_if! {
         }
 
         impl<A> DefaultSpawnable<AsyncStdSpawner> for A where A: Actor + Default {}
+        pub type DefaultSpawner = AsyncStdSpawner;
 
     } else if #[cfg(all(feature = "tokio", feature = "async-std") )] {
         // if both are enabled, we can not provice a default spawner
     } else {
-        // if both are enabled, we can not provice a default spawner either
+        // if both are disabled, we can not provice a default spawner either
     }
 }
 
