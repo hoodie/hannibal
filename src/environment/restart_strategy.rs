@@ -36,3 +36,5 @@ where
         Ok(actor)
     }
 }
+
+pub trait Restartable: Actor {}

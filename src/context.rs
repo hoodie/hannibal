@@ -4,7 +4,7 @@ use crate::{
     actor::Actor,
     channel::WeakChanTx,
     environment::Payload,
-    error::{ActorError::AlreadyStopped, Result},
+    error::{ActorError::AlreadyStopped, Result}, Restartable,
 };
 
 pub type RunningFuture = futures::future::Shared<oneshot::Receiver<()>>;
@@ -24,6 +24,16 @@ impl<A: Actor> Context<A> {
     pub fn stop(&self) -> Result<()> {
         if let Some(tx) = self.weak_tx.upgrade() {
             Ok(tx.send(Payload::Stop)?)
+        } else {
+            Err(AlreadyStopped)
+        }
+    }
+}
+
+impl<A: Actor + Restartable> Context<A> {
+    pub fn restart(&self) -> Result<()> {
+        if let Some(tx) = self.weak_tx.upgrade() {
+            Ok(tx.send(Payload::Restart)?)
         } else {
             Err(AlreadyStopped)
         }

@@ -9,8 +9,8 @@ pub mod weak_caller;
 pub mod weak_sender;
 
 use crate::{
-    actor::Actor, channel::ChanTx, context::RunningFuture, environment::Payload, error::Result,
-    handler::Handler,
+    actor::Actor, channel::ChanTx, context::RunningFuture, environment::Payload,
+    environment::Restartable, error::Result, handler::Handler,
 };
 
 pub trait Message: 'static + Send {
@@ -34,11 +34,6 @@ impl<A: Actor> Clone for Addr<A> {
 impl<A: Actor> Addr<A> {
     pub fn stop(&mut self) -> Result<()> {
         self.payload_tx.send(Payload::Stop)?;
-        Ok(())
-    }
-
-    pub fn restart(&mut self) -> Result<()> {
-        self.payload_tx.send(Payload::Restart)?;
         Ok(())
     }
 
@@ -101,6 +96,16 @@ impl<A: Actor> Addr<A> {
         A: Handler<M>,
     {
         weak_caller::WeakCaller::from(self)
+    }
+}
+
+impl<A> Addr<A>
+where
+    A: Actor + Restartable,
+{
+    pub fn restart(&mut self) -> Result<()> {
+        self.payload_tx.send(Payload::Restart)?;
+        Ok(())
     }
 }
 

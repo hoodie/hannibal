@@ -26,7 +26,7 @@ color-backtrace = "0.6"
 [features]
 # TODO: make tokio optional
 default = [
-    # "tokio",
+    "tokio",
     # "async-std"
 ]
 

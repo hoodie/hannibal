@@ -16,7 +16,7 @@ pub use self::{
     },
     addr::{sender::Sender, weak_caller::WeakCaller, weak_sender::WeakSender, Addr, Message},
     context::Context,
-    environment::Environment,
+    environment::{Environment, Restartable},
     handler::{Handler, StreamHandler},
 };
 

@@ -13,7 +13,7 @@ use crate::{
 mod payload;
 mod restart_strategy;
 pub(crate) use payload::Payload;
-use restart_strategy::{RecreateFromDefault, RestartOnly, RestartStrategy};
+pub use restart_strategy::{RecreateFromDefault, RestartOnly, RestartStrategy, Restartable};
 
 pub struct Environment<A: Actor, R: RestartStrategy<A> = RestartOnly> {
     ctx: Context<A>,
@@ -64,9 +64,7 @@ impl<A: Actor, R: RestartStrategy<A>> Environment<A, R> {
                 match event {
                     Payload::Task(f) => f(&mut actor, &mut self.ctx).await,
                     Payload::Stop => break,
-                    Payload::Restart => {
-                        actor = R::refresh(actor, &mut self.ctx).await?;
-                    }
+                    Payload::Restart => actor = R::refresh(actor, &mut self.ctx).await?,
                 }
             }
 
@@ -98,6 +96,7 @@ impl<A: Actor, R: RestartStrategy<A>> Environment<A, R> {
                             Some(Payload::Task(f)) => f(&mut actor, &mut self.ctx).await,
                             Some(Payload::Stop)  =>  break,
                             Some(Payload::Restart)  =>  {
+                                panic!("restart message in streamhandling actor")
                                 // TODO: what does this do with the
                                 // log::warn!("ignoring restart message in streamhandling actor")
                             },
@@ -296,6 +295,7 @@ mod tests {
             }
         }
 
+        impl Restartable for RestartCounter {}
         impl Actor for RestartCounter {
             async fn started(&mut self, _: &mut Context<Self>) -> DynResult {
                 self.started_count += 1;
