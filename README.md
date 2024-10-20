@@ -34,6 +34,7 @@ A minimalistic reimplementation of the [Hannibal](https://lib.rs/hannibal) actor
 - [ ] stream handling service/broker
    - [ ] allow a service that handles e.g. [signals](https://docs.rs/async-signals/latest/async_signals/struct.Signals.html)
    - [ ] (optional) have utility services already?
+   - [ ] SUPPORT restarting stream handlers
 - [ ] logging and console subscriber
 - [ ] test with rstest
 - [ ] stop reason

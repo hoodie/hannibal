@@ -40,15 +40,22 @@ pub mod tests {
         };
 
         #[derive(Debug, Default)]
-        pub struct AsyncStdActor(pub usize);
-        impl Actor for AsyncStdActor {}
-        impl Service for AsyncStdActor {}
-        impl Handler<Ping> for AsyncStdActor {
+        pub struct AsyncStdActor<T: Send + Sync + Default>(pub usize, pub std::marker::PhantomData<T>);
+
+        impl<T: Send + Sync + Default> AsyncStdActor<T> {
+            pub fn new(value: usize) -> Self {
+                Self(value, Default::default())
+            }
+        }
+
+        impl<T: Send + Sync + Default + 'static> Actor for AsyncStdActor<T> {}
+        impl<T: Send + Sync + Default + 'static> Service for AsyncStdActor<T> {}
+        impl<T: Send + Sync + Default + 'static> Handler<Ping> for AsyncStdActor<T> {
             async fn handle(&mut self, _ctx: &mut Context<Self>, _msg: Ping) -> Pong {
                 Pong
             }
         }
-        impl Handler<Identify> for AsyncStdActor {
+        impl<T: Send + Sync + Default + 'static> Handler<Identify> for AsyncStdActor<T> {
             async fn handle(&mut self, _ctx: &mut Context<Self>, _msg: Identify) -> usize {
                 self.0
             }
@@ -69,23 +76,30 @@ pub mod tests {
         };
 
         #[derive(Debug)]
-        pub struct TokioActor(pub usize);
+        pub struct TokioActor<T: Send + Sync + Default>(pub usize, pub std::marker::PhantomData<T>);
 
-        impl Default for TokioActor {
-            fn default() -> Self {
-                static COUNTER: LazyLock<AtomicUsize> = LazyLock::new(Default::default);
-                Self(COUNTER.fetch_add(1, Ordering::Relaxed))
+        impl<T: Send + Sync + Default> TokioActor<T> {
+            pub fn new(value: usize) -> Self {
+                Self(value, Default::default())
             }
         }
 
-        impl Actor for TokioActor {}
-        impl Service for TokioActor {}
-        impl Handler<Ping> for TokioActor {
+        impl<T: Send + Sync + Default> Default for TokioActor<T> {
+            fn default() -> Self {
+                static COUNTER: LazyLock<AtomicUsize> = LazyLock::new(Default::default);
+                Self(COUNTER.fetch_add(1, Ordering::Relaxed), Default::default())
+            }
+        }
+
+        impl<T: Send + Sync + Default + 'static> Actor for TokioActor<T> {}
+        impl<T: Send + Sync + Default + 'static> Service for TokioActor<T> {}
+        impl<T: Send + Sync + Default + 'static> Handler<Ping> for TokioActor<T> {
             async fn handle(&mut self, _ctx: &mut Context<Self>, _msg: Ping) -> Pong {
+                eprintln!("TokioActor({}): Ping", self.0);
                 Pong
             }
         }
-        impl Handler<Identify> for TokioActor {
+        impl<T: Send + Sync + Default + 'static> Handler<Identify> for TokioActor<T> {
             async fn handle(&mut self, _ctx: &mut Context<Self>, _msg: Identify) -> usize {
                 self.0
             }

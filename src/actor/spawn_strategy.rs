@@ -189,7 +189,7 @@ mod tests {
         #[tokio::test]
         async fn spawn() {
             let tokio_actor = TokioActor::default();
-            let mut addr = <TokioActor as Spawnable<TokioSpawner>>::spawn(tokio_actor).unwrap();
+            let mut addr = <TokioActor<()> as Spawnable<TokioSpawner>>::spawn(tokio_actor).unwrap();
             assert!(!addr.stopped());
 
             addr.call(Ping).await.unwrap();
@@ -199,7 +199,7 @@ mod tests {
 
         #[tokio::test]
         async fn spawn_default() {
-            let mut addr = <TokioActor as DefaultSpawnable<TokioSpawner>>::spawn_default().unwrap();
+            let mut addr = <TokioActor<()> as DefaultSpawnable<TokioSpawner>>::spawn_default().unwrap();
             assert!(!addr.stopped());
 
             addr.call(Ping).await.unwrap();
@@ -219,7 +219,7 @@ mod tests {
         async fn spawn() {
             let tokio_actor = AsyncStdActor::default();
             let mut addr =
-                <AsyncStdActor as Spawnable<AsyncStdSpawner>>::spawn(tokio_actor).unwrap();
+                <AsyncStdActor<()> as Spawnable<AsyncStdSpawner>>::spawn(tokio_actor).unwrap();
             assert!(!addr.stopped());
 
             addr.call(Ping).await.unwrap();
@@ -230,7 +230,7 @@ mod tests {
         #[async_std::test]
         async fn spawn_default() {
             let mut addr =
-                <AsyncStdActor as DefaultSpawnable<AsyncStdSpawner>>::spawn_default().unwrap();
+                <AsyncStdActor<()> as DefaultSpawnable<AsyncStdSpawner>>::spawn_default().unwrap();
             assert!(!addr.stopped());
 
             addr.call(Ping).await.unwrap();

@@ -105,9 +105,10 @@ mod tests {
 
         #[tokio::test]
         async fn register_as_service() {
-            let (addr, mut joiner) = TokioActor(1337).spawn_with::<TokioSpawner>().unwrap();
+            type Svc = TokioActor<u32>;
+            let (addr, mut joiner) = Svc::new(1337).spawn_with::<TokioSpawner>().unwrap();
             addr.register().await;
-            let mut svc_addr = TokioActor::from_registry().await;
+            let mut svc_addr = Svc::from_registry().await;
             assert_eq!(svc_addr.call(Identify).await.unwrap(), 1337);
             assert_eq!(svc_addr.call(Identify).await.unwrap(), 1337);
 
@@ -117,7 +118,8 @@ mod tests {
 
         #[tokio::test]
         async fn get_service_from_registry() {
-            let mut svc_addr = TokioActor::from_registry().await;
+            type Svc = TokioActor<u64>;
+            let mut svc_addr = Svc::from_registry().await;
             assert!(!svc_addr.stopped());
 
             svc_addr.call(Ping).await.unwrap();
@@ -137,9 +139,10 @@ mod tests {
 
         #[async_std::test]
         async fn register_as_service() {
-            let (addr, mut joiner) = AsyncStdActor(1337).spawn_with::<AsyncStdSpawner>().unwrap();
+            type Svc = AsyncStdActor<u32>;
+            let (addr, mut joiner) = Svc::new(1337).spawn_with::<AsyncStdSpawner>().unwrap();
             addr.register().await;
-            let mut svc_addr = AsyncStdActor::from_registry().await.unwrap();
+            let mut svc_addr = Svc::from_registry().await;
             assert_eq!(svc_addr.call(Identify).await.unwrap(), 1337);
             assert_eq!(svc_addr.call(Identify).await.unwrap(), 1337);
 
@@ -147,9 +150,23 @@ mod tests {
             joiner.join().await.unwrap();
         }
 
-        #[async_std::test]
+        #[tokio::test]
         async fn get_service_from_registry() {
-            let mut svc_addr = AsyncStdActor::from_registry().await.unwrap();
+            type Svc = AsyncStdActor<u64>;
+            Svc::setup().await.unwrap();
+            let mut svc_addr = Svc::from_registry().await;
+            assert!(!svc_addr.stopped());
+
+            svc_addr.call(Ping).await.unwrap();
+
+            svc_addr.stop().unwrap();
+            svc_addr.await.unwrap();
+        }
+
+        #[async_std::test]
+        async fn get_service_from_registry_without_set() {
+            type Svc = AsyncStdActor<f64>;
+            let mut svc_addr = Svc::from_registry().await;
             assert!(!svc_addr.stopped());
 
             svc_addr.call(Ping).await.unwrap();
