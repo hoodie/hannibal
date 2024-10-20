@@ -38,7 +38,7 @@ impl StreamHandler<i32> for SignalService {
 async fn main() {
     SignalService::setup().await.unwrap();
 
-    let addr = SignalService::from_registry().await.unwrap();
+    let addr = SignalService::from_registry().await;
 
     println!("kill me with Ctrl-C three times to stop the actor");
 

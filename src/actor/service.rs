@@ -4,7 +4,7 @@ use std::{
     sync::LazyLock,
 };
 
-use futures::{FutureExt as _, TryFutureExt};
+use futures::FutureExt as _;
 
 use super::{spawn_strategy::Spawner, *};
 
@@ -15,7 +15,6 @@ type AnyBox = Box<dyn Any + Send + Sync>;
 static REGISTRY: LazyLock<async_lock::Mutex<HashMap<TypeId, AnyBox>>> =
     LazyLock::new(Default::default);
 
-/// register an actor with the registry
 #[cfg(any(feature = "tokio", feature = "async-std"))]
 impl<A: Actor + Service> Addr<A> {
     pub fn register(self) -> impl Future<Output = Option<Addr<A>>> {
@@ -38,12 +37,10 @@ impl<A: Actor + Service> Addr<A> {
 #[cfg(any(feature = "tokio", feature = "async-std"))]
 pub trait Service: Actor + Default {
     fn setup() -> impl Future<Output = DynResult<()>> {
-        Self::from_registry_and_spawn()
-            .map(|res| res.map(|_| ()))
-            .map_err(Into::into)
+        Self::from_registry_and_spawn().map(|_| Ok(()))
     }
 
-    fn from_registry() -> impl Future<Output = crate::error::Result<Addr<Self>>> {
+    fn from_registry() -> impl Future<Output = Addr<Self>> {
         Self::from_registry_and_spawn()
     }
 }
@@ -62,7 +59,7 @@ pub trait Service<S: Spawner<Self>>: Actor + Default + SpawnableService<S> {
 }
 
 pub trait SpawnableService<S: Spawner<Self>>: Actor + Default {
-    fn from_registry_and_spawn() -> impl Future<Output = crate::error::Result<Addr<Self>>> {
+    fn from_registry_and_spawn() -> impl Future<Output = Addr<Self>> {
         async {
             let key = TypeId::of::<Self>();
 
@@ -73,12 +70,12 @@ pub trait SpawnableService<S: Spawner<Self>>: Actor + Default {
                 .and_then(|addr| addr.downcast_ref::<Addr<Self>>())
                 .map(ToOwned::to_owned)
             {
-                Ok(addr)
+                addr
             } else {
                 let (event_loop, addr) = Environment::unbounded().launch(Self::default());
                 S::spawn(event_loop);
                 registry.insert(key, Box::new(addr.clone()));
-                Ok(addr)
+                addr
             }
         }
     }
@@ -111,7 +108,7 @@ mod tests {
         async fn register_as_service() {
             let (addr, mut joiner) = TokioActor(1337).spawn_with::<TokioSpawner>().unwrap();
             addr.register().await;
-            let mut svc_addr = TokioActor::from_registry().await.unwrap();
+            let mut svc_addr = TokioActor::from_registry().await;
             assert_eq!(svc_addr.call(Identify).await.unwrap(), 1337);
             assert_eq!(svc_addr.call(Identify).await.unwrap(), 1337);
 
@@ -121,7 +118,7 @@ mod tests {
 
         #[tokio::test]
         async fn get_service_from_registry() {
-            let mut svc_addr = TokioActor::from_registry().await.unwrap();
+            let mut svc_addr = TokioActor::from_registry().await;
             assert!(!svc_addr.stopped());
 
             svc_addr.call(Ping).await.unwrap();
