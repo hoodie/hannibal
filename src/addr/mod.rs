@@ -74,28 +74,28 @@ impl<A: Actor> Addr<A> {
     where
         A: Handler<M>,
     {
-        sender::Sender::from(self)
+        sender::Sender::from(self.to_owned())
     }
 
     pub fn weak_sender<M: Message<Result = ()>>(&self) -> weak_sender::WeakSender<M>
     where
         A: Handler<M>,
     {
-        weak_sender::WeakSender::from(self)
+        weak_sender::WeakSender::from(self.to_owned())
     }
 
     pub fn caller<M: Message>(&self) -> caller::Caller<M>
     where
         A: Handler<M>,
     {
-        caller::Caller::from(self)
+        caller::Caller::from(self.to_owned())
     }
 
     pub fn weak_caller<M: Message>(&self) -> weak_caller::WeakCaller<M>
     where
         A: Handler<M>,
     {
-        weak_caller::WeakCaller::from(self)
+        weak_caller::WeakCaller::from(self.to_owned())
     }
 }
 

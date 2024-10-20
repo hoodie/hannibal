@@ -46,11 +46,11 @@ impl<M: Message> WeakCaller<M> {
     }
 }
 
-impl<M: Message, A> From<&Addr<A>> for WeakCaller<M>
+impl<M: Message, A> From<Addr<A>> for WeakCaller<M>
 where
     A: Actor + Handler<M>,
 {
-    fn from(addr: &Addr<A>) -> Self {
+    fn from(addr: Addr<A>) -> Self {
         Self::from_tx(addr.payload_tx.to_owned())
     }
 }

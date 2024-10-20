@@ -59,11 +59,11 @@ where
     }
 }
 
-impl<M: Message<Result = ()>, A> From<&Addr<A>> for Sender<M>
+impl<M: Message<Result = ()>, A> From<Addr<A>> for Sender<M>
 where
     A: Actor + Handler<M>,
 {
-    fn from(addr: &Addr<A>) -> Self {
+    fn from(addr: Addr<A>) -> Self {
         Sender::from_tx(addr.payload_tx.to_owned())
     }
 }

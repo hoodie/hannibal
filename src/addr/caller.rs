@@ -74,11 +74,11 @@ where
     }
 }
 
-impl<M: Message, A> From<&Addr<A>> for Caller<M>
+impl<M: Message, A> From<Addr<A>> for Caller<M>
 where
     A: Actor + Handler<M>,
 {
-    fn from(addr: &Addr<A>) -> Self {
+    fn from(addr: Addr<A>) -> Self {
         Caller::from_tx(addr.payload_tx.to_owned())
     }
 }
