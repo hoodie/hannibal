@@ -17,6 +17,10 @@ pub trait Message: 'static + Send {
     type Result: 'static + Send;
 }
 
+impl Message for () {
+    type Result = ();
+}
+
 pub struct Addr<A> {
     pub(crate) payload_tx: ChanTx<A>,
     pub(crate) running: RunningFuture,

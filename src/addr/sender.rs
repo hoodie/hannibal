@@ -68,6 +68,15 @@ where
     }
 }
 
+impl<M: Message<Result = ()>, A> From<&Addr<A>> for Sender<M>
+where
+    A: Actor + Handler<M>,
+{
+    fn from(addr: &Addr<A>) -> Self {
+        Sender::from_tx(addr.payload_tx.to_owned())
+    }
+}
+
 impl<M: Message<Result = ()>> Clone for Sender<M> {
     fn clone(&self) -> Self {
         Sender {
