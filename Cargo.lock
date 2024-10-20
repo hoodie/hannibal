@@ -538,6 +538,7 @@ dependencies = [
  "futures",
  "futures-executor",
  "libc",
+ "slab",
  "thiserror",
  "tokio",
 ]

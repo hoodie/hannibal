@@ -13,6 +13,7 @@ tokio = { version = "1.39", features = ["full"], optional = true }
 dyn-clone = "1.0.17"
 async-std = { version = "1.13.0", optional = true }
 cfg-if = "1.0.0"
+slab = "0.4.9"
 
 [dev-dependencies]
 tokio = { version = "1.39", features = ["full"] }
@@ -33,6 +34,11 @@ default = [
 [[example]]
 name = "simple"
 path = "examples/simple.rs"
+required-features = ["tokio"]
+
+[[example]]
+name = "children"
+path = "examples/children.rs"
 required-features = ["tokio"]
 
 [[example]]
