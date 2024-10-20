@@ -40,6 +40,13 @@ name = "custom_spawner"
 path = "examples/custom_spawner.rs"
 
 [[example]]
+name = "simple-service"
+path = "examples/simple-service.rs"
+required-features = [
+    "tokio",
+    # "async-std"
+]
+[[example]]
 name = "signal-service"
 path = "examples/signal-service.rs"
 required-features = [
