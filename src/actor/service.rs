@@ -17,20 +17,18 @@ static REGISTRY: LazyLock<async_lock::Mutex<HashMap<TypeId, AnyBox>>> =
 
 #[cfg(any(feature = "tokio", feature = "async-std"))]
 impl<A: Actor + Service> Addr<A> {
-    pub fn register(self) -> impl Future<Output = Option<Addr<A>>> {
-        async {
-            let key = TypeId::of::<A>();
-            let mut registry = REGISTRY.lock().await;
+    pub async fn register(self) -> Option<Addr<A>> {
+        let key = TypeId::of::<A>();
+        let mut registry = REGISTRY.lock().await;
 
-            let replaced = registry
-                .insert(key, Box::new(self))
-                .and_then(|addr| addr.downcast::<Addr<A>>().ok())
-                .map(|addr| *addr);
+        let replaced = registry
+            .insert(key, Box::new(self))
+            .and_then(|addr| addr.downcast::<Addr<A>>().ok())
+            .map(|addr| *addr);
 
-            eprintln!("elements in registry after: {:?}", registry.iter().count());
+        eprintln!("elements in registry after: {:?}", registry.iter().count());
 
-            return replaced;
-        }
+        replaced
     }
 }
 
@@ -59,6 +57,7 @@ pub trait Service<S: Spawner<Self>>: Actor + Default + SpawnableService<S> {
 }
 
 pub trait SpawnableService<S: Spawner<Self>>: Actor + Default {
+    #[allow(clippy::async_yields_async)]
     fn from_registry_and_spawn() -> impl Future<Output = Addr<Self>> {
         async {
             let key = TypeId::of::<Self>();
