@@ -3,7 +3,7 @@ use std::future::Future;
 use futures::{channel::oneshot, FutureExt as _, StreamExt as _};
 
 use crate::{
-    actor::Actor,
+    actor::{restart_strategy::RestartStrategy, Actor, RecreateFromDefault, RestartOnly},
     channel::{ChanRx, ChannelWrapper},
     context::StopNotifier,
     handler::StreamHandler,
@@ -11,9 +11,7 @@ use crate::{
 };
 
 mod payload;
-mod restart_strategy;
 pub(crate) use payload::Payload;
-pub use restart_strategy::{RecreateFromDefault, RestartOnly, RestartStrategy, Restartable};
 
 pub struct Environment<A: Actor, R: RestartStrategy<A> = RestartOnly> {
     ctx: Context<A>,
@@ -280,6 +278,7 @@ mod tests {
 
     mod restart {
         use super::*;
+        use crate::RestartableActor;
 
         #[derive(Debug, Default)]
         struct RestartCounter {
@@ -296,7 +295,7 @@ mod tests {
             }
         }
 
-        impl Restartable for RestartCounter {}
+        impl RestartableActor for RestartCounter {}
         impl Actor for RestartCounter {
             async fn started(&mut self, _: &mut Context<Self>) -> DynResult {
                 self.started_count += 1;

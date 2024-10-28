@@ -5,6 +5,10 @@ use crate::context::Context;
 pub mod service;
 pub mod spawn_strategy;
 
+pub mod restart_strategy;
+pub use restart_strategy::RestartableActor;
+pub(crate) use restart_strategy::{NonRestartable, RecreateFromDefault, RestartOnly};
+
 pub type DynResult<T = ()> = std::result::Result<T, Box<dyn std::error::Error + Send + Sync>>;
 
 pub trait Actor: Sized + Send + 'static {
@@ -40,7 +44,10 @@ pub mod tests {
         };
 
         #[derive(Debug, Default)]
-        pub struct AsyncStdActor<T: Send + Sync + Default>(pub usize, pub std::marker::PhantomData<T>);
+        pub struct AsyncStdActor<T: Send + Sync + Default>(
+            pub usize,
+            pub std::marker::PhantomData<T>,
+        );
 
         impl<T: Send + Sync + Default> AsyncStdActor<T> {
             pub fn new(value: usize) -> Self {

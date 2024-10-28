@@ -8,7 +8,7 @@ use crate::{
     error::{ActorError::AlreadyStopped, Result},
     prelude::Spawnable,
     spawn_strategy::Spawner,
-    Handler, Restartable, Sender,
+    Handler, RestartableActor, Sender,
 };
 
 pub type RunningFuture = futures::future::Shared<oneshot::Receiver<()>>;
@@ -51,7 +51,7 @@ impl<A: Actor> Context<A> {
     }
 }
 
-impl<A: Actor + Restartable> Context<A> {
+impl<A: RestartableActor> Context<A> {
     pub fn restart(&self) -> Result<()> {
         if let Some(tx) = self.weak_tx.upgrade() {
             Ok(tx.send(Payload::Restart)?)

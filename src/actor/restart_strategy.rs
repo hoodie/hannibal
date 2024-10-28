@@ -37,5 +37,4 @@ impl<A: Actor + Default> RestartStrategy<A> for RecreateFromDefault {
     }
 }
 
-// TODO: rename to RestartableActor
-pub trait Restartable: Actor {}
+pub trait RestartableActor: Actor {}

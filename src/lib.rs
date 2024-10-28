@@ -12,11 +12,11 @@ mod handler;
 pub use self::{
     actor::{
         service::{self, Service},
-        spawn_strategy, Actor, DynResult,
+        spawn_strategy, Actor, DynResult, RestartableActor,
     },
     addr::{sender::Sender, weak_caller::WeakCaller, weak_sender::WeakSender, Addr, Message},
     context::Context,
-    environment::{Environment, Restartable},
+    environment::Environment,
     handler::{Handler, StreamHandler},
 };
 
