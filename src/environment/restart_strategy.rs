@@ -7,15 +7,16 @@ pub trait RestartStrategy<A> {
 }
 
 #[derive(Clone, Copy, Debug)]
-pub struct RestartOnly;
+pub struct NonRestartable;
+impl<A: Actor> RestartStrategy<A> for NonRestartable {
+    async fn refresh(actor: A, _: &mut Context<A>) -> DynResult<A> {
+        Ok(actor)
+    }
+}
 
 #[derive(Clone, Copy, Debug)]
-pub struct RecreateFromDefault;
-
-impl<A> RestartStrategy<A> for RestartOnly
-where
-    A: Actor,
-{
+pub struct RestartOnly;
+impl<A: Actor> RestartStrategy<A> for RestartOnly {
     async fn refresh(mut actor: A, ctx: &mut Context<A>) -> DynResult<A> {
         eprintln!("restarting refresh");
         actor.stopped(ctx).await;
@@ -24,10 +25,9 @@ where
     }
 }
 
-impl<A> RestartStrategy<A> for RecreateFromDefault
-where
-    A: Actor + Default,
-{
+#[derive(Clone, Copy, Debug)]
+pub struct RecreateFromDefault;
+impl<A: Actor + Default> RestartStrategy<A> for RecreateFromDefault {
     async fn refresh(mut actor: A, ctx: &mut Context<A>) -> DynResult<A> {
         eprintln!("recreating refresh");
         actor.stopped(ctx).await;
@@ -37,4 +37,5 @@ where
     }
 }
 
+// TODO: rename to RestartableActor
 pub trait Restartable: Actor {}
