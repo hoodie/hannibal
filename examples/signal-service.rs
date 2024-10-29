@@ -9,7 +9,7 @@ struct SignalService {
 impl Actor for SignalService {}
 impl Service for SignalService {
     async fn setup() -> DynResult<()> {
-        let signals = Signals::new(vec![libc::SIGINT])?;
+        let signals = Signals::new([libc::SIGINT])?;
 
         SignalService::default()
             .spawn_on_stream(signals)?

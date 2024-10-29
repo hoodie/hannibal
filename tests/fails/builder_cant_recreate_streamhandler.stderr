@@ -1,0 +1,14 @@
+error[E0599]: no method named `with_stream` found for struct `minibal::actor::builder::ActorBuilderWithChannel<MyActor, TokioSpawner, minibal::actor::restart_strategy::RecreateFromDefault>` in the current scope
+  --> tests/fails/builder_cant_recreate_streamhandler.rs:21:10
+   |
+18 |       let addr = Actor::build(MyActor("Caesar"))
+   |  ________________-
+19 | |         .unbounded()
+20 | |         .recreate_from_default()
+21 | |         .with_stream(stream::iter(vec![17, 19])) // this shouldn't work
+   | |         -^^^^^^^^^^^ method not found in `ActorBuilderWithChannel<MyActor, TokioSpawner, RecreateFromDefault>`
+   | |_________|
+   |
+   |
+   = note: the method was found for
+           - `minibal::actor::builder::ActorBuilderWithChannel<A, P, minibal::actor::restart_strategy::NonRestartable>`

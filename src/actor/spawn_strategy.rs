@@ -1,7 +1,7 @@
-#![allow(unused_imports)]
+#![allow(deprecated, unused_imports)]
 use std::{future::Future, pin::Pin, sync::Arc};
 
-use crate::{Addr, StreamHandler};
+use crate::{environment, Addr, Environment, StreamHandler};
 
 use super::{Actor, DynResult};
 
@@ -35,6 +35,15 @@ pub trait SpawnableWith: Actor {
         let joiner = S::spawn(event_loop);
         Ok((addr, joiner))
     }
+
+    fn spawn_with_in<S: Spawner<Self>>(
+        self,
+        environment: Environment<Self>,
+    ) -> crate::error::Result<(Addr<Self>, DynJoiner<Self>)> {
+        let (event_loop, addr) = environment.launch(self);
+        let joiner = S::spawn(event_loop);
+        Ok((addr, joiner))
+    }
 }
 
 impl<A: Actor> SpawnableWith for A {}
@@ -44,8 +53,19 @@ pub trait Spawnable<S: Spawner<Self>>: Actor {
         Ok(self.spawn_and_get_joiner()?.0)
     }
 
+    fn spawn_in(self, environment: Environment<Self>) -> crate::error::Result<Addr<Self>> {
+        Ok(self.spawn_in_and_get_joiner(environment)?.0)
+    }
+
     fn spawn_and_get_joiner(self) -> crate::error::Result<(Addr<Self>, DynJoiner<Self>)> {
-        let (event_loop, addr) = crate::Environment::unbounded().launch(self);
+        self.spawn_in_and_get_joiner(crate::Environment::unbounded())
+    }
+
+    fn spawn_in_and_get_joiner(
+        self,
+        environment: Environment<Self>,
+    ) -> crate::error::Result<(Addr<Self>, DynJoiner<Self>)> {
+        let (event_loop, addr) = environment.launch(self);
         let joiner = S::spawn(event_loop);
         Ok((addr, joiner))
     }
@@ -199,7 +219,8 @@ mod tests {
 
         #[tokio::test]
         async fn spawn_default() {
-            let mut addr = <TokioActor<()> as DefaultSpawnable<TokioSpawner>>::spawn_default().unwrap();
+            let mut addr =
+                <TokioActor<()> as DefaultSpawnable<TokioSpawner>>::spawn_default().unwrap();
             assert!(!addr.stopped());
 
             addr.call(Ping).await.unwrap();

@@ -2,12 +2,11 @@ use futures::channel::oneshot;
 use slab::Slab;
 
 use crate::{
-    actor::Actor,
+    actor::{spawn_strategy::Spawner, Actor},
     channel::WeakChanTx,
     environment::Payload,
     error::{ActorError::AlreadyStopped, Result},
     prelude::Spawnable,
-    spawn_strategy::Spawner,
     Handler, RestartableActor, Sender,
 };
 

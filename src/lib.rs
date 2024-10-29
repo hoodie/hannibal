@@ -1,4 +1,5 @@
-#![cfg_attr(test, allow(clippy::unwrap_used))]
+// #![cfg_attr(test, allow(clippy::unwrap_used))]
+#![doc = include_str!("../README.md")]
 
 mod actor;
 mod addr;
@@ -9,6 +10,7 @@ pub mod error;
 
 mod handler;
 
+// TODO: flatten module structure
 pub use self::{
     actor::{
         service::{self, Service},

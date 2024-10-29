@@ -41,18 +41,18 @@ where
     }
 }
 
-pub(crate) struct ChannelWrapper<A> {
+pub(crate) struct Channel<A> {
     tx_fn: ChanTx<A>,
     rx_fn: ChanRx<A>,
 }
 
-impl<A> ChannelWrapper<A> {
+impl<A> Channel<A> {
     fn wrap(tx_fn: ChanTx<A>, rx_fn: ChanRx<A>) -> Self {
-        ChannelWrapper { tx_fn, rx_fn }
+        Channel { tx_fn, rx_fn }
     }
 }
 
-impl<A> ChannelWrapper<A>
+impl<A> Channel<A>
 where
     for<'a> A: 'a,
 {

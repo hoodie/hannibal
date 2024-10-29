@@ -1,10 +1,13 @@
 use std::future::Future;
 
-use futures::{channel::oneshot, FutureExt as _, StreamExt as _};
+use futures::{channel::oneshot, FutureExt as _, Stream, StreamExt as _};
 
 use crate::{
-    actor::{restart_strategy::RestartStrategy, Actor, RecreateFromDefault, RestartOnly},
-    channel::{ChanRx, ChannelWrapper},
+    actor::{
+        restart_strategy::{RecreateFromDefault, RestartOnly, RestartStrategy},
+        Actor,
+    },
+    channel::{ChanRx, Channel},
     context::StopNotifier,
     handler::StreamHandler,
     Addr, Context,
@@ -21,16 +24,8 @@ pub struct Environment<A: Actor, R: RestartStrategy<A> = RestartOnly> {
     phantom: std::marker::PhantomData<R>,
 }
 
-impl<A: Actor> Environment<A, RestartOnly> {
-    pub fn bounded(capacity: usize) -> Self {
-        Self::from_channel(ChannelWrapper::bounded(capacity))
-    }
-
-    pub fn unbounded() -> Self {
-        Self::from_channel(ChannelWrapper::unbounded())
-    }
-
-    fn from_channel(channel: ChannelWrapper<A>) -> Self {
+impl<A: Actor, R: RestartStrategy<A>> Environment<A, R> {
+    pub(crate) fn from_channel(channel: Channel<A>) -> Self {
         let (tx_running, rx_running) = oneshot::channel::<()>();
         let ctx = Context {
             weak_tx: channel.weak_tx(),
@@ -51,6 +46,18 @@ impl<A: Actor> Environment<A, RestartOnly> {
             payload_rx,
             phantom: std::marker::PhantomData,
         }
+    }
+}
+
+impl<A: Actor> Environment<A> {
+    #[deprecated(note = "use builder")]
+    pub fn bounded(capacity: usize) -> Self {
+        Self::from_channel(Channel::bounded(capacity))
+    }
+
+    #[deprecated(note = "use builder")]
+    pub fn unbounded() -> Self {
+        Self::from_channel(Channel::unbounded())
     }
 }
 
@@ -82,7 +89,7 @@ impl<A: Actor, R: RestartStrategy<A>> Environment<A, R> {
         mut stream: S,
     ) -> (impl Future<Output = crate::DynResult<A>>, Addr<A>)
     where
-        S: futures::Stream + Unpin + Send + 'static,
+        S: Stream + Unpin + Send + 'static,
         S::Item: 'static + Send,
         A: StreamHandler<S::Item>,
     {
@@ -129,6 +136,7 @@ impl<A: Actor, R: RestartStrategy<A>> Environment<A, R>
 where
     A: Default,
 {
+    #[deprecated(note = "use builder")]
     pub fn recreating(self) -> Environment<A, RecreateFromDefault> {
         Environment {
             ctx: self.ctx,
@@ -142,6 +150,7 @@ where
 
 #[cfg(test)]
 mod tests {
+    #![allow(deprecated)]
     use super::*;
     use crate::{error::ActorError, Actor, DynResult};
 

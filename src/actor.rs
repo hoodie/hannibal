@@ -1,13 +1,16 @@
-use std::future::Future;
+use std::{future::Future, marker::PhantomData};
+
+use builder::ActorBuilder;
+use spawn_strategy::DefaultSpawner;
 
 use crate::context::Context;
 
+mod builder;
 pub mod service;
 pub mod spawn_strategy;
 
-pub mod restart_strategy;
+pub(crate) mod restart_strategy;
 pub use restart_strategy::RestartableActor;
-pub(crate) use restart_strategy::{NonRestartable, RecreateFromDefault, RestartOnly};
 
 pub type DynResult<T = ()> = std::result::Result<T, Box<dyn std::error::Error + Send + Sync>>;
 
@@ -20,6 +23,13 @@ pub trait Actor: Sized + Send + 'static {
     #[allow(unused)]
     fn stopped(&mut self, ctx: &mut Context<Self>) -> impl Future<Output = ()> + Send {
         async {}
+    }
+
+    fn build(actor: Self) -> ActorBuilder<Self, DefaultSpawner> {
+        ActorBuilder {
+            actor,
+            spawner: PhantomData,
+        }
     }
 }
 
@@ -37,6 +47,8 @@ pub mod tests {
 
     #[cfg(feature = "async-std")]
     pub mod spawned_with_asyncstd {
+        use std::marker::PhantomData;
+
         use super::{Identify, Ping, Pong};
         use crate::{
             actor::{Actor, Context},
@@ -44,10 +56,7 @@ pub mod tests {
         };
 
         #[derive(Debug, Default)]
-        pub struct AsyncStdActor<T: Send + Sync + Default>(
-            pub usize,
-            pub std::marker::PhantomData<T>,
-        );
+        pub struct AsyncStdActor<T: Send + Sync + Default>(pub usize, pub PhantomData<T>);
 
         impl<T: Send + Sync + Default> AsyncStdActor<T> {
             pub fn new(value: usize) -> Self {
