@@ -50,12 +50,10 @@ impl<A: Actor, R: RestartStrategy<A>> Environment<A, R> {
 }
 
 impl<A: Actor> Environment<A> {
-    #[deprecated(note = "use builder")]
     pub fn bounded(capacity: usize) -> Self {
         Self::from_channel(Channel::bounded(capacity))
     }
 
-    #[deprecated(note = "use builder")]
     pub fn unbounded() -> Self {
         Self::from_channel(Channel::unbounded())
     }
@@ -136,7 +134,6 @@ impl<A: Actor, R: RestartStrategy<A>> Environment<A, R>
 where
     A: Default,
 {
-    #[deprecated(note = "use builder")]
     pub fn recreating(self) -> Environment<A, RecreateFromDefault> {
         Environment {
             ctx: self.ctx,
@@ -150,7 +147,6 @@ where
 
 #[cfg(test)]
 mod tests {
-    #![allow(deprecated)]
     use super::*;
     use crate::{error::ActorError, Actor, DynResult};
 
