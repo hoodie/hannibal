@@ -139,8 +139,8 @@ where
     P: Spawner<A>,
     R: RestartStrategy<A> + 'static,
 {
-    pub fn register(self) {
-        self.spawn().register();
+    pub async fn register(self) {
+        self.spawn().register().await;
     }
 }
 
