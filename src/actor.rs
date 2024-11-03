@@ -25,6 +25,7 @@ pub trait Actor: Sized + Send + 'static {
         async {}
     }
 
+    // TODO: move elsewhere
     fn build(actor: Self) -> ActorBuilder<Self, DefaultSpawner> {
         ActorBuilder {
             actor,
@@ -111,7 +112,6 @@ pub mod tests {
         impl<T: Send + Sync + Default + 'static> Service for TokioActor<T> {}
         impl<T: Send + Sync + Default + 'static> Handler<Ping> for TokioActor<T> {
             async fn handle(&mut self, _ctx: &mut Context<Self>, _msg: Ping) -> Pong {
-                eprintln!("TokioActor({}): Ping", self.0);
                 Pong
             }
         }

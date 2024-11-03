@@ -41,6 +41,10 @@ impl<A: Actor> Addr<A> {
         Ok(())
     }
 
+    pub fn running(&self) -> bool {
+        self.running.peek().is_none()
+    }
+
     pub fn stopped(&self) -> bool {
         self.running.peek().is_some()
     }
@@ -122,7 +126,7 @@ impl<A> Future for Addr<A> {
 
 #[cfg(test)]
 mod tests {
-    use crate::{Context, DynResult, Environment};
+    use crate::{environment::Environment, Context, DynResult};
 
     use super::*;
     use std::future::Future;

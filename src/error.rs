@@ -23,4 +23,7 @@ pub enum ActorError {
 
     #[error("Service not found")]
     ServiceNotFound,
+
+    #[error("Service still running")]
+    ServiceStillRunning,
 }

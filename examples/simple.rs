@@ -47,8 +47,8 @@ impl Handler<Add> for MyActor {
     all(feature = "tokio", not(feature = "async-std")),
     all(not(feature = "tokio"), feature = "async-std")
 ))]
-#[cfg_attr(feature="tokio", tokio::main)]
-#[cfg_attr(feature="async-std", async_std::main)]
+#[cfg_attr(feature = "tokio", tokio::main)]
+#[cfg_attr(feature = "async-std", async_std::main)]
 async fn main() {
     let mut addr = MyActor("Caesar").spawn();
     addr.send(Greet("Cornelius")).unwrap();

@@ -14,7 +14,7 @@ impl Service for SignalService {
         SignalService::default()
             .spawn_on_stream(signals)?
             .register()
-            .await;
+            .await?;
         Ok(())
     }
 }

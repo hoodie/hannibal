@@ -35,6 +35,7 @@ impl Handler<Retrieve> for StorageService {
 
 #[tokio::main]
 async fn main() {
+    StorageService::setup().await.unwrap();
     StorageService::from_registry()
         .await
         .send(Store("password", "hello world"))

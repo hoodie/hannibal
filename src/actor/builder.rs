@@ -139,8 +139,8 @@ where
     P: Spawner<A>,
     R: RestartStrategy<A> + 'static,
 {
-    pub async fn register(self) {
-        self.spawn().register().await;
+    pub async fn register(self) -> crate::error::Result<(Addr<A>, Option<Addr<A>>)> {
+        self.spawn().register().await
     }
 }
 
