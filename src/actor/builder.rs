@@ -1,10 +1,6 @@
-#![allow(unused)]
-use std::{future::Future, marker::PhantomData};
+use std::marker::PhantomData;
 
-use crate::{
-    actor::service::Service, channel::Channel, environment, Addr, Environment, Message,
-    StreamHandler,
-};
+use crate::{actor::service::Service, channel::Channel, environment, Addr, StreamHandler};
 
 use super::{
     restart_strategy::{NonRestartable, RecreateFromDefault, RestartOnly, RestartStrategy},

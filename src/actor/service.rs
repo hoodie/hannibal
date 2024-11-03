@@ -8,7 +8,7 @@ use futures::FutureExt as _;
 
 use super::{spawn_strategy::Spawner, *};
 
-use crate::{Addr, Environment};
+use crate::{environment::Environment, Addr};
 
 type AnyBox = Box<dyn Any + Send + Sync>;
 

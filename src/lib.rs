@@ -1,6 +1,3 @@
-// #![cfg_attr(test, allow(clippy::unwrap_used))]
-#![doc = include_str!("../README.md")]
-
 mod actor;
 mod addr;
 mod channel;
@@ -18,7 +15,6 @@ pub use self::{
     },
     addr::{sender::Sender, weak_caller::WeakCaller, weak_sender::WeakSender, Addr, Message},
     context::Context,
-    environment::Environment,
     handler::{Handler, StreamHandler},
 };
 

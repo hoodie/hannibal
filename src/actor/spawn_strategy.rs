@@ -1,7 +1,10 @@
 #![allow(deprecated, unused_imports)]
 use std::{future::Future, pin::Pin, sync::Arc};
 
-use crate::{environment, Addr, Environment, StreamHandler};
+use crate::{
+    environment::{self, Environment},
+    Addr, StreamHandler,
+};
 
 use super::{Actor, DynResult};
 
@@ -31,7 +34,7 @@ pub trait Spawner<A: Actor> {
 
 pub trait SpawnableWith: Actor {
     fn spawn_with<S: Spawner<Self>>(self) -> crate::error::Result<(Addr<Self>, DynJoiner<Self>)> {
-        let (event_loop, addr) = crate::Environment::unbounded().launch(self);
+        let (event_loop, addr) = Environment::unbounded().launch(self);
         let joiner = S::spawn(event_loop);
         Ok((addr, joiner))
     }
@@ -58,7 +61,7 @@ pub trait Spawnable<S: Spawner<Self>>: Actor {
     }
 
     fn spawn_and_get_joiner(self) -> crate::error::Result<(Addr<Self>, DynJoiner<Self>)> {
-        self.spawn_in_and_get_joiner(crate::Environment::unbounded())
+        self.spawn_in_and_get_joiner(Environment::unbounded())
     }
 
     fn spawn_in_and_get_joiner(
@@ -85,7 +88,7 @@ where
         self,
         stream: T,
     ) -> crate::error::Result<(Addr<Self>, DynJoiner<Self>)> {
-        let (event_loop, addr) = crate::Environment::unbounded().launch_on_stream(self, stream);
+        let (event_loop, addr) = Environment::unbounded().launch_on_stream(self, stream);
         let joiner = S::spawn(event_loop);
         println!("spawned");
         Ok((addr, joiner))
@@ -98,7 +101,7 @@ pub trait DefaultSpawnable<S: Spawner<Self>>: Actor + Default {
     }
 
     fn spawn_default_and_get_joiner() -> crate::error::Result<(Addr<Self>, DynJoiner<Self>)> {
-        let (event_loop, addr) = crate::Environment::unbounded().launch(Self::default());
+        let (event_loop, addr) = Environment::unbounded().launch(Self::default());
         let joiner = S::spawn(event_loop);
         Ok((addr, joiner))
     }
