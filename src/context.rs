@@ -37,16 +37,15 @@ impl<A: Actor> Context<A> {
         self.children.insert(child.into());
     }
 
-    pub fn create_child<F, C, S>(&mut self, create_child: F) -> crate::error::Result<()>
+    pub fn create_child<F, C, S>(&mut self, create_child: F)
     where
         F: FnOnce() -> C,
         C: Actor + Spawnable<S>,
         C: Handler<()>,
         S: Spawner<C>,
     {
-        let child_addr = create_child().spawn()?;
+        let child_addr = create_child().spawn();
         self.add_child(child_addr);
-        Ok(())
     }
 }
 

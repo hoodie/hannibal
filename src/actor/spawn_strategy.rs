@@ -52,25 +52,25 @@ pub trait SpawnableWith: Actor {
 impl<A: Actor> SpawnableWith for A {}
 
 pub trait Spawnable<S: Spawner<Self>>: Actor {
-    fn spawn(self) -> crate::error::Result<Addr<Self>> {
-        Ok(self.spawn_and_get_joiner()?.0)
+    fn spawn(self) -> Addr<Self> {
+        self.spawn_and_get_joiner().0
     }
 
-    fn spawn_in(self, environment: Environment<Self>) -> crate::error::Result<Addr<Self>> {
-        Ok(self.spawn_in_and_get_joiner(environment)?.0)
+    fn spawn_in(self, environment: Environment<Self>) -> Addr<Self> {
+        self.spawn_in_and_get_joiner(environment).0
     }
 
-    fn spawn_and_get_joiner(self) -> crate::error::Result<(Addr<Self>, DynJoiner<Self>)> {
+    fn spawn_and_get_joiner(self) -> (Addr<Self>, DynJoiner<Self>) {
         self.spawn_in_and_get_joiner(Environment::unbounded())
     }
 
     fn spawn_in_and_get_joiner(
         self,
         environment: Environment<Self>,
-    ) -> crate::error::Result<(Addr<Self>, DynJoiner<Self>)> {
+    ) -> (Addr<Self>, DynJoiner<Self>) {
         let (event_loop, addr) = environment.launch(self);
         let joiner = S::spawn(event_loop);
-        Ok((addr, joiner))
+        (addr, joiner)
     }
 }
 
@@ -212,7 +212,7 @@ mod tests {
         #[tokio::test]
         async fn spawn() {
             let tokio_actor = TokioActor::default();
-            let mut addr = <TokioActor<()> as Spawnable<TokioSpawner>>::spawn(tokio_actor).unwrap();
+            let mut addr = <TokioActor<()> as Spawnable<TokioSpawner>>::spawn(tokio_actor);
             assert!(!addr.stopped());
 
             addr.call(Ping).await.unwrap();

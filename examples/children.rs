@@ -13,16 +13,16 @@ impl Handler<()> for Child {
 struct Root;
 impl Actor for Root {
     async fn started(&mut self, ctx: &mut Context<Self>) -> DynResult<()> {
-        ctx.create_child(|| Child(0))?;
-        ctx.create_child(|| Child(1))?;
-        ctx.create_child(|| Child(2))?;
+        ctx.create_child(|| Child(0));
+        ctx.create_child(|| Child(1));
+        ctx.create_child(|| Child(2));
         Ok(())
     }
 }
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let mut root_addr = Root.spawn()?;
+    let mut root_addr = Root.spawn();
 
     root_addr.stop()?;
 

@@ -77,6 +77,6 @@ async fn main() {
     let addr = Actor::build(MyActor("Caesar")).unbounded().spawn();
     send_greet_and_stop(addr).await;
 
-    let addr = MyActor("Caesar").spawn().unwrap();
+    let addr = MyActor("Caesar").spawn();
     send_greet_and_stop(addr).await;
 }
