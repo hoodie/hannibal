@@ -242,8 +242,7 @@ mod tests {
         #[async_std::test]
         async fn spawn() {
             let tokio_actor = AsyncStdActor::default();
-            let mut addr =
-                <AsyncStdActor<()> as Spawnable<AsyncStdSpawner>>::spawn(tokio_actor).unwrap();
+            let mut addr = <AsyncStdActor<()> as Spawnable<AsyncStdSpawner>>::spawn(tokio_actor);
             assert!(!addr.stopped());
 
             addr.call(Ping).await.unwrap();

@@ -8,7 +8,7 @@ use futures::FutureExt as _;
 
 use super::{spawn_strategy::Spawner, *};
 
-use crate::{environment::Environment, error::ActorError, Addr};
+use crate::{environment::Environment, Addr};
 
 type AnyBox = Box<dyn Any + Send + Sync>;
 
@@ -32,7 +32,7 @@ impl<A: Service> Addr<A> {
                     .and_then(|addr| addr.downcast::<Addr<A>>().ok())
                     .map(|addr| *addr)
             } else {
-                return Err(ActorError::ServiceStillRunning);
+                return Err(crate::error::ActorError::ServiceStillRunning);
             }
         } else {
             registry
@@ -85,18 +85,39 @@ pub trait Service: Actor + Default {
 }
 
 #[cfg(not(any(feature = "tokio", feature = "async-std")))]
-pub trait Service<S: Spawner<Self>>: Actor + Default + SpawnableService<S> {
-    fn setup() -> impl Future<Output = DynResult<()>> {
-        Self::from_registry_and_spawn()
-            .map(|res| res.map(|_| ()))
-            .map_err(Into::into)
+pub trait Service<S: Spawner<Self>>: Actor + Default {
+    fn setup() -> impl Future<Output = ()> {
+        Self::from_registry_and_spawn().map(|_| ())
     }
 
-    fn from_registry() -> impl Future<Output = crate::error::Result<Addr<Self>>> {
+    fn from_registry() -> impl Future<Output = Addr<Self>> {
         Self::from_registry_and_spawn()
+    }
+
+    fn from_registry_and_spawn() -> impl Future<Output = Addr<Self>> {
+        async {
+            let key = TypeId::of::<Self>();
+
+            let mut registry = REGISTRY.write().await;
+
+            if let Some(addr) = registry
+                .get_mut(&key)
+                .and_then(|addr| addr.downcast_ref::<Addr<Self>>())
+                .map(ToOwned::to_owned)
+                .filter(Addr::running)
+            {
+                addr
+            } else {
+                let (event_loop, addr) = Environment::unbounded().launch(Self::default());
+                S::spawn(event_loop);
+                registry.insert(key, Box::new(addr.clone()));
+                addr
+            }
+        }
     }
 }
 
+#[cfg(any(feature = "tokio", feature = "async-std"))]
 pub trait SpawnableService<S: Spawner<Self>>: Service {
     #[allow(clippy::async_yields_async)]
     fn from_registry_and_spawn() -> impl Future<Output = Addr<Self>> {
@@ -216,7 +237,7 @@ mod tests {
         async fn register_as_service() {
             type Svc = AsyncStdActor<u32>;
             let (addr, mut joiner) = Svc::new(1337).spawn_with::<AsyncStdSpawner>().unwrap();
-            addr.register().await;
+            addr.register().await.unwrap();
             let mut svc_addr = Svc::from_registry().await;
             assert_eq!(svc_addr.call(Identify).await.unwrap(), 1337);
             assert_eq!(svc_addr.call(Identify).await.unwrap(), 1337);

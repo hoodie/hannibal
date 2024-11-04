@@ -1,10 +1,8 @@
-use std::{future::Future, marker::PhantomData};
-
-use builder::ActorBuilder;
-use spawn_strategy::DefaultSpawner;
+use std::future::Future;
 
 use crate::context::Context;
 
+#[cfg(any(feature = "tokio", feature = "async-std"))]
 mod builder;
 pub mod service;
 pub mod spawn_strategy;
@@ -26,10 +24,11 @@ pub trait Actor: Sized + Send + 'static {
     }
 }
 
-pub const fn build<A: Actor>(actor: A) -> ActorBuilder<A, DefaultSpawner> {
-    ActorBuilder {
+#[cfg(any(feature = "tokio", feature = "async-std"))]
+pub const fn build<A: Actor>(actor: A) -> builder::ActorBuilder<A, spawn_strategy::DefaultSpawner> {
+    builder::ActorBuilder {
         actor,
-        spawner: PhantomData,
+        spawner: std::marker::PhantomData,
     }
 }
 

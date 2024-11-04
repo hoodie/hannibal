@@ -10,7 +10,6 @@ mod handler;
 // TODO: flatten module structure
 pub use self::{
     actor::{
-        build,
         service::{self, Service},
         spawn_strategy, Actor, DynResult, RestartableActor,
     },
@@ -18,6 +17,9 @@ pub use self::{
     context::Context,
     handler::{Handler, StreamHandler},
 };
+
+#[cfg(any(feature = "tokio", feature = "async-std"))]
+pub use actor::build;
 
 pub mod prelude {
     pub use crate::{

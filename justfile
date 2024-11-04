@@ -15,8 +15,9 @@ clippy:
 
 
 test:
-    cargo nextest run
-    cargo nextest run --lib --tests --no-default-features --features tokio
-    cargo nextest run --lib --tests --no-default-features --features async-std
+    cargo --quiet test
+    cargo --quiet test --tests --no-default-features
+    cargo --quiet test --lib --no-default-features --features tokio
+    cargo --quiet test --lib --no-default-features --features async-std
 
 ci: test

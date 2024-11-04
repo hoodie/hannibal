@@ -68,7 +68,7 @@ fn main() {
            color_backtrace::install();
            futures::executor::block_on(async {
                let (mut _addr, _) = MyActor.spawn_with::<CustomSpawner>().unwrap();
-               let (mut addr, mut joiner) = MyActor.spawn_and_get_joiner().unwrap();
+               let (mut addr, mut joiner) = MyActor.spawn_and_get_joiner();
 
                addr.stop().unwrap();
                eprintln!("Actor asked to stop");
