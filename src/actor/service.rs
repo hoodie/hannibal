@@ -144,7 +144,7 @@ mod tests {
             actor::tests::{spawned_with_tokio::TokioActor, Identify, Ping},
             prelude::Spawnable as _,
             spawn_strategy::{SpawnableWith, TokioSpawner},
-            Actor, Service,
+            Service,
         };
 
         #[tokio::test]
@@ -176,7 +176,7 @@ mod tests {
             type Svc = TokioActor<((), ())>;
 
             // Spawn a new service instance with TokioSpawner and unwrap the result
-            let (first_svc, replaced) = Actor::build(Svc::new(1337))
+            let (first_svc, replaced) = crate::build(Svc::new(1337))
                 .unbounded()
                 .spawn()
                 .register()

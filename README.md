@@ -11,6 +11,7 @@ A minimalistic reimplementation of the [Hannibal](https://lib.rs/hannibal) actor
 - maybe no extra proc_macro derive for messages necessary
 - Streams are Handled by launching an actor together with a stream. This avoids extra tasks and simplifies the logic.
   The actor lives only as long as the stream.
+- Actor trait only brings methods that you should implement (better "implement missing members" behavior)
 
 ## TODO
 

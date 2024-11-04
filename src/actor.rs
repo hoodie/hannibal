@@ -24,13 +24,12 @@ pub trait Actor: Sized + Send + 'static {
     fn stopped(&mut self, ctx: &mut Context<Self>) -> impl Future<Output = ()> + Send {
         async {}
     }
+}
 
-    // TODO: move elsewhere
-    fn build(actor: Self) -> ActorBuilder<Self, DefaultSpawner> {
-        ActorBuilder {
-            actor,
-            spawner: PhantomData,
-        }
+pub fn build<A: Actor>(actor: A) -> ActorBuilder<A, DefaultSpawner> {
+    ActorBuilder {
+        actor,
+        spawner: PhantomData,
     }
 }
 

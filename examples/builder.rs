@@ -61,20 +61,20 @@ impl RestartableActor for MyActor {}
 
 #[tokio::main]
 async fn main() {
-    let addr = Actor::build(MyActor("Caesar"))
+    let addr = minibal::build(MyActor("Caesar"))
         .bounded(6)
         .recreate_from_default()
         .spawn();
     send_greet_and_stop(addr).await;
 
-    let addr = Actor::build(MyActor("Caesar"))
+    let addr = minibal::build(MyActor("Caesar"))
         .unbounded()
         .non_restartable()
         .with_stream(stream::iter(vec![17, 19])) // this shouldn't work
         .spawn();
     send_greet_and_stop(addr).await;
 
-    let addr = Actor::build(MyActor("Caesar")).unbounded().spawn();
+    let addr = minibal::build(MyActor("Caesar")).unbounded().spawn();
     send_greet_and_stop(addr).await;
 
     let addr = MyActor("Caesar").spawn();

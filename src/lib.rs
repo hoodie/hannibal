@@ -10,6 +10,7 @@ mod handler;
 // TODO: flatten module structure
 pub use self::{
     actor::{
+        build,
         service::{self, Service},
         spawn_strategy, Actor, DynResult, RestartableActor,
     },

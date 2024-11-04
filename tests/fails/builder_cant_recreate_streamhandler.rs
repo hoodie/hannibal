@@ -15,7 +15,7 @@ impl RestartableActor for MyActor {}
 
 #[tokio::main]
 async fn main() {
-    let addr = Actor::build(MyActor("Caesar"))
+    let addr = minibal::build(MyActor("Caesar"))
         .unbounded()
         .recreate_from_default()
         .with_stream(stream::iter(vec![17, 19])) // this shouldn't work
