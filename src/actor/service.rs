@@ -75,8 +75,7 @@ pub trait Service: Actor + Default {
             let registry = REGISTRY.read().await;
             registry
                 .get(&key)
-                .map(|addr| addr.downcast_ref::<Addr<Self>>().map(Addr::stopped))
-                .flatten()
+                .and_then(|addr| addr.downcast_ref::<Addr<Self>>().map(Addr::stopped))
         }
     }
 

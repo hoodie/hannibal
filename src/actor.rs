@@ -26,7 +26,7 @@ pub trait Actor: Sized + Send + 'static {
     }
 }
 
-pub fn build<A: Actor>(actor: A) -> ActorBuilder<A, DefaultSpawner> {
+pub const fn build<A: Actor>(actor: A) -> ActorBuilder<A, DefaultSpawner> {
     ActorBuilder {
         actor,
         spawner: PhantomData,

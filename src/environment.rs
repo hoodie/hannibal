@@ -292,7 +292,7 @@ mod tests {
         }
 
         impl RestartCounter {
-            fn new() -> Self {
+            const fn new() -> Self {
                 Self {
                     started_count: 0,
                     stopped_count: 0,
