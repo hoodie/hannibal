@@ -127,7 +127,7 @@ where
     pub fn spawn(self) -> Addr<A> {
         let env = environment::Environment::<A, R>::from_channel(self.channel);
         let (event_loop, addr) = env.launch(self.actor);
-        let _joiner = P::spawn(event_loop);
+        let _joiner = P::spawn_actor(event_loop);
         addr
     }
 }
@@ -161,7 +161,7 @@ where
 
         let env = environment::Environment::<A, NonRestartable>::from_channel(channel);
         let (event_loop, addr) = env.launch_on_stream(actor, stream);
-        let _joiner = P::spawn(event_loop);
+        let _joiner = P::spawn_actor(event_loop);
         addr
     }
 }

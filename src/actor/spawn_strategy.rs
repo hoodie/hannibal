@@ -27,7 +27,7 @@ where
 }
 
 pub trait Spawner<A: Actor> {
-    fn spawn<F>(future: F) -> Box<dyn Joiner<A>>
+    fn spawn_actor<F>(future: F) -> Box<dyn Joiner<A>>
     where
         F: Future<Output = crate::DynResult<A>> + Send + 'static;
 }
@@ -35,7 +35,7 @@ pub trait Spawner<A: Actor> {
 pub trait SpawnableWith: Actor {
     fn spawn_with<S: Spawner<Self>>(self) -> crate::error::Result<(Addr<Self>, DynJoiner<Self>)> {
         let (event_loop, addr) = Environment::unbounded().launch(self);
-        let joiner = S::spawn(event_loop);
+        let joiner = S::spawn_actor(event_loop);
         Ok((addr, joiner))
     }
 
@@ -44,7 +44,7 @@ pub trait SpawnableWith: Actor {
         environment: Environment<Self>,
     ) -> crate::error::Result<(Addr<Self>, DynJoiner<Self>)> {
         let (event_loop, addr) = environment.launch(self);
-        let joiner = S::spawn(event_loop);
+        let joiner = S::spawn_actor(event_loop);
         Ok((addr, joiner))
     }
 }
@@ -69,7 +69,7 @@ pub trait Spawnable<S: Spawner<Self>>: Actor {
         environment: Environment<Self>,
     ) -> (Addr<Self>, DynJoiner<Self>) {
         let (event_loop, addr) = environment.launch(self);
-        let joiner = S::spawn(event_loop);
+        let joiner = S::spawn_actor(event_loop);
         (addr, joiner)
     }
 }
@@ -89,7 +89,7 @@ where
         stream: T,
     ) -> crate::error::Result<(Addr<Self>, DynJoiner<Self>)> {
         let (event_loop, addr) = Environment::unbounded().launch_on_stream(self, stream);
-        let joiner = S::spawn(event_loop);
+        let joiner = S::spawn_actor(event_loop);
         println!("spawned");
         Ok((addr, joiner))
     }
@@ -102,7 +102,7 @@ pub trait DefaultSpawnable<S: Spawner<Self>>: Actor + Default {
 
     fn spawn_default_and_get_joiner() -> crate::error::Result<(Addr<Self>, DynJoiner<Self>)> {
         let (event_loop, addr) = Environment::unbounded().launch(Self::default());
-        let joiner = S::spawn(event_loop);
+        let joiner = S::spawn_actor(event_loop);
         Ok((addr, joiner))
     }
 }
@@ -112,7 +112,7 @@ pub trait DefaultSpawnable<S: Spawner<Self>>: Actor + Default {
 pub struct TokioSpawner;
 #[cfg(feature = "tokio")]
 impl<A: Actor> Spawner<A> for TokioSpawner {
-    fn spawn<F>(future: F) -> Box<dyn Joiner<A>>
+    fn spawn_actor<F>(future: F) -> Box<dyn Joiner<A>>
     where
         F: Future<Output = crate::DynResult<A>> + Send + 'static,
     {
@@ -142,7 +142,7 @@ pub struct AsyncStdSpawner;
 
 #[cfg(feature = "async-std")]
 impl<A: Actor> Spawner<A> for AsyncStdSpawner {
-    fn spawn<F>(future: F) -> Box<dyn Joiner<A>>
+    fn spawn_actor<F>(future: F) -> Box<dyn Joiner<A>>
     where
         F: Future<Output = crate::DynResult<A>> + Send + 'static,
     {
