@@ -1,5 +1,5 @@
 #![allow(deprecated, unused_imports)]
-use std::{future::Future, pin::Pin, sync::Arc};
+use std::{future::Future, pin::Pin, sync::Arc, time::Duration};
 
 use crate::{
     environment::{self, Environment},
@@ -30,6 +30,12 @@ pub trait Spawner<A: Actor> {
     fn spawn_actor<F>(future: F) -> Box<dyn Joiner<A>>
     where
         F: Future<Output = crate::DynResult<A>> + Send + 'static;
+
+    fn spawn_future<F>(future: F)
+    where
+        F: Future<Output = ()> + Send + 'static;
+
+    fn sleep(duration: Duration) -> impl Future<Output = ()> + Send;
 }
 
 pub trait SpawnableWith: Actor {
@@ -71,6 +77,19 @@ pub trait Spawnable<S: Spawner<Self>>: Actor {
         let (event_loop, addr) = environment.launch(self);
         let joiner = S::spawn_actor(event_loop);
         (addr, joiner)
+    }
+}
+
+pub(crate) trait SpawnableHack<S: Spawner<Self>>: Actor {
+    fn spawn_future<F>(future: F)
+    where
+        F: Future<Output = ()> + Send + 'static,
+    {
+        S::spawn_future(future);
+    }
+
+    fn sleep(duration: Duration) -> impl Future<Output = ()> + Send {
+        S::sleep(duration)
     }
 }
 
@@ -132,6 +151,17 @@ impl<A: Actor> Spawner<A> for TokioSpawner {
             })
         })
     }
+
+    fn spawn_future<F>(future: F)
+    where
+        F: Future<Output = ()> + Send + 'static,
+    {
+        tokio::spawn(future);
+    }
+
+    async fn sleep(duration: Duration) {
+        tokio::time::sleep(duration).await;
+    }
 }
 
 // and now for async-std
@@ -162,11 +192,22 @@ impl<A: Actor> Spawner<A> for AsyncStdSpawner {
             })
         })
     }
+    fn spawn_future<F>(future: F)
+    where
+        F: Future<Output = ()> + Send + 'static,
+    {
+        async_std::task::spawn(future);
+    }
+
+    async fn sleep(duration: Duration) {
+        async_std::task::sleep(duration).await;
+    }
 }
 
 cfg_if::cfg_if! {
     if #[cfg( all(feature = "tokio", not(feature = "async-std")))] {
         impl<A> Spawnable<TokioSpawner> for A where A: Actor {}
+        impl<A> SpawnableHack<TokioSpawner> for A where A: Actor {}
 
         impl<A, T> StreamSpawnable<TokioSpawner, T> for A
         where
@@ -181,6 +222,7 @@ cfg_if::cfg_if! {
     } else if #[cfg( all(not(feature = "tokio"), feature = "async-std") )] {
 
         impl<A> Spawnable<AsyncStdSpawner> for A where A: Actor {}
+        impl<A> SpawnableHack<AsyncStdSpawner> for A where A: Actor {}
 
         impl<A, T> StreamSpawnable<AsyncStdSpawner, T> for A
         where
