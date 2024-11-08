@@ -5,7 +5,7 @@ use minibal::prelude::*;
 struct Child(usize);
 impl Actor for Child {
     async fn started(&mut self, ctx: &mut Context<Self>) -> minibal::DynResult<()> {
-        ctx.start_interval_of(|| {}, Duration::from_secs(1));
+        ctx.interval_with(|| {}, Duration::from_secs(1));
         Ok(())
     }
 

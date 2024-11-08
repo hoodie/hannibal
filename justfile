@@ -20,4 +20,4 @@ test:
     cargo --quiet test --lib --no-default-features --features tokio
     cargo --quiet test --lib --no-default-features --features async-std
 
-ci: test
+ci: test # clippy test
