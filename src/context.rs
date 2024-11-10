@@ -6,7 +6,7 @@ use crate::{
     environment::Payload,
     error::{ActorError::AlreadyStopped, Result},
     prelude::Spawnable,
-    Handler, RestartableActor, Sender,
+    Handler, Message, RestartableActor, Sender,
 };
 
 pub type RunningFuture = futures::future::Shared<oneshot::Receiver<()>>;
@@ -55,6 +55,13 @@ impl<A: Actor> Context<A> {
         let child_addr = create_child().spawn();
         self.add_child(child_addr);
     }
+
+    pub(crate) fn weak_sender<M: Message<Result = ()>>(&self) -> crate::WeakSender<M>
+    where
+        A: Handler<M>,
+    {
+        crate::WeakSender::from_weak_tx(std::sync::Weak::clone(&self.weak_tx))
+    }
 }
 
 #[cfg(any(feature = "tokio", feature = "async-std", feature = "custom_runtime"))]
@@ -62,7 +69,7 @@ mod task_handling {
     use futures::FutureExt;
     use std::{future::Future, time::Duration};
 
-    use crate::{actor::Actor, spawn_strategy::SpawnableHack, Context, Handler, WeakSender};
+    use crate::{actor::Actor, spawn_strategy::SpawnableHack, Context, Handler, Message};
 
     /// Task Handling
     impl<A: Actor> Context<A> {
@@ -73,36 +80,51 @@ mod task_handling {
             A::spawn_future(task.map(|_| ()))
         }
 
-        pub fn interval_with<M: crate::Message<Result = ()>>(
-            &mut self,
-            create_message: impl Fn() -> M + Send + Sync + 'static,
-            duration: Duration,
-        ) where
+        pub fn interval<M: Message<Result = ()> + Clone>(&mut self, message: M, duration: Duration)
+        where
             A: Handler<M>,
         {
-            let myself = WeakSender::from_weak_tx(std::sync::Weak::clone(&self.weak_tx));
+            let myself = self.weak_sender();
             self.spawn_task(async move {
                 loop {
                     A::sleep(duration).await;
-                    if myself.try_send(create_message()).is_err() {
+                    if myself.try_send(message.clone()).is_err() {
                         break;
                     }
                 }
             })
         }
 
-        pub fn delayed<M: crate::Message<Result = ()>>(
+        pub fn interval_with<M: Message<Result = ()>>(
             &mut self,
-            create_message: impl Fn() -> M + Send + Sync + 'static,
+            message_fn: impl Fn() -> M + Send + Sync + 'static,
             duration: Duration,
         ) where
             A: Handler<M>,
         {
-            let myself = WeakSender::from_weak_tx(std::sync::Weak::clone(&self.weak_tx));
+            let myself = self.weak_sender();
+            self.spawn_task(async move {
+                loop {
+                    A::sleep(duration).await;
+                    if myself.try_send(message_fn()).is_err() {
+                        break;
+                    }
+                }
+            })
+        }
+
+        pub fn delayed<M: Message<Result = ()>>(
+            &mut self,
+            message_fn: impl Fn() -> M + Send + Sync + 'static,
+            duration: Duration,
+        ) where
+            A: Handler<M>,
+        {
+            let myself = self.weak_sender();
             self.spawn_task(async move {
                 A::sleep(duration).await;
 
-                if myself.try_send(create_message()).is_err() {
+                if myself.try_send(message_fn()).is_err() {
                     // log::warn!("Failed to send message");
                 }
             })
