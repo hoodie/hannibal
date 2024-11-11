@@ -10,7 +10,7 @@ use crate::{
     channel::{ChanRx, Channel},
     context::StopNotifier,
     handler::StreamHandler,
-    Addr, Context,
+    Addr, Context, DynResult,
 };
 
 mod payload;
@@ -60,6 +60,18 @@ impl<A: Actor> Environment<A> {
     }
 }
 
+fn timeout(
+    fut: impl Future<Output = ()>,
+    timeout: std::time::Duration,
+) -> impl Future<Output = crate::DynResult<()>> {
+    async move {
+        futures::select! {
+            res = fut.fuse() => Ok(res),
+            _ = futures_timer::Delay::new(timeout).fuse() => Err(crate::error::ActorError::Timeout.into())
+        }
+    }
+}
+
 impl<A: Actor, R: RestartStrategy<A>> Environment<A, R> {
     pub fn launch(mut self, mut actor: A) -> (impl Future<Output = crate::DynResult<A>>, Addr<A>) {
         let actor_loop = async move {
@@ -70,6 +82,31 @@ impl<A: Actor, R: RestartStrategy<A>> Environment<A, R> {
                     Payload::Task(f) => f(&mut actor, &mut self.ctx).await,
                     Payload::Stop => break,
                     Payload::Restart => actor = R::refresh(actor, &mut self.ctx).await?,
+                }
+            }
+
+            actor.stopped(&mut self.ctx).await;
+
+            self.stop.notify();
+            Ok(actor)
+        };
+
+        (actor_loop, self.addr)
+    }
+
+    pub fn launch_with_timeout(
+        mut self,
+        mut actor: A,
+        timeout_dur: std::time::Duration,
+    ) -> (impl Future<Output = crate::DynResult<A>>, Addr<A>) {
+        let actor_loop = async move {
+            actor.started(&mut self.ctx).await?;
+
+            while let Some(event) = self.payload_rx.recv().await {
+                match event {
+                    Payload::Restart => actor = R::refresh(actor, &mut self.ctx).await?,
+                    Payload::Task(f) => timeout(f(&mut actor, &mut self.ctx), timeout_dur).await?, // consider dynamically deciding based on `Task` vs `DeadlineTask
+                    Payload::Stop => break,
                 }
             }
 
