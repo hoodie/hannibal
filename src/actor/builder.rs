@@ -9,13 +9,13 @@ use super::{
 };
 
 #[derive(Default)]
-pub struct ActorBuilder<A, P>
+pub struct BaseActorBuilder<A, P>
 where
     A: Actor,
     P: Spawner<A>,
 {
-    pub(crate) actor: A,
-    pub(crate) spawner: PhantomData<P>,
+    actor: A,
+    spawner: PhantomData<P>,
 }
 
 pub struct ActorBuilderWithChannel<A: Actor, P, R: RestartStrategy<A>>
@@ -23,10 +23,9 @@ where
     A: Actor,
     P: Spawner<A>,
 {
-    actor: A,
+    base: BaseActorBuilder<A, P>,
     channel: Channel<A>,
     restart: PhantomData<R>,
-    spawner: PhantomData<P>,
 }
 
 pub struct StreamActorBuilder<A, P, S>
@@ -36,21 +35,27 @@ where
     A: StreamHandler<S::Item>,
     P: Spawner<A>,
 {
-    actor_builder: ActorBuilderWithChannel<A, P, NonRestartable>,
+    with_channel: ActorBuilderWithChannel<A, P, NonRestartable>,
     stream: S,
 }
 
 /// add channel
-impl<A, P> ActorBuilder<A, P>
+impl<A, P> BaseActorBuilder<A, P>
 where
     A: Actor,
     P: Spawner<A>,
 {
-    fn with_channel(self, channel: Channel<A>) -> ActorBuilderWithChannel<A, P, RestartOnly> {
-        ActorBuilderWithChannel {
-            actor: self.actor,
-            restart: PhantomData,
+    pub(crate) const fn new(actor: A) -> Self {
+        Self {
+            actor,
             spawner: PhantomData,
+        }
+    }
+
+    const fn with_channel(self, channel: Channel<A>) -> ActorBuilderWithChannel<A, P, RestartOnly> {
+        ActorBuilderWithChannel {
+            base: self,
+            restart: PhantomData,
             channel,
         }
     }
@@ -77,7 +82,7 @@ where
         A: StreamHandler<S::Item>,
     {
         StreamActorBuilder {
-            actor_builder: self.non_restartable(),
+            with_channel: self.non_restartable(),
             stream,
         }
     }
@@ -92,9 +97,8 @@ where
 {
     pub fn non_restartable(self) -> ActorBuilderWithChannel<A, P, NonRestartable> {
         ActorBuilderWithChannel {
-            actor: self.actor,
+            base: self.base,
             channel: self.channel,
-            spawner: self.spawner,
             restart: PhantomData,
         }
     }
@@ -109,9 +113,8 @@ where
 {
     pub fn recreate_from_default(self) -> ActorBuilderWithChannel<A, P, RecreateFromDefault> {
         ActorBuilderWithChannel {
-            actor: self.actor,
+            base: self.base,
             channel: self.channel,
-            spawner: self.spawner,
             restart: PhantomData,
         }
     }
@@ -126,7 +129,7 @@ where
 {
     pub fn spawn(self) -> Addr<A> {
         let env = environment::Environment::<A, R>::from_channel(self.channel);
-        let (event_loop, addr) = env.launch(self.actor);
+        let (event_loop, addr) = env.launch(self.base.actor);
         let _joiner = P::spawn_actor(event_loop);
         addr
     }
@@ -155,7 +158,12 @@ where
 {
     pub fn spawn(self) -> Addr<A> {
         let Self {
-            actor_builder: ActorBuilderWithChannel { actor, channel, .. },
+            with_channel:
+                ActorBuilderWithChannel {
+                    base: BaseActorBuilder { actor, .. },
+                    channel,
+                    ..
+                },
             stream,
         } = self;
 

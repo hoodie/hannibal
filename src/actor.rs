@@ -25,11 +25,10 @@ pub trait Actor: Sized + Send + 'static {
 }
 
 #[cfg(any(feature = "tokio", feature = "async-std"))]
-pub const fn build<A: Actor>(actor: A) -> builder::ActorBuilder<A, spawn_strategy::DefaultSpawner> {
-    builder::ActorBuilder {
-        actor,
-        spawner: std::marker::PhantomData,
-    }
+pub const fn build<A: Actor>(
+    actor: A,
+) -> builder::BaseActorBuilder<A, spawn_strategy::DefaultSpawner> {
+    builder::BaseActorBuilder::new(actor)
 }
 
 #[cfg(test)]
