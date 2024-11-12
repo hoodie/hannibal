@@ -9,8 +9,14 @@ pub mod weak_caller;
 pub mod weak_sender;
 
 use crate::{
-    actor::Actor, channel::ChanTx, context::RunningFuture, environment::Payload, error::Result,
-    handler::Handler, RestartableActor,
+    actor::Actor,
+    channel::ChanTx,
+    context::RunningFuture,
+    environment::Payload,
+    error::Result,
+    handler::Handler,
+    spawn_strategy::{DynJoiner, JoinFuture},
+    RestartableActor,
 };
 
 pub trait Message: 'static + Send {
@@ -121,6 +127,31 @@ impl<A> Future for Addr<A> {
             .running
             .poll_unpin(cx)
             .map(|p| p.map_err(Into::into))
+    }
+}
+
+pub struct OwningAddr<A> {
+    pub(crate) addr: Addr<A>,
+    pub(crate) joiner: DynJoiner<A>,
+}
+
+impl<A: Actor> OwningAddr<A> {
+    pub fn join(&mut self) -> JoinFuture<A> {
+        self.joiner.join()
+    }
+
+    pub fn as_addr(&self) -> &Addr<A> {
+        &self.addr
+    }
+
+    pub fn to_addr(&self) -> Addr<A> {
+        self.addr.clone()
+    }
+}
+
+impl<A> AsRef<Addr<A>> for OwningAddr<A> {
+    fn as_ref(&self) -> &Addr<A> {
+        &self.addr
     }
 }
 
