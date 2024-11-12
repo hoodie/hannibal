@@ -1,4 +1,7 @@
-#![cfg(feature = "tokio")]
+#![cfg_attr(
+    all(feature = "tokio", feature = "async-std"),
+    allow(dead_code, unused)
+)]
 use minibal::prelude::*;
 
 struct MyActor(&'static str);
@@ -40,7 +43,12 @@ impl Handler<Add> for MyActor {
     }
 }
 
-#[tokio::main]
+#[cfg(any(
+    all(feature = "tokio", not(feature = "async-std")),
+    all(not(feature = "tokio"), feature = "async-std")
+))]
+#[cfg_attr(feature = "tokio", tokio::main)]
+#[cfg_attr(feature = "async-std", async_std::main)]
 async fn main() {
     let mut addr = MyActor("Caesar").spawn();
     addr.send(Greet("Cornelius")).unwrap();
@@ -49,3 +57,6 @@ async fn main() {
     println!("The Actor Calculated: {:?}", addition);
     println!("{:#?}", addr.stop());
 }
+
+#[cfg(all(feature = "tokio", feature = "async-std"))]
+fn main() {}
