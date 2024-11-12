@@ -26,4 +26,7 @@ pub enum ActorError {
 
     #[error("Service still running")]
     ServiceStillRunning,
+
+    #[error("Actor's task took too long to complete")]
+    Timeout,
 }

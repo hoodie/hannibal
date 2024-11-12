@@ -25,9 +25,7 @@ pub trait Actor: Sized + Send + 'static {
 }
 
 #[cfg(any(feature = "tokio", feature = "async-std"))]
-pub const fn build<A: Actor>(
-    actor: A,
-) -> builder::BaseActorBuilder<A, spawn_strategy::DefaultSpawner> {
+pub fn build<A: Actor>(actor: A) -> builder::BaseActorBuilder<A, spawn_strategy::DefaultSpawner> {
     builder::BaseActorBuilder::new(actor)
 }
 

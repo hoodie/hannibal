@@ -1,6 +1,12 @@
-use std::marker::PhantomData;
+use std::{marker::PhantomData, time::Duration};
 
-use crate::{actor::service::Service, channel::Channel, environment, Addr, StreamHandler};
+use crate::{
+    actor::service::Service,
+    addr::OwningAddr,
+    channel::Channel,
+    environment::{self, EnvironmentConfig},
+    Addr, StreamHandler,
+};
 
 use super::{
     restart_strategy::{NonRestartable, RecreateFromDefault, RestartOnly, RestartStrategy},
@@ -16,6 +22,7 @@ where
 {
     actor: A,
     spawner: PhantomData<P>,
+    config: EnvironmentConfig,
 }
 
 pub struct ActorBuilderWithChannel<A: Actor, P, R: RestartStrategy<A>>
@@ -45,10 +52,11 @@ where
     A: Actor,
     P: Spawner<A>,
 {
-    pub(crate) const fn new(actor: A) -> Self {
+    pub(crate) fn new(actor: A) -> Self {
         Self {
             actor,
             spawner: PhantomData,
+            config: Default::default(),
         }
     }
 
@@ -58,6 +66,15 @@ where
             restart: PhantomData,
             channel,
         }
+    }
+
+    pub fn timeout(mut self, timeout: Duration) -> Self {
+        self.config.timeout = Some(timeout);
+        self
+    }
+    pub fn fail_on_timeout(mut self, fail: bool) -> Self {
+        self.config.fail_on_timeout = fail;
+        self
     }
 
     pub fn bounded(self, capacity: usize) -> ActorBuilderWithChannel<A, P, RestartOnly> {
@@ -102,6 +119,14 @@ where
             restart: PhantomData,
         }
     }
+    pub fn timeout(mut self, timeout: Duration) -> Self {
+        self.base.config.timeout = Some(timeout);
+        self
+    }
+    pub fn fail_on_timeout(mut self, fail: bool) -> Self {
+        self.base.config.fail_on_timeout = fail;
+        self
+    }
 }
 
 /// make recreate from `Default` on restart
@@ -127,9 +152,28 @@ where
     P: Spawner<A>,
     R: RestartStrategy<A> + 'static,
 {
+    pub fn spawn_owning(self) -> OwningAddr<A> {
+        let ActorBuilderWithChannel {
+            base: BaseActorBuilder { actor, config, .. },
+            channel,
+            ..
+        } = self;
+
+        let env = environment::Environment::<A, R>::from_channel(channel).with_config(config);
+        let (event_loop, addr) = env.launch(actor);
+        let joiner = P::spawn_actor(event_loop);
+        OwningAddr { addr, joiner }
+    }
+
     pub fn spawn(self) -> Addr<A> {
-        let env = environment::Environment::<A, R>::from_channel(self.channel);
-        let (event_loop, addr) = env.launch(self.base.actor);
+        let ActorBuilderWithChannel {
+            base: BaseActorBuilder { actor, config, .. },
+            channel,
+            ..
+        } = self;
+
+        let env = environment::Environment::<A, R>::from_channel(channel).with_config(config);
+        let (event_loop, addr) = env.launch(actor);
         let _joiner = P::spawn_actor(event_loop);
         addr
     }
@@ -160,14 +204,15 @@ where
         let Self {
             with_channel:
                 ActorBuilderWithChannel {
-                    base: BaseActorBuilder { actor, .. },
+                    base: BaseActorBuilder { actor, config, .. },
                     channel,
                     ..
                 },
             stream,
         } = self;
 
-        let env = environment::Environment::<A, NonRestartable>::from_channel(channel);
+        let env = environment::Environment::<A, NonRestartable>::from_channel(channel)
+            .with_config(config);
         let (event_loop, addr) = env.launch_on_stream(actor, stream);
         let _joiner = P::spawn_actor(event_loop);
         addr

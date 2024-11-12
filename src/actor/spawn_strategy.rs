@@ -10,6 +10,7 @@ use super::{Actor, DynResult};
 
 pub type JoinFuture<A> = Pin<Box<dyn Future<Output = Option<A>> + Send>>;
 
+// TODO: rename to `Handle`
 pub(crate) type DynJoiner<A> = Box<dyn Joiner<A>>;
 pub trait Joiner<A: Actor>: Send + Sync {
     fn join(&mut self) -> JoinFuture<A>;
