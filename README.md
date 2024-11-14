@@ -22,16 +22,15 @@ A minimalistic reimplementation of the [Hannibal](https://lib.rs/hannibal) actor
 - [x] impl Caller/Sender
   - same old, same old
   - [x] stream handling
-    - [ ] attach api (nope)
 - [x] service
   - [x] restarting actors
   - [x] special addr that only allows restarting
 - [x] manage child actors
 - [ ] broker
   - look into why there should be a thread local broker
+- [x] deadlines (called timeouts)
 - [ ] intervals and timeouts
-  - injectable spawner/sleeper or at least separte impls
-  - [ ] implement via child actors and special interval/timeout actor utility
+- [x] register children
 - [ ] stream handling service/broker
    - [ ] allow a service that handles e.g. [signals](https://docs.rs/async-signals/latest/async_signals/struct.Signals.html)
    - [ ] (optional) have utility services already?

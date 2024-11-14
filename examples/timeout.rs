@@ -2,6 +2,11 @@ use std::time::Duration;
 
 use minibal::{error::ActorError, prelude::*, RestartableActor};
 
+#[cfg(feature = "async-std")]
+use async_std::task::sleep;
+#[cfg(feature = "tokio")]
+use tokio::time::sleep;
+
 #[derive(Debug, Default)]
 struct SleepyActor(u8);
 
@@ -24,7 +29,7 @@ impl Actor for SleepyActor {
 impl Handler<Sleep> for SleepyActor {
     async fn handle(&mut self, _ctx: &mut Context<Self>, msg: Sleep) {
         println!("[ SleepyActor {} ] is resting for {:?}", self.0, msg.0);
-        tokio::time::sleep(msg.0).await;
+        sleep(msg.0).await;
         println!("[ SleepyActor {} ] woke up after {:?}", self.0, msg.0);
     }
 }
