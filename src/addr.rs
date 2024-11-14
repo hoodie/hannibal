@@ -47,7 +47,7 @@ impl<A: Actor> Addr<A> {
         Ok(())
     }
 
-    pub async fn stop_and_wait(mut self) -> Result<()> {
+    pub async fn stop_and_join(mut self) -> Result<()> {
         self.stop()?;
         self.await
     }
@@ -163,6 +163,7 @@ impl<A> AsRef<Addr<A>> for OwningAddr<A> {
 
 #[cfg(test)]
 mod tests {
+    #![allow(clippy::unwrap_used)]
     use crate::{environment::Environment, Context, DynResult};
 
     use super::*;

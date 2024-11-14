@@ -29,7 +29,7 @@ A minimalistic reimplementation of the [Hannibal](https://lib.rs/hannibal) actor
 - [ ] broker
   - look into why there should be a thread local broker
 - [x] deadlines (called timeouts)
-- [ ] intervals and timeouts
+- [x] intervals and timeouts
 - [x] register children
 - [ ] stream handling service/broker
    - [ ] allow a service that handles e.g. [signals](https://docs.rs/async-signals/latest/async_signals/struct.Signals.html)

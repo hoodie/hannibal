@@ -38,6 +38,7 @@ impl<A: Actor, R: RestartStrategy<A>> Environment<A, R> {
             weak_tx: channel.weak_tx(),
             running: futures::FutureExt::shared(rx_running),
             children: Default::default(),
+            tasks: Default::default(),
         };
         let (payload_tx, payload_rx) = channel.break_up();
         let stop = StopNotifier(tx_running);
@@ -188,6 +189,7 @@ where
 
 #[cfg(test)]
 mod tests {
+    #![allow(clippy::unwrap_used)]
     use super::*;
     use crate::{error::ActorError, Actor, DynResult};
 
@@ -385,8 +387,6 @@ mod tests {
 
     #[cfg(any(feature = "tokio", feature = "async-std"))]
     mod timeout {
-        #![allow(clippy::unwrap_used)]
-
         use std::time::Duration;
 
         use crate::{error::ActorError, prelude::*, RestartableActor};

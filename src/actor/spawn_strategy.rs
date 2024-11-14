@@ -86,6 +86,7 @@ pub trait Spawnable<S: Spawner<Self>>: Actor {
     }
 }
 
+#[cfg(any(feature = "tokio", feature = "async-std"))]
 pub(crate) trait SpawnableHack<S: Spawner<Self>>: Actor {
     fn spawn_future<F>(future: F)
     where
@@ -250,6 +251,7 @@ cfg_if::cfg_if! {
 
 #[cfg(test)]
 mod tests {
+    #![allow(clippy::unwrap_used)]
     #[cfg(feature = "tokio")]
     mod spawned_with_tokio {
         use crate::{

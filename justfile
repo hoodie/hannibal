@@ -9,9 +9,9 @@ coverage:
     open target/llvm-cov/html/index.html
 
 clippy:
-    cargo clippy
-    cargo clippy --lib --tests --no-default-features --features tokio
-    cargo clippy --lib --tests --no-default-features --features async-std
+    cargo --quiet clippy
+    cargo --quiet clippy --lib --tests --no-default-features --features tokio
+    cargo --quiet clippy --lib --tests --no-default-features --features async-std
 
 
 test:
@@ -20,4 +20,4 @@ test:
     cargo --quiet test --lib --no-default-features --features tokio
     cargo --quiet test --lib --no-default-features --features async-std
 
-ci: test
+ci: clippy test

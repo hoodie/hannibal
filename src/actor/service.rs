@@ -157,10 +157,10 @@ where
 
 #[cfg(test)]
 mod tests {
+    #![allow(clippy::unwrap_used)]
 
     #[cfg(feature = "tokio")]
     mod spawned_with_tokio {
-        #![allow(clippy::unwrap_used)]
         use crate::{
             actor::tests::{spawned_with_tokio::TokioActor, Identify, Ping},
             prelude::Spawnable as _,
