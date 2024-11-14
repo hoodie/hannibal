@@ -1,11 +1,15 @@
-#![allow(deprecated, unused_imports)]
+#[cfg_attr(
+    not(any(feature = "tokio", feature = "async-std")),
+    allow(unused_imports)
+)]
 use std::{future::Future, pin::Pin, sync::Arc};
 
-use crate::{
-    environment::{self, Environment},
-    Addr, StreamHandler,
-};
+use crate::{environment::Environment, Addr, StreamHandler};
 
+#[cfg_attr(
+    not(any(feature = "tokio", feature = "async-std")),
+    allow(unused_imports)
+)]
 use super::{Actor, DynResult};
 
 pub type JoinFuture<A> = Pin<Box<dyn Future<Output = Option<A>> + Send>>;

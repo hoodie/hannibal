@@ -135,6 +135,7 @@ pub struct OwningAddr<A> {
     pub(crate) joiner: DynJoiner<A>,
 }
 
+#[cfg_attr(not(any(feature = "tokio", feature = "async-std")), allow(dead_code))]
 impl<A: Actor> OwningAddr<A> {
     pub fn join(&mut self) -> JoinFuture<A> {
         self.joiner.join()

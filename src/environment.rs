@@ -55,6 +55,7 @@ impl<A: Actor, R: RestartStrategy<A>> Environment<A, R> {
             phantom: PhantomData,
         }
     }
+    #[cfg_attr(not(any(feature = "tokio", feature = "async-std")), allow(dead_code))]
     pub(crate) const fn with_config(mut self, config: EnvironmentConfig) -> Self {
         self.config = config;
         self
@@ -322,6 +323,7 @@ mod tests {
     }
 
     mod restart {
+        #![allow(clippy::unwrap_used)]
         use super::*;
         use crate::RestartableActor;
 
@@ -383,6 +385,7 @@ mod tests {
 
     #[cfg(any(feature = "tokio", feature = "async-std"))]
     mod timeout {
+        #![allow(clippy::unwrap_used)]
 
         use std::time::Duration;
 
