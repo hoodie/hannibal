@@ -26,8 +26,8 @@ A minimalistic reimplementation of the [Hannibal](https://lib.rs/hannibal) actor
   - [x] restarting actors
   - [x] special addr that only allows restarting
 - [x] manage child actors
-- [ ] broker
-  - look into why there should be a thread local broker
+- [x] broker
+  - [ ] look into why there should be a thread local broker
 - [x] deadlines (called timeouts)
 - [x] intervals and timeouts
 - [x] register children
@@ -35,7 +35,7 @@ A minimalistic reimplementation of the [Hannibal](https://lib.rs/hannibal) actor
    - [ ] allow a service that handles e.g. [signals](https://docs.rs/async-signals/latest/async_signals/struct.Signals.html)
    - [ ] (optional) have utility services already?
    - [ ] SUPPORT restarting stream handlers
-- [ ] logging and console subscriber
+- [x] logging and console subscriber
 - [ ] test with rstest
 - [ ] stop reason
 - [x] owning addr
@@ -49,4 +49,4 @@ A minimalistic reimplementation of the [Hannibal](https://lib.rs/hannibal) actor
 - [x] can we select!() ?
   - yes, we do that for streams now
 - [ ] maybe impl SinkExt for Addr/Sender
-- [ ] maybe impl async AND blocking sending
+- [x] maybe impl async AND blocking sending

@@ -13,6 +13,8 @@ pub use restart_strategy::RestartableActor;
 pub type DynResult<T = ()> = std::result::Result<T, Box<dyn std::error::Error + Send + Sync>>;
 
 pub trait Actor: Sized + Send + 'static {
+    const NAME: &'static str = "minibal::Actor";
+
     #[allow(unused)]
     fn started(&mut self, ctx: &mut Context<Self>) -> impl Future<Output = DynResult> + Send {
         async { Ok(()) }

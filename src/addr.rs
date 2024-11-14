@@ -248,7 +248,7 @@ mod tests {
         (event_loop, addr)
     }
 
-    #[tokio::test]
+    #[test_log::test(tokio::test)]
     async fn addr_call() {
         let (event_loop, addr) = start(MyActor::default());
         tokio::spawn(event_loop);
@@ -257,7 +257,7 @@ mod tests {
         assert_eq!(addition, 3);
     }
 
-    #[tokio::test]
+    #[test_log::test(tokio::test)]
     async fn addr_send() {
         let (event_loop, mut addr) = start(MyActor::default());
         let task = tokio::spawn(event_loop);
@@ -267,7 +267,7 @@ mod tests {
         assert_eq!(actor.0, Some("password"))
     }
 
-    #[tokio::test]
+    #[test_log::test(tokio::test)]
     async fn addr_send_err() {
         let (event_loop, mut addr) = start(MyActor::default());
         tokio::spawn(event_loop);
@@ -277,7 +277,7 @@ mod tests {
         assert!(addr2.send(Store("password")).await.is_err());
     }
 
-    #[tokio::test]
+    #[test_log::test(tokio::test)]
     async fn addr_stop() {
         let (event_loop, mut addr) = start(MyActor::default());
         tokio::spawn(event_loop);
@@ -289,7 +289,7 @@ mod tests {
         addr.await.unwrap();
     }
 
-    #[tokio::test]
+    #[test_log::test(tokio::test)]
     async fn ctx_stop() {
         let (event_loop, addr) = start(MyActor::default());
         tokio::spawn(event_loop);
@@ -301,7 +301,7 @@ mod tests {
         addr.await.unwrap();
     }
 
-    #[tokio::test]
+    #[test_log::test(tokio::test)]
     async fn addr_stopped_after_stop() {
         let (event_loop, addr) = start(MyActor::default());
         tokio::spawn(event_loop);
@@ -315,7 +315,7 @@ mod tests {
         assert!(addr2.stopped(), "addr2 should be stopped");
     }
 
-    #[tokio::test]
+    #[test_log::test(tokio::test)]
     async fn weak_addr_does_not_prolong_life() {
         let (event_loop, addr) = start(MyActor::default());
         let actor = tokio::spawn(event_loop);
@@ -332,7 +332,7 @@ mod tests {
         actor.await.unwrap().unwrap();
     }
 
-    #[tokio::test]
+    #[test_log::test(tokio::test)]
     async fn weak_caller_does_not_prolong_life() {
         let (event_loop, addr) = start(MyActor::default());
         let actor = tokio::spawn(event_loop);
@@ -349,7 +349,7 @@ mod tests {
         actor.await.unwrap().unwrap();
     }
 
-    #[tokio::test]
+    #[test_log::test(tokio::test)]
     async fn weak_sender_does_not_prolong_life() {
         let (event_loop, addr) = start(MyActor::default());
         let actor = tokio::spawn(event_loop);

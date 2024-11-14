@@ -103,14 +103,21 @@ impl<A: Actor, R: RestartStrategy<A>> Environment<A, R> {
             let timeout = self.config.timeout;
             while let Some(event) = self.payload_stream.next().await {
                 match event {
-                    Payload::Restart => actor = R::refresh(actor, &mut self.ctx).await?,
+                    Payload::Restart => {
+                        log::trace!("restarting {}", A::NAME);
+                        actor = R::refresh(actor, &mut self.ctx).await?
+                    }
                     Payload::Task(f) => {
                         if let Err(err) = timeout_fut(f(&mut actor, &mut self.ctx), timeout).await {
                             if self.config.fail_on_timeout {
-                                // log::warn!("actor task took too long: {:?}, exiting", err);
+                                log::warn!("{:?} task took too long: {:?}, exiting", A::NAME, err);
                                 return Err(err);
                             } else {
-                                // log::warn!("actor task took too long: {:?}, ignoring", err);
+                                log::warn!(
+                                    "{:?} actor task took too long: {:?}, ignoring",
+                                    A::NAME,
+                                    err
+                                );
                                 continue;
                             }
                         }
@@ -241,7 +248,7 @@ mod tests {
     mod normal_start {
         use super::*;
 
-        #[tokio::test]
+        #[test_log::test(tokio::test)]
         async fn calls_actor_started() {
             let (event_loop, mut addr) = Environment::unbounded().create_loop(GoodActor::default());
             let task = tokio::spawn(event_loop);
@@ -250,7 +257,7 @@ mod tests {
             assert!(actor.started);
         }
 
-        #[tokio::test]
+        #[test_log::test(tokio::test)]
         async fn calls_actor_stopped() {
             let (event_loop, mut addr) = Environment::unbounded().create_loop(GoodActor::default());
             let task = tokio::spawn(event_loop);
@@ -259,7 +266,7 @@ mod tests {
             assert!(actor.stopped);
         }
 
-        #[tokio::test]
+        #[test_log::test(tokio::test)]
         async fn start_can_fail() {
             let (event_loop, mut addr) = Environment::unbounded().create_loop(BadActor);
             let task = tokio::spawn(event_loop);
@@ -281,7 +288,7 @@ mod tests {
             Environment::unbounded().create_loop_on_stream(A::default(), counter)
         }
 
-        #[tokio::test]
+        #[test_log::test(tokio::test)]
         async fn calls_actor_started() {
             let (event_loop, mut addr) = prepare::<GoodActor>();
             let task = tokio::spawn(event_loop);
@@ -290,7 +297,7 @@ mod tests {
             assert!(actor.started);
         }
 
-        #[tokio::test]
+        #[test_log::test(tokio::test)]
         async fn calls_actor_stopped() {
             let (event_loop, mut addr) = prepare::<GoodActor>();
             let task = tokio::spawn(event_loop);
@@ -299,7 +306,7 @@ mod tests {
             assert!(actor.stopped);
         }
 
-        #[tokio::test]
+        #[test_log::test(tokio::test)]
         async fn start_can_fail() {
             let (event_loop, mut addr) = prepare::<BadActor>();
             let task = tokio::spawn(event_loop);
@@ -308,7 +315,7 @@ mod tests {
             assert_eq!(error, Err(String::from("failed")), "start should fail");
         }
 
-        #[tokio::test]
+        #[test_log::test(tokio::test)]
         async fn ends_on_stream_finish() {
             let (event_loop, mut addr) = prepare::<GoodActor>();
             let addr2 = addr.clone();
@@ -365,7 +372,7 @@ mod tests {
             }
         }
 
-        #[tokio::test]
+        #[test_log::test(tokio::test)]
         async fn restarts_actor() {
             let counter = RestartCounter::new();
             let (event_loop, mut addr) = Environment::unbounded().create_loop(counter);
@@ -378,7 +385,7 @@ mod tests {
             assert_eq!(actor.stopped_count, 3);
         }
 
-        #[tokio::test]
+        #[test_log::test(tokio::test)]
         async fn recreates_actor() {
             let counter = RestartCounter::new();
             let (event_loop, mut addr) = Environment::unbounded().recreating().create_loop(counter);
@@ -415,6 +422,7 @@ mod tests {
         }
 
         impl Actor for SleepyActor {
+            const NAME: &'static str = "SleepyActor";
             async fn started(&mut self, _ctx: &mut Context<Self>) -> DynResult<()> {
                 println!("[ SleepyActor {} ] started", self.0);
                 Ok(())
@@ -436,7 +444,7 @@ mod tests {
         // TODO: can we encode the restart strategy in an associated type or as a trait function?
         impl RestartableActor for SleepyActor {}
 
-        #[tokio::test]
+        #[test_log::test(tokio::test)]
         async fn no_timeout() {
             // normal case, tasks take long
             println!("SleepyActor 0 will take 1 second to complete");
@@ -448,7 +456,7 @@ mod tests {
             assert!(addr.stop().is_ok());
         }
 
-        #[tokio::test]
+        #[test_log::test(tokio::test)]
         async fn timeout_and_continue() {
             // timeout and continue
             println!("SleepyActor 1 will be canceled after 1 second");
@@ -481,7 +489,7 @@ mod tests {
             assert!(addr.join().await.is_some());
         }
 
-        #[tokio::test]
+        #[test_log::test(tokio::test)]
         async fn timeout_and_fail() {
             // timeout and fail
             println!("SleepyActor 2 will be canceled after 1 second");

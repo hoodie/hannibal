@@ -178,7 +178,7 @@ mod tests {
             Service,
         };
 
-        #[tokio::test]
+        #[test_log::test(tokio::test)]
         async fn register_as_service() {
             type Svc = TokioActor<u32>;
             let (addr, mut handle) = Svc::new(1337).spawn_with::<TokioSpawner>().unwrap();
@@ -189,7 +189,7 @@ mod tests {
             handle.join().await.unwrap();
         }
 
-        #[tokio::test]
+        #[test_log::test(tokio::test)]
         async fn get_service_from_registry() {
             type Svc = TokioActor<u64>;
             let mut svc_addr = Svc::from_registry().await;
@@ -201,7 +201,7 @@ mod tests {
             svc_addr.await.unwrap();
         }
 
-        #[tokio::test]
+        #[test_log::test(tokio::test)]
         async fn reregistering_service_only_if_stopped() {
             // Define the service type as TokioActor with u64
             type Svc = TokioActor<((), ())>;
@@ -257,7 +257,7 @@ mod tests {
             handle.join().await.unwrap();
         }
 
-        #[tokio::test]
+        #[test_log::test(tokio::test)]
         async fn get_service_from_registry() {
             type Svc = AsyncStdActor<u64>;
             Svc::setup().await.unwrap();

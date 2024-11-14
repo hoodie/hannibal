@@ -189,7 +189,7 @@ mod task_handling {
                 A::sleep(duration).await;
 
                 if myself.try_send(message_fn()).await.is_err() {
-                    // log::warn!("Failed to send message");
+                    log::warn!("Failed to send message");
                 }
             })
         }

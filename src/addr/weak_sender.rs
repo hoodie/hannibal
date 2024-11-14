@@ -124,7 +124,7 @@ mod tests {
     use super::*;
     use crate::addr::tests::*;
 
-    #[tokio::test]
+    #[test_log::test(tokio::test)]
     async fn upgrade() {
         let (event_loop, mut addr) = start(MyActor::default());
         let actor = tokio::spawn(event_loop);
@@ -141,7 +141,7 @@ mod tests {
         assert_eq!(actor.0, Some("password"));
     }
 
-    #[tokio::test]
+    #[test_log::test(tokio::test)]
     async fn does_not_prolong_life() {
         let (event_loop, addr) = start(MyActor::default());
         let actor = tokio::spawn(event_loop);
@@ -155,7 +155,7 @@ mod tests {
         assert!(weak_sender.upgrade().is_none());
     }
 
-    #[tokio::test]
+    #[test_log::test(tokio::test)]
     async fn try_call_fails() {
         let (event_loop, mut addr) = start(MyActor::default());
         let actor = tokio::spawn(event_loop);

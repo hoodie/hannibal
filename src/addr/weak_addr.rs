@@ -80,7 +80,7 @@ mod tests {
     use super::*;
     use crate::addr::tests::*;
 
-    #[tokio::test]
+    #[test_log::test(tokio::test)]
     async fn upgrade() {
         let (event_loop, addr) = start(MyActor::default());
         tokio::spawn(event_loop);
@@ -89,7 +89,7 @@ mod tests {
         assert_eq!(weak_addr.upgrade().unwrap().call(Add(1, 2)).await, Ok(3))
     }
 
-    #[tokio::test]
+    #[test_log::test(tokio::test)]
     async fn does_not_prolong_life() {
         let (event_loop, addr) = start(MyActor::default());
         let actor = tokio::spawn(event_loop);
@@ -103,7 +103,7 @@ mod tests {
         assert!(weak_addr.upgrade().is_none());
     }
 
-    #[tokio::test]
+    #[test_log::test(tokio::test)]
     async fn send_fails_after_drop() {
         let (event_loop, addr) = start(MyActor::default());
         let actor = tokio::spawn(event_loop);
