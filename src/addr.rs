@@ -47,6 +47,11 @@ impl<A: Actor> Addr<A> {
         Ok(())
     }
 
+    pub async fn stop_and_wait(mut self) -> Result<()> {
+        self.stop()?;
+        self.await
+    }
+
     pub fn running(&self) -> bool {
         self.running.peek().is_none()
     }
