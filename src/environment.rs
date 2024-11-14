@@ -55,7 +55,7 @@ impl<A: Actor, R: RestartStrategy<A>> Environment<A, R> {
             phantom: PhantomData,
         }
     }
-    pub(crate) fn with_config(mut self, config: EnvironmentConfig) -> Self {
+    pub(crate) const fn with_config(mut self, config: EnvironmentConfig) -> Self {
         self.config = config;
         self
     }
@@ -72,19 +72,17 @@ impl<A: Actor> Environment<A> {
 }
 
 // TODO: consider dynamically deciding timeout based on `Task` vs `DeadlineTask
-fn timeout_fut(
+async fn timeout_fut(
     fut: impl Future<Output = ()>,
     timeout: Option<Duration>,
-) -> impl Future<Output = crate::DynResult<()>> {
-    async move {
-        if let Some(timeout) = timeout {
-            futures::select! {
-                res = fut.map(Ok).fuse() => res,
-                _ = futures_timer::Delay::new(timeout).fuse() => Err(crate::error::ActorError::Timeout.into())
-            }
-        } else {
-            fut.map(Ok).await
+) -> crate::DynResult<()> {
+    if let Some(timeout) = timeout {
+        futures::select! {
+            res = fut.map(Ok).fuse() => res,
+            _ = futures_timer::Delay::new(timeout).fuse() => Err(crate::error::ActorError::Timeout.into())
         }
+    } else {
+        fut.map(Ok).await
     }
 }
 
@@ -99,7 +97,7 @@ impl<A: Actor, R: RestartStrategy<A>> Environment<A, R> {
                     Payload::Restart => actor = R::refresh(actor, &mut self.ctx).await?,
                     Payload::Task(f) => {
                         if let Err(err) = timeout_fut(f(&mut actor, &mut self.ctx), timeout).await {
-                            if (&self.config).fail_on_timeout {
+                            if self.config.fail_on_timeout {
                                 // log::warn!("actor task took too long: {:?}, exiting", err);
                                 return Err(err);
                             } else {

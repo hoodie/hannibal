@@ -68,11 +68,11 @@ where
         }
     }
 
-    pub fn timeout(mut self, timeout: Duration) -> Self {
+    pub const fn timeout(mut self, timeout: Duration) -> Self {
         self.config.timeout = Some(timeout);
         self
     }
-    pub fn fail_on_timeout(mut self, fail: bool) -> Self {
+    pub const fn fail_on_timeout(mut self, fail: bool) -> Self {
         self.config.fail_on_timeout = fail;
         self
     }
@@ -119,11 +119,11 @@ where
             restart: PhantomData,
         }
     }
-    pub fn timeout(mut self, timeout: Duration) -> Self {
+    pub const fn timeout(mut self, timeout: Duration) -> Self {
         self.base.config.timeout = Some(timeout);
         self
     }
-    pub fn fail_on_timeout(mut self, fail: bool) -> Self {
+    pub const fn fail_on_timeout(mut self, fail: bool) -> Self {
         self.base.config.fail_on_timeout = fail;
         self
     }

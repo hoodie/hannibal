@@ -140,7 +140,7 @@ impl<A: Actor> OwningAddr<A> {
         self.joiner.join()
     }
 
-    pub fn as_addr(&self) -> &Addr<A> {
+    pub const fn as_addr(&self) -> &Addr<A> {
         &self.addr
     }
 
