@@ -18,7 +18,7 @@ mod custom_spawner {
     pub struct CustomSpawner;
 
     impl<A: Actor> Spawner<A> for CustomSpawner {
-        fn spawn<F>(future: F) -> Box<dyn Joiner<A>>
+        fn spawn_actor<F>(future: F) -> Box<dyn Joiner<A>>
         where
             F: Future<Output = DynResult<A>> + Send + 'static,
         {
@@ -43,6 +43,17 @@ mod custom_spawner {
                 })
             })
         }
+
+        fn spawn_future<F>(_future: F)
+        where
+            F: Future<Output = ()> + Send + 'static,
+        {
+            todo!()
+        }
+
+        async fn sleep(_duration: std::time::Duration) {
+            todo!()
+        }
     }
 
     pub struct MyActor;
@@ -59,26 +70,24 @@ mod custom_spawner {
     impl Spawnable<CustomSpawner> for MyActor {}
 }
 
+#[cfg(all(not(feature = "tokio"), not(feature = "async-std")))]
 fn main() {
-    cfg_if::cfg_if! {
-       if #[cfg(all(not(feature = "tokio"), not(feature = "async-std")))]
-       {
-           use custom_spawner::*;
-           use minibal::{prelude::Spawnable as _, spawn_strategy::SpawnableWith};
-           color_backtrace::install();
-           futures::executor::block_on(async {
-               let (mut _addr, _) = MyActor.spawn_with::<CustomSpawner>().unwrap();
-               let (mut addr, mut joiner) = MyActor.spawn_and_get_joiner();
+    use custom_spawner::*;
+    use minibal::{prelude::Spawnable as _, spawn_strategy::SpawnableWith};
+    color_backtrace::install();
+    futures::executor::block_on(async {
+        let (mut _addr, _) = MyActor.spawn_with::<CustomSpawner>().unwrap();
+        let (mut addr, mut joiner) = MyActor.spawn_and_get_joiner();
 
-               addr.stop().unwrap();
-               eprintln!("Actor asked to stop");
-               addr.await.unwrap();
-               joiner.join().await;
-               eprintln!("Actor stopped");
-           })
-        } else {
-            panic!("use `--no-default-features`");
+        addr.stop().unwrap();
+        eprintln!("Actor asked to stop");
+        addr.await.unwrap();
+        joiner.join().await;
+        eprintln!("Actor stopped");
+    })
+}
 
-        }
-    }
+#[cfg(any(feature = "tokio", feature = "async-std"))]
+fn main() {
+    panic!("use `--no-default-features`");
 }

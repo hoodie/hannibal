@@ -39,6 +39,11 @@ path = "examples/simple.rs"
 required-features = ["tokio"]
 
 [[example]]
+name = "runtimes"
+path = "examples/runtimes.rs"
+required-features = ["tokio"]
+
+[[example]]
 name = "builder"
 path = "examples/builder.rs"
 required-features = ["tokio"]
@@ -46,6 +51,16 @@ required-features = ["tokio"]
 [[example]]
 name = "children"
 path = "examples/children.rs"
+required-features = ["tokio"]
+
+[[example]]
+name = "timeout"
+path = "examples/timeout.rs"
+required-features = ["tokio"]
+
+[[example]]
+name = "intervals"
+path = "examples/intervals.rs"
 required-features = ["tokio"]
 
 [[example]]
@@ -59,6 +74,7 @@ required-features = [
     "tokio",
     # "async-std"
 ]
+
 [[example]]
 name = "signal-service"
 path = "examples/signal-service.rs"

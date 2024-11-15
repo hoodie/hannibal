@@ -94,6 +94,7 @@ pub trait Service<S: Spawner<Self>>: Actor + Default {
         Self::from_registry_and_spawn()
     }
 
+    #[allow(clippy::async_yields_async)]
     fn from_registry_and_spawn() -> impl Future<Output = Addr<Self>> {
         async {
             let key = TypeId::of::<Self>();
