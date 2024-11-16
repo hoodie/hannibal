@@ -6,7 +6,7 @@ use std::{
 
 use futures::FutureExt as _;
 
-use super::{spawn_strategy::Spawner, *};
+use super::{spawner::Spawner, *};
 
 use crate::{environment::Environment, Addr};
 
@@ -151,7 +151,7 @@ pub trait SpawnableService<S: Spawner<Self>>: Service {
 impl<A, S> SpawnableService<S> for A
 where
     A: Service,
-    A: spawn_strategy::Spawnable<S>,
+    A: spawner::Spawnable<S>,
     S: Spawner<A>,
 {
 }
@@ -165,7 +165,7 @@ mod tests {
         use crate::{
             actor::tests::{spawned_with_tokio::TokioActor, Identify, Ping},
             prelude::Spawnable as _,
-            spawn_strategy::{SpawnableWith, TokioSpawner},
+            spawner::{SpawnableWith, TokioSpawner},
             Service,
         };
 
@@ -231,7 +231,7 @@ mod tests {
     mod spawned_with_asyncstd {
         use crate::{
             actor::tests::{spawned_with_asyncstd::AsyncStdActor, Identify, Ping},
-            spawn_strategy::{AsyncStdSpawner, SpawnableWith},
+            spawner::{AsyncStdSpawner, SpawnableWith},
             Service,
         };
 

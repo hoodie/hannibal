@@ -5,7 +5,7 @@ use crate::context::Context;
 #[cfg(any(feature = "tokio", feature = "async-std"))]
 mod builder;
 pub mod service;
-pub mod spawn_strategy;
+pub mod spawner;
 
 pub(crate) mod restart_strategy;
 pub use restart_strategy::RestartableActor;
@@ -25,7 +25,7 @@ pub trait Actor: Sized + Send + 'static {
 }
 
 #[cfg(any(feature = "tokio", feature = "async-std"))]
-pub fn build<A: Actor>(actor: A) -> builder::BaseActorBuilder<A, spawn_strategy::DefaultSpawner> {
+pub fn build<A: Actor>(actor: A) -> builder::BaseActorBuilder<A, spawner::DefaultSpawner> {
     builder::BaseActorBuilder::new(actor)
 }
 

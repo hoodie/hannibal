@@ -1,7 +1,7 @@
 use futures::channel::oneshot;
 
 use crate::{
-    actor::{spawn_strategy::Spawner, Actor},
+    actor::{spawner::Spawner, Actor},
     channel::WeakChanTx,
     environment::Payload,
     error::{ActorError::AlreadyStopped, Result},
@@ -70,7 +70,7 @@ mod task_handling {
     use futures::FutureExt;
     use std::{future::Future, time::Duration};
 
-    use crate::{actor::Actor, spawn_strategy::SpawnSelf, Context, Handler, Message};
+    use crate::{actor::Actor, spawner::SpawnSelf, Context, Handler, Message};
 
     /// Task Handling
     impl<A: Actor> Context<A> {

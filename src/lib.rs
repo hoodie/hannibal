@@ -11,7 +11,7 @@ mod handler;
 pub use self::{
     actor::{
         service::{self, Service},
-        spawn_strategy, Actor, DynResult, RestartableActor,
+        spawner, Actor, DynResult, RestartableActor,
     },
     addr::{sender::Sender, weak_caller::WeakCaller, weak_sender::WeakSender, Addr, Message},
     context::Context,
@@ -27,6 +27,6 @@ pub mod prelude {
         addr::{sender::Sender, weak_caller::WeakCaller, weak_sender::WeakSender, Addr, Message},
         context::Context,
         handler::{Handler, StreamHandler},
-        spawn_strategy::{Spawnable, StreamSpawnable},
+        spawner::{Spawnable, StreamSpawnable},
     };
 }

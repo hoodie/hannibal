@@ -10,7 +10,7 @@ use crate::{
 
 use super::{
     restart_strategy::{NonRestartable, RecreateFromDefault, RestartOnly, RestartStrategy},
-    spawn_strategy::Spawner,
+    spawner::Spawner,
     Actor, RestartableActor,
 };
 

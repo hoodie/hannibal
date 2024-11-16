@@ -15,7 +15,7 @@ use crate::{
     environment::Payload,
     error::Result,
     handler::Handler,
-    spawn_strategy::{ActorHandle, JoinFuture},
+    spawner::{ActorHandle, JoinFuture},
     RestartableActor,
 };
 

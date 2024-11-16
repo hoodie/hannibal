@@ -11,7 +11,7 @@ mod custom_spawner {
     use futures::task::SpawnExt as _;
     use minibal::{
         prelude::*,
-        spawn_strategy::{ActorHandle, JoinFuture, Spawner},
+        spawner::{ActorHandle, JoinFuture, Spawner},
         DynResult,
     };
 
@@ -73,7 +73,7 @@ mod custom_spawner {
 #[cfg(all(not(feature = "tokio"), not(feature = "async-std")))]
 fn main() {
     use custom_spawner::*;
-    use minibal::{prelude::Spawnable as _, spawn_strategy::SpawnableWith};
+    use minibal::{prelude::Spawnable as _, spawner::SpawnableWith};
     color_backtrace::install();
     futures::executor::block_on(async {
         let (mut _addr, _) = MyActor.spawn_with::<CustomSpawner>().unwrap();

@@ -173,6 +173,7 @@ mod tokio_spawner {
         }
     }
 }
+
 #[cfg(feature = "tokio")]
 pub use tokio_spawner::TokioSpawner;
 
@@ -259,7 +260,7 @@ mod tests {
     mod spawned_with_tokio {
         use crate::{
             actor::tests::{spawned_with_tokio::TokioActor, Ping},
-            spawn_strategy::{DefaultSpawnable, Spawnable, TokioSpawner},
+            spawner::{DefaultSpawnable, Spawnable, TokioSpawner},
         };
 
         #[tokio::test]
@@ -289,7 +290,7 @@ mod tests {
     mod spawned_with_asyncstd {
         use crate::{
             actor::tests::{spawned_with_asyncstd::AsyncStdActor, Ping},
-            spawn_strategy::{AsyncStdSpawner, DefaultSpawnable, Spawnable},
+            spawner::{AsyncStdSpawner, DefaultSpawnable, Spawnable},
         };
 
         #[async_std::test]
