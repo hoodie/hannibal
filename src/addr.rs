@@ -142,8 +142,16 @@ pub struct OwningAddr<A> {
 
 #[cfg_attr(not(any(feature = "tokio", feature = "async-std")), allow(dead_code))]
 impl<A: Actor> OwningAddr<A> {
+    pub(crate) fn new(addr: Addr<A>, handle: Box<dyn ActorHandle<A>>) -> Self {
+        OwningAddr { addr, handle }
+    }
     pub fn join(&mut self) -> JoinFuture<A> {
         self.handle.join()
+    }
+
+    pub fn stop_and_join(mut self) -> JoinFuture<A> {
+        self.addr.stop().unwrap();
+        self.join()
     }
 
     pub const fn as_addr(&self) -> &Addr<A> {
@@ -152,6 +160,12 @@ impl<A: Actor> OwningAddr<A> {
 
     pub fn to_addr(&self) -> Addr<A> {
         self.addr.clone()
+    }
+}
+
+impl<A> Into<Addr<A>> for OwningAddr<A> {
+    fn into(self) -> Addr<A> {
+        self.addr
     }
 }
 

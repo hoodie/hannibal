@@ -38,7 +38,9 @@ A minimalistic reimplementation of the [Hannibal](https://lib.rs/hannibal) actor
 - [ ] logging and console subscriber
 - [ ] test with rstest
 - [ ] stop reason
-- [ ] builder to configure
+- [x] owning addr
+   - returns actor again after stop
+- [x] builder to configure
   - channel capacity
   - restart strategy
 

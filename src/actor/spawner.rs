@@ -5,7 +5,7 @@ use std::time::Duration;
 )]
 use std::{future::Future, pin::Pin};
 
-use crate::{environment::Environment, Addr, StreamHandler};
+use crate::{addr::OwningAddr, environment::Environment, Addr, StreamHandler};
 
 #[cfg_attr(
     not(any(feature = "tokio", feature = "async-std")),
@@ -77,24 +77,21 @@ impl<A: Actor> SpawnableWith for A {}
 
 pub trait Spawnable<S: Spawner<Self>>: Actor {
     fn spawn(self) -> Addr<Self> {
-        self.spawn_and_get_handle().0
+        self.spawn_owning().into()
     }
 
     fn spawn_in(self, environment: Environment<Self>) -> Addr<Self> {
-        self.spawn_in_and_get_handle(environment).0
+        self.spawn_owning_in(environment).into()
     }
 
-    fn spawn_and_get_handle(self) -> (Addr<Self>, Box<dyn ActorHandle<Self>>) {
-        self.spawn_in_and_get_handle(Environment::unbounded())
+    fn spawn_owning(self) -> OwningAddr<Self> {
+        self.spawn_owning_in(Environment::unbounded())
     }
 
-    fn spawn_in_and_get_handle(
-        self,
-        environment: Environment<Self>,
-    ) -> (Addr<Self>, Box<dyn ActorHandle<Self>>) {
+    fn spawn_owning_in(self, environment: Environment<Self>) -> OwningAddr<Self> {
         let (event_loop, addr) = environment.create_loop(self);
         let handle = S::spawn_actor(event_loop);
-        (addr, handle)
+        OwningAddr::new(addr, handle)
     }
 }
 
@@ -119,30 +116,26 @@ where
     Self: StreamHandler<T::Item>,
 {
     fn spawn_on_stream(self, stream: T) -> crate::error::Result<Addr<Self>> {
-        Ok(self.spawn_on_stream_and_get_handle(stream)?.0)
+        Ok(self.spawn_owning_on_stream(stream)?.into())
     }
 
-    fn spawn_on_stream_and_get_handle(
-        self,
-        stream: T,
-    ) -> crate::error::Result<(Addr<Self>, Box<dyn ActorHandle<Self>>)> {
+    fn spawn_owning_on_stream(self, stream: T) -> crate::error::Result<OwningAddr<Self>> {
         let (event_loop, addr) = Environment::unbounded().create_loop_on_stream(self, stream);
         let handle = S::spawn_actor(event_loop);
         println!("spawned");
-        Ok((addr, handle))
+        Ok(OwningAddr::new(addr, handle))
     }
 }
 
 pub trait DefaultSpawnable<S: Spawner<Self>>: Actor + Default {
     fn spawn_default() -> crate::error::Result<Addr<Self>> {
-        Ok(Self::spawn_default_and_get_handle()?.0)
+        Ok(Self::spawn_owning()?.into())
     }
 
-    fn spawn_default_and_get_handle(
-    ) -> crate::error::Result<(Addr<Self>, Box<dyn ActorHandle<Self>>)> {
+    fn spawn_owning() -> crate::error::Result<OwningAddr<Self>> {
         let (event_loop, addr) = Environment::unbounded().create_loop(Self::default());
         let handle = S::spawn_actor(event_loop);
-        Ok((addr, handle))
+        Ok(OwningAddr::new(addr, handle))
     }
 }
 
