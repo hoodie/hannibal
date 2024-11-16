@@ -47,7 +47,7 @@ pub trait SpawnableWith: Actor {
     fn spawn_with<S: Spawner<Self>>(
         self,
     ) -> crate::error::Result<(Addr<Self>, DynActorHandle<Self>)> {
-        let (event_loop, addr) = Environment::unbounded().launch(self);
+        let (event_loop, addr) = Environment::unbounded().create_loop(self);
         let handle = S::spawn_actor(event_loop);
         Ok((addr, handle))
     }
@@ -56,7 +56,7 @@ pub trait SpawnableWith: Actor {
         self,
         environment: Environment<Self>,
     ) -> crate::error::Result<(Addr<Self>, DynActorHandle<Self>)> {
-        let (event_loop, addr) = environment.launch(self);
+        let (event_loop, addr) = environment.create_loop(self);
         let handle = S::spawn_actor(event_loop);
         Ok((addr, handle))
     }
@@ -81,7 +81,7 @@ pub trait Spawnable<S: Spawner<Self>>: Actor {
         self,
         environment: Environment<Self>,
     ) -> (Addr<Self>, DynActorHandle<Self>) {
-        let (event_loop, addr) = environment.launch(self);
+        let (event_loop, addr) = environment.create_loop(self);
         let handle = S::spawn_actor(event_loop);
         (addr, handle)
     }
@@ -115,7 +115,7 @@ where
         self,
         stream: T,
     ) -> crate::error::Result<(Addr<Self>, DynActorHandle<Self>)> {
-        let (event_loop, addr) = Environment::unbounded().launch_on_stream(self, stream);
+        let (event_loop, addr) = Environment::unbounded().create_loop_on_stream(self, stream);
         let handle = S::spawn_actor(event_loop);
         println!("spawned");
         Ok((addr, handle))
@@ -128,7 +128,7 @@ pub trait DefaultSpawnable<S: Spawner<Self>>: Actor + Default {
     }
 
     fn spawn_default_and_get_handle() -> crate::error::Result<(Addr<Self>, DynActorHandle<Self>)> {
-        let (event_loop, addr) = Environment::unbounded().launch(Self::default());
+        let (event_loop, addr) = Environment::unbounded().create_loop(Self::default());
         let handle = S::spawn_actor(event_loop);
         Ok((addr, handle))
     }

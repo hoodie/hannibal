@@ -160,7 +160,7 @@ where
         } = self;
 
         let env = environment::Environment::<A, R>::from_channel(channel).with_config(config);
-        let (event_loop, addr) = env.launch(actor);
+        let (event_loop, addr) = env.create_loop(actor);
         let handle = P::spawn_actor(event_loop);
         OwningAddr { addr, handle }
     }
@@ -173,7 +173,7 @@ where
         } = self;
 
         let env = environment::Environment::<A, R>::from_channel(channel).with_config(config);
-        let (event_loop, addr) = env.launch(actor);
+        let (event_loop, addr) = env.create_loop(actor);
         let _handle = P::spawn_actor(event_loop);
         addr
     }
@@ -213,7 +213,7 @@ where
 
         let env = environment::Environment::<A, NonRestartable>::from_channel(channel)
             .with_config(config);
-        let (event_loop, addr) = env.launch_on_stream(actor, stream);
+        let (event_loop, addr) = env.create_loop_on_stream(actor, stream);
         let _handle = P::spawn_actor(event_loop);
         addr
     }

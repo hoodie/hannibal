@@ -210,7 +210,7 @@ mod tests {
     }
 
     pub fn start<A: Actor>(actor: A) -> (impl Future<Output = DynResult<A>>, Addr<A>) {
-        let (event_loop, addr) = Environment::unbounded().launch(actor);
+        let (event_loop, addr) = Environment::unbounded().create_loop(actor);
         (event_loop, addr)
     }
 

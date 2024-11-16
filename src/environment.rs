@@ -89,7 +89,10 @@ async fn timeout_fut(
 }
 
 impl<A: Actor, R: RestartStrategy<A>> Environment<A, R> {
-    pub fn launch(mut self, mut actor: A) -> (impl Future<Output = crate::DynResult<A>>, Addr<A>) {
+    pub fn create_loop(
+        mut self,
+        mut actor: A,
+    ) -> (impl Future<Output = crate::DynResult<A>>, Addr<A>) {
         let actor_loop = async move {
             actor.started(&mut self.ctx).await?;
 
@@ -122,7 +125,7 @@ impl<A: Actor, R: RestartStrategy<A>> Environment<A, R> {
         (actor_loop, self.addr)
     }
 
-    pub fn launch_on_stream<S>(
+    pub fn create_loop_on_stream<S>(
         mut self,
         mut actor: A,
         mut stream: S,
@@ -236,7 +239,7 @@ mod tests {
 
         #[tokio::test]
         async fn calls_actor_started() {
-            let (event_loop, mut addr) = Environment::unbounded().launch(GoodActor::default());
+            let (event_loop, mut addr) = Environment::unbounded().create_loop(GoodActor::default());
             let task = tokio::spawn(event_loop);
             addr.stop().unwrap();
             let actor = task.await.unwrap().unwrap();
@@ -245,7 +248,7 @@ mod tests {
 
         #[tokio::test]
         async fn calls_actor_stopped() {
-            let (event_loop, mut addr) = Environment::unbounded().launch(GoodActor::default());
+            let (event_loop, mut addr) = Environment::unbounded().create_loop(GoodActor::default());
             let task = tokio::spawn(event_loop);
             addr.stop().unwrap();
             let actor = task.await.unwrap().unwrap();
@@ -254,7 +257,7 @@ mod tests {
 
         #[tokio::test]
         async fn start_can_fail() {
-            let (event_loop, mut addr) = Environment::unbounded().launch(BadActor);
+            let (event_loop, mut addr) = Environment::unbounded().create_loop(BadActor);
             let task = tokio::spawn(event_loop);
             addr.stop().unwrap();
             let error = task.await.unwrap().map(|_| ()).map_err(|e| e.to_string());
@@ -271,7 +274,7 @@ mod tests {
             A: StreamHandler<i32>,
         {
             let counter = futures::stream::iter(0..100);
-            Environment::unbounded().launch_on_stream(A::default(), counter)
+            Environment::unbounded().create_loop_on_stream(A::default(), counter)
         }
 
         #[tokio::test]
@@ -361,7 +364,7 @@ mod tests {
         #[tokio::test]
         async fn restarts_actor() {
             let counter = RestartCounter::new();
-            let (event_loop, mut addr) = Environment::unbounded().launch(counter);
+            let (event_loop, mut addr) = Environment::unbounded().create_loop(counter);
             let task = tokio::spawn(event_loop);
             addr.restart().unwrap();
             addr.restart().unwrap();
@@ -374,7 +377,7 @@ mod tests {
         #[tokio::test]
         async fn recreates_actor() {
             let counter = RestartCounter::new();
-            let (event_loop, mut addr) = Environment::unbounded().recreating().launch(counter);
+            let (event_loop, mut addr) = Environment::unbounded().recreating().create_loop(counter);
             let task = tokio::spawn(event_loop);
             addr.restart().unwrap();
             addr.restart().unwrap();

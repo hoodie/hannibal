@@ -109,7 +109,7 @@ pub trait Service<S: Spawner<Self>>: Actor + Default {
             {
                 addr
             } else {
-                let (event_loop, addr) = Environment::unbounded().launch(Self::default());
+                let (event_loop, addr) = Environment::unbounded().create_loop(Self::default());
                 S::spawn_actor(event_loop);
                 registry.insert(key, Box::new(addr.clone()));
                 addr
@@ -135,7 +135,7 @@ pub trait SpawnableService<S: Spawner<Self>>: Service {
             {
                 addr
             } else {
-                let (event_loop, addr) = Environment::unbounded().launch(Self::default());
+                let (event_loop, addr) = Environment::unbounded().create_loop(Self::default());
                 S::spawn_actor(event_loop);
                 registry.insert(key, Box::new(addr.clone()));
                 addr
