@@ -15,7 +15,6 @@ use super::{Actor, DynResult};
 
 pub type JoinFuture<A> = Pin<Box<dyn Future<Output = Option<A>> + Send>>;
 
-pub(crate) type DynActorHandle<A> = Box<dyn ActorHandle<A>>;
 pub trait ActorHandle<A: Actor>: Send + Sync {
     fn join(&mut self) -> JoinFuture<A>;
 }
@@ -46,7 +45,7 @@ pub trait Spawner<A: Actor> {
 pub trait SpawnableWith: Actor {
     fn spawn_with<S: Spawner<Self>>(
         self,
-    ) -> crate::error::Result<(Addr<Self>, DynActorHandle<Self>)> {
+    ) -> crate::error::Result<(Addr<Self>, Box<dyn ActorHandle<Self>>)> {
         let (event_loop, addr) = Environment::unbounded().create_loop(self);
         let handle = S::spawn_actor(event_loop);
         Ok((addr, handle))
@@ -55,7 +54,7 @@ pub trait SpawnableWith: Actor {
     fn spawn_with_in<S: Spawner<Self>>(
         self,
         environment: Environment<Self>,
-    ) -> crate::error::Result<(Addr<Self>, DynActorHandle<Self>)> {
+    ) -> crate::error::Result<(Addr<Self>, Box<dyn ActorHandle<Self>>)> {
         let (event_loop, addr) = environment.create_loop(self);
         let handle = S::spawn_actor(event_loop);
         Ok((addr, handle))
@@ -73,14 +72,14 @@ pub trait Spawnable<S: Spawner<Self>>: Actor {
         self.spawn_in_and_get_handle(environment).0
     }
 
-    fn spawn_and_get_handle(self) -> (Addr<Self>, DynActorHandle<Self>) {
+    fn spawn_and_get_handle(self) -> (Addr<Self>, Box<dyn ActorHandle<Self>>) {
         self.spawn_in_and_get_handle(Environment::unbounded())
     }
 
     fn spawn_in_and_get_handle(
         self,
         environment: Environment<Self>,
-    ) -> (Addr<Self>, DynActorHandle<Self>) {
+    ) -> (Addr<Self>, Box<dyn ActorHandle<Self>>) {
         let (event_loop, addr) = environment.create_loop(self);
         let handle = S::spawn_actor(event_loop);
         (addr, handle)
@@ -114,7 +113,7 @@ where
     fn spawn_on_stream_and_get_handle(
         self,
         stream: T,
-    ) -> crate::error::Result<(Addr<Self>, DynActorHandle<Self>)> {
+    ) -> crate::error::Result<(Addr<Self>, Box<dyn ActorHandle<Self>>)> {
         let (event_loop, addr) = Environment::unbounded().create_loop_on_stream(self, stream);
         let handle = S::spawn_actor(event_loop);
         println!("spawned");
@@ -127,7 +126,8 @@ pub trait DefaultSpawnable<S: Spawner<Self>>: Actor + Default {
         Ok(Self::spawn_default_and_get_handle()?.0)
     }
 
-    fn spawn_default_and_get_handle() -> crate::error::Result<(Addr<Self>, DynActorHandle<Self>)> {
+    fn spawn_default_and_get_handle(
+    ) -> crate::error::Result<(Addr<Self>, Box<dyn ActorHandle<Self>>)> {
         let (event_loop, addr) = Environment::unbounded().create_loop(Self::default());
         let handle = S::spawn_actor(event_loop);
         Ok((addr, handle))

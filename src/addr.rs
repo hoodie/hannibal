@@ -15,7 +15,7 @@ use crate::{
     environment::Payload,
     error::Result,
     handler::Handler,
-    spawn_strategy::{DynActorHandle, JoinFuture},
+    spawn_strategy::{ActorHandle, JoinFuture},
     RestartableActor,
 };
 
@@ -137,7 +137,7 @@ impl<A> Future for Addr<A> {
 
 pub struct OwningAddr<A> {
     pub(crate) addr: Addr<A>,
-    pub(crate) handle: DynActorHandle<A>,
+    pub(crate) handle: Box<dyn ActorHandle<A>>,
 }
 
 #[cfg_attr(not(any(feature = "tokio", feature = "async-std")), allow(dead_code))]
