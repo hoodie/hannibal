@@ -11,14 +11,14 @@ mod custom_spawner {
     use futures::task::SpawnExt as _;
     use minibal::{
         prelude::*,
-        spawn_strategy::{JoinFuture, Joiner, Spawner},
+        spawn_strategy::{ActorHandle, JoinFuture, Spawner},
         DynResult,
     };
 
     pub struct CustomSpawner;
 
     impl<A: Actor> Spawner<A> for CustomSpawner {
-        fn spawn_actor<F>(future: F) -> Box<dyn Joiner<A>>
+        fn spawn_actor<F>(future: F) -> Box<dyn ActorHandle<A>>
         where
             F: Future<Output = DynResult<A>> + Send + 'static,
         {
@@ -77,12 +77,12 @@ fn main() {
     color_backtrace::install();
     futures::executor::block_on(async {
         let (mut _addr, _) = MyActor.spawn_with::<CustomSpawner>().unwrap();
-        let (mut addr, mut joiner) = MyActor.spawn_and_get_joiner();
+        let (mut addr, mut handle) = MyActor.spawn_and_get_handle();
 
         addr.stop().unwrap();
         eprintln!("Actor asked to stop");
         addr.await.unwrap();
-        joiner.join().await;
+        handle.join().await;
         eprintln!("Actor stopped");
     })
 }

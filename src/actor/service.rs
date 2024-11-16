@@ -172,12 +172,12 @@ mod tests {
         #[tokio::test]
         async fn register_as_service() {
             type Svc = TokioActor<u32>;
-            let (addr, mut joiner) = Svc::new(1337).spawn_with::<TokioSpawner>().unwrap();
+            let (addr, mut handle) = Svc::new(1337).spawn_with::<TokioSpawner>().unwrap();
             let (mut addr, _) = addr.register().await.unwrap();
             assert_eq!(addr.call(Identify).await.unwrap(), 1337);
             assert_eq!(addr.call(Identify).await.unwrap(), 1337);
             addr.stop().unwrap();
-            joiner.join().await.unwrap();
+            handle.join().await.unwrap();
         }
 
         #[tokio::test]
@@ -238,14 +238,14 @@ mod tests {
         #[async_std::test]
         async fn register_as_service() {
             type Svc = AsyncStdActor<u32>;
-            let (addr, mut joiner) = Svc::new(1337).spawn_with::<AsyncStdSpawner>().unwrap();
+            let (addr, mut handle) = Svc::new(1337).spawn_with::<AsyncStdSpawner>().unwrap();
             addr.register().await.unwrap();
             let mut svc_addr = Svc::from_registry().await;
             assert_eq!(svc_addr.call(Identify).await.unwrap(), 1337);
             assert_eq!(svc_addr.call(Identify).await.unwrap(), 1337);
 
             svc_addr.stop().unwrap();
-            joiner.join().await.unwrap();
+            handle.join().await.unwrap();
         }
 
         #[tokio::test]

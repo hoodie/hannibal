@@ -161,8 +161,8 @@ where
 
         let env = environment::Environment::<A, R>::from_channel(channel).with_config(config);
         let (event_loop, addr) = env.launch(actor);
-        let joiner = P::spawn_actor(event_loop);
-        OwningAddr { addr, joiner }
+        let handle = P::spawn_actor(event_loop);
+        OwningAddr { addr, handle }
     }
 
     pub fn spawn(self) -> Addr<A> {
@@ -174,7 +174,7 @@ where
 
         let env = environment::Environment::<A, R>::from_channel(channel).with_config(config);
         let (event_loop, addr) = env.launch(actor);
-        let _joiner = P::spawn_actor(event_loop);
+        let _handle = P::spawn_actor(event_loop);
         addr
     }
 }
@@ -214,7 +214,7 @@ where
         let env = environment::Environment::<A, NonRestartable>::from_channel(channel)
             .with_config(config);
         let (event_loop, addr) = env.launch_on_stream(actor, stream);
-        let _joiner = P::spawn_actor(event_loop);
+        let _handle = P::spawn_actor(event_loop);
         addr
     }
 }

@@ -15,7 +15,7 @@ use crate::{
     environment::Payload,
     error::Result,
     handler::Handler,
-    spawn_strategy::{DynJoiner, JoinFuture},
+    spawn_strategy::{DynActorHandle, JoinFuture},
     RestartableActor,
 };
 
@@ -137,13 +137,13 @@ impl<A> Future for Addr<A> {
 
 pub struct OwningAddr<A> {
     pub(crate) addr: Addr<A>,
-    pub(crate) joiner: DynJoiner<A>,
+    pub(crate) handle: DynActorHandle<A>,
 }
 
 #[cfg_attr(not(any(feature = "tokio", feature = "async-std")), allow(dead_code))]
 impl<A: Actor> OwningAddr<A> {
     pub fn join(&mut self) -> JoinFuture<A> {
-        self.joiner.join()
+        self.handle.join()
     }
 
     pub const fn as_addr(&self) -> &Addr<A> {
