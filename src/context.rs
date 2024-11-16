@@ -70,7 +70,7 @@ mod task_handling {
     use futures::FutureExt;
     use std::{future::Future, time::Duration};
 
-    use crate::{actor::Actor, spawn_strategy::SpawnableHack, Context, Handler, Message};
+    use crate::{actor::Actor, spawn_strategy::SpawnSelf, Context, Handler, Message};
 
     /// Task Handling
     impl<A: Actor> Context<A> {

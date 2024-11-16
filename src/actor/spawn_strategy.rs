@@ -87,7 +87,7 @@ pub trait Spawnable<S: Spawner<Self>>: Actor {
 }
 
 #[cfg(any(feature = "tokio", feature = "async-std"))]
-pub(crate) trait SpawnableHack<S: Spawner<Self>>: Actor {
+pub(crate) trait SpawnSelf<S: Spawner<Self>>: Actor {
     fn spawn_future<F>(future: F)
     where
         F: Future<Output = ()> + Send + 'static,
@@ -223,7 +223,7 @@ pub use async_spawner::AsyncStdSpawner;
 macro_rules! impl_spawn_traits {
     ($spawner_type:ty) => {
         impl<A> Spawnable<$spawner_type> for A where A: Actor {}
-        impl<A> SpawnableHack<$spawner_type> for A where A: Actor {}
+        impl<A> SpawnSelf<$spawner_type> for A where A: Actor {}
 
         impl<A, T> StreamSpawnable<$spawner_type, T> for A
         where
