@@ -23,7 +23,7 @@ impl<M: Message> Caller<M> {
         self.downgrade_fn.downgrade()
     }
 
-    pub(crate) fn from_tx<A>(tx: ChanTx<A>, id: ContextID) -> Self
+    pub(crate) fn new<A>(tx: ChanTx<A>, id: ContextID) -> Self
     where
         A: Actor + Handler<M>,
     {
@@ -47,7 +47,7 @@ impl<M: Message> Caller<M> {
             },
         );
 
-        let upgrade = Box::new(move || weak_tx.upgrade().map(|tx| Caller::from_tx(tx, id)));
+        let upgrade = Box::new(move || weak_tx.upgrade().map(|tx| Caller::new(tx, id)));
 
         let downgrade_fn = Box::new(move || WeakCaller {
             upgrade: upgrade.clone(),
@@ -82,7 +82,7 @@ where
     A: Actor + Handler<M>,
 {
     fn from(addr: Addr<A>) -> Self {
-        Caller::from_tx(addr.payload_tx.to_owned(), addr.context_id)
+        Caller::new(addr.payload_tx.to_owned(), addr.context_id)
     }
 }
 

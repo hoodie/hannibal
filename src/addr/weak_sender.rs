@@ -29,7 +29,7 @@ impl<M: Message<Result = ()>> WeakSender<M> {
         }
     }
 
-    fn from_tx<A>(tx: ChanTx<A>, id: ContextID) -> Self
+    fn new<A>(tx: ChanTx<A>, id: ContextID) -> Self
     where
         A: Actor + Handler<M>,
         M: Message<Result = ()>,
@@ -42,7 +42,7 @@ impl<M: Message<Result = ()>> WeakSender<M> {
         A: Actor + Handler<M>,
         M: Message<Result = ()>,
     {
-        let upgrade = Box::new(move || weak_tx.upgrade().map(|tx| Sender::from_tx(tx, id)));
+        let upgrade = Box::new(move || weak_tx.upgrade().map(|tx| Sender::new(tx, id)));
 
         WeakSender { upgrade, id }
     }
@@ -53,7 +53,7 @@ where
     A: Actor + Handler<M>,
 {
     fn from(addr: Addr<A>) -> Self {
-        Self::from_tx(addr.payload_tx.to_owned(), addr.context_id)
+        Self::new(addr.payload_tx.to_owned(), addr.context_id)
     }
 }
 
@@ -62,7 +62,7 @@ where
     A: Actor + Handler<M>,
 {
     fn from(addr: &Addr<A>) -> Self {
-        Self::from_tx(addr.payload_tx.to_owned(), addr.context_id)
+        Self::new(addr.payload_tx.to_owned(), addr.context_id)
     }
 }
 

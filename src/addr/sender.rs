@@ -9,7 +9,7 @@ use super::{weak_sender::WeakSender, Addr, Message, Payload, Result};
 pub struct Sender<M: Message<Result = ()>> {
     send_fn: Box<dyn SenderFn<M>>,
     downgrade_fn: Box<dyn DowngradeFn<M>>,
-    id: ContextID
+    id: ContextID,
 }
 
 impl<M: Message<Result = ()>> Sender<M> {
@@ -21,7 +21,7 @@ impl<M: Message<Result = ()>> Sender<M> {
         self.downgrade_fn.downgrade()
     }
 
-    pub(crate) fn from_tx<A>(tx: ChanTx<A>, id: ContextID) -> Self
+    pub(crate) fn new<A>(tx: ChanTx<A>, id: ContextID) -> Self
     where
         A: Actor + Handler<M>,
     {
@@ -33,7 +33,7 @@ impl<M: Message<Result = ()>> Sender<M> {
             }))
         });
 
-        let upgrade = Box::new(move || weak_tx.upgrade().map(|tx| Sender::from_tx(tx, id)));
+        let upgrade = Box::new(move || weak_tx.upgrade().map(|tx| Sender::new(tx, id)));
 
         let downgrade_fn = Box::new(move || WeakSender {
             upgrade: upgrade.clone(),
@@ -67,7 +67,7 @@ where
     A: Actor + Handler<M>,
 {
     fn from(addr: Addr<A>) -> Self {
-        Sender::from_tx(addr.payload_tx.to_owned(), addr.context_id)
+        Sender::new(addr.payload_tx.to_owned(), addr.context_id)
     }
 }
 
@@ -76,7 +76,7 @@ where
     A: Actor + Handler<M>,
 {
     fn from(addr: &Addr<A>) -> Self {
-        Sender::from_tx(addr.payload_tx.to_owned(), addr.context_id)
+        Sender::new(addr.payload_tx.to_owned(), addr.context_id)
     }
 }
 
