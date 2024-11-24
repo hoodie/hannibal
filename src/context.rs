@@ -8,6 +8,7 @@ use crate::{
     prelude::Spawnable,
     Handler, RestartableActor, Sender,
 };
+pub use id::ContextID;
 
 pub type RunningFuture = futures::future::Shared<oneshot::Receiver<()>>;
 pub struct StopNotifier(pub(crate) oneshot::Sender<()>);
@@ -17,7 +18,31 @@ impl StopNotifier {
     }
 }
 
+mod id {
+    use std::sync::{atomic::AtomicU64, LazyLock};
+    static CONTEXT_ID: LazyLock<AtomicU64> = LazyLock::new(|| AtomicU64::new(0));
+
+    #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+    pub struct ContextID(u64);
+
+    impl Default for ContextID {
+        fn default() -> Self {
+            Self(CONTEXT_ID.fetch_add(1, std::sync::atomic::Ordering::Relaxed))
+        }
+    }
+
+    #[test]
+    fn ids_go_up() {
+        let id1 = ContextID::default();
+        let id2 = ContextID::default();
+        let id3 = ContextID::default();
+        assert!(id1 < id2);
+        assert!(id2 < id3);
+    }
+}
+
 pub struct Context<A> {
+    pub(crate) id: ContextID,
     pub(crate) weak_tx: WeakChanTx<A>,
     pub(crate) running: RunningFuture,
     pub(crate) children: Vec<Sender<()>>,
@@ -61,7 +86,7 @@ impl<A: Actor> Context<A> {
     where
         A: Handler<M>,
     {
-        crate::WeakSender::from_weak_tx(std::sync::Weak::clone(&self.weak_tx))
+        crate::WeakSender::from_weak_tx(std::sync::Weak::clone(&self.weak_tx), self.id)
     }
 }
 

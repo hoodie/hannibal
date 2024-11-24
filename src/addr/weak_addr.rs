@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use dyn_clone::DynClone;
 
-use crate::context::RunningFuture;
+use crate::context::{ContextID, RunningFuture};
 #[allow(unused)]
 use crate::{
     channel::{ChanTx, WeakChanTx},
@@ -11,6 +11,7 @@ use crate::{
 };
 
 pub struct WeakAddr<A: Actor> {
+    pub(crate) context_id: ContextID,
     pub(super) upgrade: Box<dyn UpgradeFn<A>>,
     pub(crate) running: RunningFuture,
 }
@@ -28,23 +29,30 @@ impl<A: Actor> WeakAddr<A> {
 impl<A: Actor> From<&Addr<A>> for WeakAddr<A> {
     fn from(addr: &Addr<A>) -> Self {
         let weak_tx = Arc::downgrade(&addr.payload_tx);
+        let context_id = addr.context_id;
         let running = addr.running.clone();
         let running_inner = addr.running.clone();
         let upgrade = Box::new(move || {
             let running = running_inner.clone();
             weak_tx.upgrade().map(|payload_tx| Addr {
+                context_id,
                 payload_tx,
                 running,
             })
         });
 
-        WeakAddr { upgrade, running }
+        WeakAddr {
+            context_id,
+            upgrade,
+            running,
+        }
     }
 }
 
 impl<A: Actor> Clone for WeakAddr<A> {
     fn clone(&self) -> Self {
         WeakAddr {
+            context_id: self.context_id,
             upgrade: dyn_clone::clone_box(&*self.upgrade),
             running: self.running.clone(),
         }

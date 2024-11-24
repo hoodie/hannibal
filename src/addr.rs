@@ -11,7 +11,7 @@ pub mod weak_sender;
 use crate::{
     actor::Actor,
     channel::ChanTx,
-    context::RunningFuture,
+    context::{ContextID, RunningFuture},
     environment::Payload,
     error::Result,
     handler::Handler,
@@ -28,6 +28,7 @@ impl Message for () {
 }
 
 pub struct Addr<A> {
+    pub(crate) context_id: ContextID,
     pub(crate) payload_tx: ChanTx<A>,
     pub(crate) running: RunningFuture,
 }
@@ -35,6 +36,7 @@ pub struct Addr<A> {
 impl<A: Actor> Clone for Addr<A> {
     fn clone(&self) -> Self {
         Addr {
+            context_id: self.context_id,
             payload_tx: Arc::clone(&self.payload_tx),
             running: self.running.clone(),
         }

@@ -35,6 +35,7 @@ impl<A: Actor, R: RestartStrategy<A>> Environment<A, R> {
     pub(crate) fn from_channel(channel: Channel<A>) -> Self {
         let (tx_running, rx_running) = oneshot::channel::<()>();
         let ctx = Context {
+            id: Default::default(),
             weak_tx: channel.weak_tx(),
             running: futures::FutureExt::shared(rx_running),
             children: Default::default(),
@@ -44,6 +45,7 @@ impl<A: Actor, R: RestartStrategy<A>> Environment<A, R> {
         let stop = StopNotifier(tx_running);
 
         let addr = Addr {
+            context_id: ctx.id,
             payload_tx,
             running: ctx.running.clone(),
         };
