@@ -82,6 +82,15 @@ pub trait Service: Actor + Default {
     fn from_registry() -> impl Future<Output = Addr<Self>> {
         Self::from_registry_and_spawn()
     }
+    fn try_from_registry() -> Option<Addr<Self>> {
+        let key = TypeId::of::<Self>();
+        REGISTRY
+            .try_read()?
+            .get(&key)
+            .and_then(|addr| addr.downcast_ref::<Addr<Self>>())
+            .filter(|addr| addr.running())
+            .cloned()
+    }
 }
 
 #[cfg(not(any(feature = "tokio", feature = "async-std")))]
@@ -125,7 +134,7 @@ pub trait SpawnableService<S: Spawner<Self>>: Service {
         async {
             let key = TypeId::of::<Self>();
 
-            let mut registry = REGISTRY.write().await;
+            let mut registry = REGISTRY.write().await; // this is the only reason for the async block
 
             if let Some(addr) = registry
                 .get_mut(&key)

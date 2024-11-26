@@ -6,6 +6,7 @@ mod environment;
 pub mod error;
 
 mod handler;
+mod broker;
 
 // TODO: flatten module structure
 pub use self::{
@@ -13,6 +14,7 @@ pub use self::{
         service::{self, Service},
         spawner, Actor, DynResult, RestartableActor,
     },
+    broker::Broker,
     addr::{sender::Sender, weak_caller::WeakCaller, weak_sender::WeakSender, Addr, Message},
     context::Context,
     handler::{Handler, StreamHandler},

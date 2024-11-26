@@ -1,12 +1,13 @@
 use futures::channel::oneshot;
 
+
 use crate::{
     actor::{spawner::Spawner, Actor},
     channel::WeakChanTx,
     environment::Payload,
     error::{ActorError::AlreadyStopped, Result},
     prelude::Spawnable,
-    Handler, RestartableActor, Sender,
+    Broker, Handler, RestartableActor, Sender,
 };
 pub use id::ContextID;
 
@@ -87,6 +88,20 @@ impl<A: Actor> Context<A> {
         A: Handler<M>,
     {
         crate::WeakSender::from_weak_tx(std::sync::Weak::clone(&self.weak_tx), self.id)
+    }
+
+    pub async fn publish<M: crate::Message<Result = ()> + Clone>(&self, message: M) -> Result<()>
+    where
+        A: Handler<M>,
+    {
+        Broker::publish(message).await
+    }
+
+    pub async fn subscribe<M: crate::Message<Result = ()> + Clone>(&mut self) -> Result<()>
+    where
+        A: Handler<M>,
+    {
+        Broker::subscribe(self.weak_sender()).await
     }
 }
 
