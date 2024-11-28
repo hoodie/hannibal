@@ -1,4 +1,3 @@
-#![cfg(feature = "tokio")]
 use minibal::prelude::*;
 
 #[derive(Debug)]

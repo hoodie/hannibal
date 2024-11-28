@@ -6,7 +6,7 @@ use crate::{
     environment::Payload,
     error::{ActorError::AlreadyStopped, Result},
     prelude::Spawnable,
-    Broker, Handler, RestartableActor, Sender,
+    Handler, RestartableActor, Sender,
 };
 pub use id::ContextID;
 
@@ -43,6 +43,7 @@ mod id {
 
 pub struct Context<A> {
     pub(crate) id: ContextID,
+    #[allow(dead_code)]
     pub(crate) weak_tx: WeakChanTx<A>,
     pub(crate) weak_force_tx: WeakForceChanTx<A>,
     pub(crate) running: RunningFuture,
@@ -94,18 +95,20 @@ impl<A: Actor> Context<A> {
         )
     }
 
+    #[cfg(any(feature = "tokio", feature = "async-std"))]
     pub async fn publish<M: crate::Message<Result = ()> + Clone>(&self, message: M) -> Result<()>
     where
         A: Handler<M>,
     {
-        Broker::publish(message).await
+        crate::Broker::publish(message).await
     }
 
+    #[cfg(any(feature = "tokio", feature = "async-std"))]
     pub async fn subscribe<M: crate::Message<Result = ()> + Clone>(&mut self) -> Result<()>
     where
         A: Handler<M>,
     {
-        Broker::subscribe(self.weak_sender()).await
+        crate::Broker::subscribe(self.weak_sender()).await
     }
 }
 

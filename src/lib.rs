@@ -6,6 +6,7 @@ mod environment;
 pub mod error;
 
 mod handler;
+#[cfg(any(feature = "tokio", feature = "async-std"))]
 mod broker;
 
 // TODO: flatten module structure
@@ -14,7 +15,6 @@ pub use self::{
         service::{self, Service},
         spawner, Actor, DynResult, RestartableActor,
     },
-    broker::Broker,
     addr::{sender::Sender, weak_caller::WeakCaller, weak_sender::WeakSender, Addr, Message},
     context::Context,
     handler::{Handler, StreamHandler},
@@ -22,6 +22,9 @@ pub use self::{
 
 #[cfg(any(feature = "tokio", feature = "async-std"))]
 pub use actor::build;
+
+#[cfg(any(feature = "tokio", feature = "async-std"))]
+pub use broker::Broker;
 
 pub mod prelude {
     pub use crate::{

@@ -77,12 +77,9 @@ fn main() {
     color_backtrace::install();
     futures::executor::block_on(async {
         let (mut _addr, _) = MyActor.spawn_with::<CustomSpawner>().unwrap();
-        let (mut addr, mut handle) = MyActor.spawn_and_get_handle();
+        let mut addr = MyActor.spawn_owning();
 
-        addr.stop().unwrap();
-        eprintln!("Actor asked to stop");
-        addr.await.unwrap();
-        handle.join().await;
+        addr.join().await;
         eprintln!("Actor stopped");
     })
 }

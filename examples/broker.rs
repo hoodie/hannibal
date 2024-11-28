@@ -17,7 +17,7 @@ struct Subscribing(Vec<u32>);
 
 impl Actor for Subscribing {
     async fn started(&mut self, ctx: &mut Context<Self>) -> DynResult<()> {
-        ctx.subscribe::<Topic1>().await.unwrap();
+        ctx.subscribe::<Topic1>().await?;
         Ok(())
     }
 }
