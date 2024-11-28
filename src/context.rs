@@ -1,9 +1,8 @@
 use futures::channel::oneshot;
 
-
 use crate::{
     actor::{spawner::Spawner, Actor},
-    channel::WeakChanTx,
+    channel::{WeakChanTx, WeakForceChanTx},
     environment::Payload,
     error::{ActorError::AlreadyStopped, Result},
     prelude::Spawnable,
@@ -45,6 +44,7 @@ mod id {
 pub struct Context<A> {
     pub(crate) id: ContextID,
     pub(crate) weak_tx: WeakChanTx<A>,
+    pub(crate) weak_force_tx: WeakForceChanTx<A>,
     pub(crate) running: RunningFuture,
     pub(crate) children: Vec<Sender<()>>,
     pub(crate) tasks: Vec<futures::future::AbortHandle>,
@@ -60,7 +60,7 @@ impl<A> Drop for Context<A> {
 
 impl<A: Actor> Context<A> {
     pub fn stop(&self) -> Result<()> {
-        if let Some(tx) = self.weak_tx.upgrade() {
+        if let Some(tx) = self.weak_force_tx.upgrade() {
             Ok(tx.send(Payload::Stop)?)
         } else {
             Err(AlreadyStopped)
@@ -87,7 +87,11 @@ impl<A: Actor> Context<A> {
     where
         A: Handler<M>,
     {
-        crate::WeakSender::from_weak_tx(std::sync::Weak::clone(&self.weak_tx), self.id)
+        crate::WeakSender::from_weak_tx(
+            std::sync::Weak::clone(&self.weak_tx),
+            std::sync::Weak::clone(&self.weak_force_tx),
+            self.id,
+        )
     }
 
     pub async fn publish<M: crate::Message<Result = ()> + Clone>(&self, message: M) -> Result<()>
@@ -165,7 +169,7 @@ mod task_handling {
             self.spawn_task(async move {
                 A::sleep(duration).await;
 
-                if myself.try_send(message_fn()).is_err() {
+                if myself.try_send(message_fn()).await.is_err() {
                     // log::warn!("Failed to send message");
                 }
             })
@@ -175,7 +179,7 @@ mod task_handling {
 
 impl<A: RestartableActor> Context<A> {
     pub fn restart(&self) -> Result<()> {
-        if let Some(tx) = self.weak_tx.upgrade() {
+        if let Some(tx) = self.weak_force_tx.upgrade() {
             Ok(tx.send(Payload::Restart)?)
         } else {
             Err(AlreadyStopped)

@@ -8,15 +8,20 @@ pub struct Broker<T: Message<Result = ()>> {
 
 impl<T: Message<Result = ()> + Clone> Broker<T> {
     pub async fn publish(topic: T) -> crate::error::Result<()> {
-        Self::from_registry().await.publish(topic)
+        Self::from_registry().await.publish(topic).await
     }
 
-    pub fn try_publish(topic: T) -> Option<crate::error::Result<()>> {
-        Self::try_from_registry().map(|broker| broker.publish(topic))
+    pub async fn try_publish(topic: T) -> Option<crate::error::Result<()>> {
+        // Self::try_from_registry().map(|broker| broker.publish(topic))
+        if let Some(broker) = Self::try_from_registry() {
+            Some(broker.publish(topic).await)
+        } else {
+            None
+        }
     }
 
     pub async fn subscribe(sender: WeakSender<T>) -> crate::error::Result<()> {
-        Self::from_registry().await.subscribe(sender)
+        Self::from_registry().await.subscribe(sender).await
     }
 }
 
@@ -40,7 +45,7 @@ impl<T: Message> Message for Publish<T> {
 impl<T: Message<Result = ()> + Clone> Handler<Publish<T>> for Broker<T> {
     async fn handle(&mut self, _ctx: &mut Context<Self>, msg: Publish<T>) {
         for subscriber in self.subscribers.values().filter_map(|w| w.upgrade()) {
-            if let Err(_error) = subscriber.send(msg.0.clone()) {
+            if let Err(_error) = subscriber.send(msg.0.clone()).await {
                 // log::warn!("Failed to send message to subscriber: {:?}", error)
             }
         }
@@ -75,16 +80,16 @@ impl<T: Message<Result = ()> + Clone> Handler<Unsubscribe<T>> for Broker<T> {
 }
 
 impl<T: Message<Result = ()> + Clone> Addr<Broker<T>> {
-    pub fn publish(&self, msg: T) -> crate::error::Result<()> {
-        self.send(Publish(msg))
+    pub async fn publish(&self, msg: T) -> crate::error::Result<()> {
+        self.send(Publish(msg)).await
     }
 
-    pub fn subscribe(&self, sender: WeakSender<T>) -> crate::error::Result<()> {
-        self.send(Subscribe(sender))
+    pub async fn subscribe(&self, sender: WeakSender<T>) -> crate::error::Result<()> {
+        self.send(Subscribe(sender)).await
     }
 
-    pub fn unsubscribe(&self, sender: WeakSender<T>) -> crate::error::Result<()> {
-        self.send(Unsubscribe(sender))
+    pub async fn unsubscribe(&self, sender: WeakSender<T>) -> crate::error::Result<()> {
+        self.send(Unsubscribe(sender)).await
     }
 }
 
@@ -157,8 +162,12 @@ mod subscribe_publish_unsubscribe {
         subscriber1.call(Notify(notify_tx1)).await.unwrap();
         subscriber2.call(Notify(notify_tx2)).await.unwrap();
 
-
-        Broker::from_registry().await.publish(Topic1(42)).unwrap();
+        
+        Broker::from_registry()
+            .await
+            .publish(Topic1(42))
+            .await
+            .unwrap();
         Broker::publish(Topic1(23)).await.unwrap();
         let _ = join(notify_rx1, notify_rx2).await;
 

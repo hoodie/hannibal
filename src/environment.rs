@@ -37,15 +37,17 @@ impl<A: Actor, R: RestartStrategy<A>> Environment<A, R> {
         let ctx = Context {
             id: Default::default(),
             weak_tx: channel.weak_tx(),
+            weak_force_tx: channel.weak_force_tx(),
             running: futures::FutureExt::shared(rx_running),
             children: Default::default(),
             tasks: Default::default(),
         };
-        let (payload_tx, payload_rx) = channel.break_up();
+        let (payload_force_tx, payload_tx, payload_rx) = channel.break_up();
         let stop = StopNotifier(tx_running);
 
         let addr = Addr {
             context_id: ctx.id,
+            payload_force_tx,
             payload_tx,
             running: ctx.running.clone(),
         };

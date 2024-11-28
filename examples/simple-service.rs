@@ -39,6 +39,7 @@ async fn main() {
     StorageService::from_registry()
         .await
         .send(Store("password", "hello world"))
+        .await
         .unwrap();
 
     let result = StorageService::from_registry()

@@ -29,18 +29,20 @@ impl<M: Message> Caller<M> {
     {
         let weak_tx: Weak<_> = Arc::downgrade(&tx);
 
+        // TODO: make this queue-safe
         let call_fn = Box::new(
             move |msg| -> Pin<Box<dyn Future<Output = Result<M::Result>>>> {
                 let tx = Arc::clone(&tx);
                 Box::pin(async move {
                     let (response_tx, response) = oneshot::channel();
 
+                    // TODO: make this queue-safe
                     tx.send(Payload::task(move |actor, ctx| {
                         Box::pin(async move {
                             let res = Handler::handle(&mut *actor, ctx, msg).await;
                             let _ = response_tx.send(res);
                         })
-                    }))?;
+                    })).await?;
 
                     Ok(response.await?)
                 })

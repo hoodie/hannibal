@@ -17,7 +17,7 @@ struct Subscribing(Vec<u32>);
 
 impl Actor for Subscribing {
     async fn started(&mut self, ctx: &mut Context<Self>) -> DynResult<()> {
-        ctx.subscribe::<Topic1>().await;
+        ctx.subscribe::<Topic1>().await.unwrap();
         Ok(())
     }
 }
@@ -39,7 +39,11 @@ async fn main() -> DynResult<()> {
     let subscriber1 = Subscribing::default().spawn();
     let subscriber2 = Subscribing::default().spawn();
 
-    Broker::from_registry().await.publish(Topic1(42)).unwrap();
+    Broker::from_registry()
+        .await
+        .publish(Topic1(42))
+        .await
+        .unwrap();
     Broker::publish(Topic1(23)).await.unwrap();
 
     tokio::time::sleep(Duration::from_secs(1)).await; // Wait for the messages

@@ -49,7 +49,7 @@ impl StreamHandler<i32> for MyActor {
 
 // impl Service for MyActor {}
 async fn send_greet_and_stop(mut addr: Addr<MyActor>) {
-    addr.send(Greet("Cornelius")).unwrap();
+    addr.send(Greet("Cornelius")).await.unwrap();
     let addition = addr.call(Add(1, 2)).await;
 
     println!("The Actor Calculated: {:?}", addition);

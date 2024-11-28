@@ -3,7 +3,7 @@ use dyn_clone::DynClone;
 use std::sync::Arc;
 
 use crate::{
-    channel::{ChanTx, WeakChanTx},
+    channel::{ChanTx, ForceChanTx, WeakChanTx, WeakForceChanTx},
     context::ContextID,
     error::ActorError::AlreadyStopped,
     Actor, Handler,
@@ -21,28 +21,46 @@ impl<M: Message<Result = ()>> WeakSender<M> {
         self.upgrade.upgrade()
     }
 
-    pub fn try_send(&self, msg: M) -> Result<()> {
+    pub fn try_force_send(&self, msg: M) -> Result<()> {
         if let Some(sender) = self.upgrade.upgrade() {
-            sender.send(msg)
+            #[allow(deprecated)] // just as deprecated
+            sender.force_send(msg)
         } else {
             Err(AlreadyStopped)
         }
     }
 
-    fn new<A>(tx: ChanTx<A>, id: ContextID) -> Self
-    where
-        A: Actor + Handler<M>,
-        M: Message<Result = ()>,
-    {
-        Self::from_weak_tx(Arc::downgrade(&tx), id)
+    pub async fn try_send(&self, msg: M) -> Result<()>  {
+        if let Some(sender) = self.upgrade.upgrade() {
+            sender.send(msg).await
+        } else {
+            Err(AlreadyStopped)
+        }
     }
 
-    pub(crate) fn from_weak_tx<A>(weak_tx: WeakChanTx<A>, id: ContextID) -> Self
+    fn new<A>(tx: ChanTx<A>, force_tx: ForceChanTx<A>, id: ContextID) -> Self
     where
         A: Actor + Handler<M>,
         M: Message<Result = ()>,
     {
-        let upgrade = Box::new(move || weak_tx.upgrade().map(|tx| Sender::new(tx, id)));
+        Self::from_weak_tx(Arc::downgrade(&tx), Arc::downgrade(&force_tx), id)
+    }
+
+    pub(crate) fn from_weak_tx<A>(
+        weak_tx: WeakChanTx<A>,
+        weak_force_tx: WeakForceChanTx<A>,
+        id: ContextID,
+    ) -> Self
+    where
+        A: Actor + Handler<M>,
+        M: Message<Result = ()>,
+    {
+        let upgrade = Box::new(move || {
+            weak_tx
+                .upgrade()
+                .zip(weak_force_tx.upgrade())
+                .map(|(tx, force_tx)| Sender::new(tx, force_tx, id))
+        });
 
         WeakSender { upgrade, id }
     }
@@ -53,7 +71,11 @@ where
     A: Actor + Handler<M>,
 {
     fn from(addr: Addr<A>) -> Self {
-        Self::new(addr.payload_tx.to_owned(), addr.context_id)
+        Self::new(
+            addr.payload_tx.to_owned(),
+            addr.payload_force_tx.to_owned(),
+            addr.context_id,
+        )
     }
 }
 
@@ -62,7 +84,11 @@ where
     A: Actor + Handler<M>,
 {
     fn from(addr: &Addr<A>) -> Self {
-        Self::new(addr.payload_tx.to_owned(), addr.context_id)
+        Self::new(
+            addr.payload_tx.to_owned(),
+            addr.payload_force_tx.to_owned(),
+            addr.context_id,
+        )
     }
 }
 
@@ -108,6 +134,7 @@ mod tests {
             .upgrade()
             .unwrap()
             .send(Store("password"))
+            .await
             .unwrap();
         addr.stop().unwrap();
         let actor = actor.await.unwrap().unwrap();
@@ -137,6 +164,6 @@ mod tests {
         addr.stop().unwrap();
 
         actor.await.unwrap().unwrap();
-        assert!(weak_sender.try_send(Store("to /dev/null")).is_err());
+        assert!(weak_sender.try_send(Store("to /dev/null")).await.is_err());
     }
 }

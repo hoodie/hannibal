@@ -10,7 +10,7 @@ pub mod weak_sender;
 
 use crate::{
     actor::Actor,
-    channel::ChanTx,
+    channel::{ChanTx, ForceChanTx},
     context::{ContextID, RunningFuture},
     environment::Payload,
     error::Result,
@@ -30,6 +30,7 @@ impl Message for () {
 pub struct Addr<A> {
     pub(crate) context_id: ContextID,
     pub(crate) payload_tx: ChanTx<A>,
+    pub(crate) payload_force_tx: ForceChanTx<A>,
     pub(crate) running: RunningFuture,
 }
 
@@ -38,6 +39,7 @@ impl<A: Actor> Clone for Addr<A> {
         Addr {
             context_id: self.context_id,
             payload_tx: Arc::clone(&self.payload_tx),
+            payload_force_tx: Arc::clone(&self.payload_force_tx),
             running: self.running.clone(),
         }
     }
@@ -45,7 +47,7 @@ impl<A: Actor> Clone for Addr<A> {
 
 impl<A: Actor> Addr<A> {
     pub fn stop(&mut self) -> Result<()> {
-        self.payload_tx.send(Payload::Stop)?;
+        self.payload_force_tx.send(Payload::Stop)?;
         Ok(())
     }
 
@@ -67,23 +69,39 @@ impl<A: Actor> Addr<A> {
         A: Handler<M>,
     {
         let (tx_response, response) = oneshot::channel();
-        self.payload_tx.send(Payload::task(move |actor, ctx| {
-            Box::pin(async move {
-                let res = Handler::handle(actor, ctx, msg).await;
-                let _ = tx_response.send(res);
-            })
-        }))?;
+        self.payload_force_tx
+            .send(Payload::task(move |actor, ctx| {
+                Box::pin(async move {
+                    let res = Handler::handle(actor, ctx, msg).await;
+                    let _ = tx_response.send(res);
+                })
+            }))?;
 
         Ok(response.await?)
     }
 
-    pub fn send<M: Message<Result = ()>>(&self, msg: M) -> Result<()>
+    #[deprecated]
+    // TODO: look if this can be made available exclusively to unbouded environments
+    pub fn force_send<M: Message<Result = ()>>(&self, msg: M) -> Result<()>
     where
         A: Handler<M>,
     {
-        self.payload_tx.send(Payload::task(move |actor, ctx| {
-            Box::pin(Handler::handle(actor, ctx, msg))
-        }))?;
+        self.payload_force_tx
+            .send(Payload::task(move |actor, ctx| {
+                Box::pin(Handler::handle(actor, ctx, msg))
+            }))?;
+        Ok(())
+    }
+
+    pub async fn send<M: Message<Result = ()>>(&self, msg: M) -> Result<()>
+    where
+        A: Handler<M>,
+    {
+        self.payload_tx
+            .send(Payload::task(move |actor, ctx| {
+                Box::pin(Handler::handle(actor, ctx, msg))
+            }))
+            .await?;
         Ok(())
     }
 
@@ -122,7 +140,7 @@ impl<A: Actor> Addr<A> {
 
 impl<A: RestartableActor> Addr<A> {
     pub fn restart(&mut self) -> Result<()> {
-        self.payload_tx.send(Payload::Restart)?;
+        self.payload_force_tx.send(Payload::Restart)?;
         Ok(())
     }
 }
@@ -243,7 +261,7 @@ mod tests {
     async fn addr_send() {
         let (event_loop, mut addr) = start(MyActor::default());
         let task = tokio::spawn(event_loop);
-        addr.send(Store("password")).unwrap();
+        addr.send(Store("password")).await.unwrap();
         addr.stop().unwrap();
         let actor = task.await.unwrap().unwrap();
         assert_eq!(actor.0, Some("password"))
@@ -256,7 +274,7 @@ mod tests {
         let addr2 = addr.clone();
         addr.stop().unwrap();
         addr.await.unwrap();
-        assert!(addr2.send(Store("password")).is_err());
+        assert!(addr2.send(Store("password")).await.is_err());
     }
 
     #[tokio::test]
@@ -277,7 +295,7 @@ mod tests {
         tokio::spawn(event_loop);
 
         let addr2 = addr.clone();
-        addr.send(Stop).unwrap();
+        addr.send(Stop).await.unwrap();
 
         addr2.await.unwrap();
         addr.await.unwrap();
@@ -291,7 +309,7 @@ mod tests {
         let addr2 = addr.clone();
         assert!(!addr2.stopped(), "addr2 should not be stopped");
 
-        addr.send(Stop).unwrap();
+        addr.send(Stop).await.unwrap();
 
         addr.await.unwrap();
         assert!(addr2.stopped(), "addr2 should be stopped");

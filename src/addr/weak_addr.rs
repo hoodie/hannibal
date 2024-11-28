@@ -3,11 +3,8 @@ use std::sync::Arc;
 use dyn_clone::DynClone;
 
 use crate::context::{ContextID, RunningFuture};
-#[allow(unused)]
 use crate::{
-    channel::{ChanTx, WeakChanTx},
-    error::ActorError::AlreadyStopped,
-    Actor, Addr, Handler,
+    Actor, Addr, 
 };
 
 pub struct WeakAddr<A: Actor> {
@@ -29,16 +26,21 @@ impl<A: Actor> WeakAddr<A> {
 impl<A: Actor> From<&Addr<A>> for WeakAddr<A> {
     fn from(addr: &Addr<A>) -> Self {
         let weak_tx = Arc::downgrade(&addr.payload_tx);
+        let weak_force_tx = Arc::downgrade(&addr.payload_force_tx);
         let context_id = addr.context_id;
         let running = addr.running.clone();
         let running_inner = addr.running.clone();
         let upgrade = Box::new(move || {
             let running = running_inner.clone();
-            weak_tx.upgrade().map(|payload_tx| Addr {
-                context_id,
-                payload_tx,
-                running,
-            })
+            weak_tx
+                .upgrade()
+                .zip(weak_force_tx.upgrade())
+                .map(|(payload_tx, payload_force_tx)| Addr {
+                    context_id,
+                    payload_force_tx,
+                    payload_tx,
+                    running,
+                })
         });
 
         WeakAddr {
@@ -113,6 +115,6 @@ mod tests {
         addr.stop().unwrap();
 
         actor.await.unwrap().unwrap();
-        assert!(addr.send(Store("password")).is_err());
+        assert!(addr.send(Store("password")).await.is_err());
     }
 }

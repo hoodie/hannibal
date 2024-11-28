@@ -51,7 +51,7 @@ impl Handler<Add> for MyActor {
 #[cfg_attr(feature = "async-std", async_std::main)]
 async fn main() {
     let mut addr = MyActor("Caesar").spawn();
-    addr.send(Greet("Cornelius")).unwrap();
+    addr.send(Greet("Cornelius")).await.unwrap();
     let addition = addr.call(Add(1, 2)).await;
 
     println!("The Actor Calculated: {:?}", addition);
