@@ -7,7 +7,7 @@ use crate::{
         restart_strategy::{RecreateFromDefault, RestartOnly, RestartStrategy},
         Actor,
     },
-    channel::{ChanRx, Channel},
+    channel::{Channel, PayloadStream},
     context::StopNotifier,
     handler::StreamHandler,
     Addr, Context,
@@ -27,7 +27,7 @@ pub struct Environment<A: Actor, R: RestartStrategy<A> = RestartOnly> {
     addr: Addr<A>,
     stop: StopNotifier,
     config: EnvironmentConfig,
-    payload_rx: ChanRx<A>,
+    payload_stream: PayloadStream<A>,
     phantom: PhantomData<R>,
 }
 
@@ -42,7 +42,7 @@ impl<A: Actor, R: RestartStrategy<A>> Environment<A, R> {
             children: Default::default(),
             tasks: Default::default(),
         };
-        let (payload_force_tx, payload_tx, payload_rx) = channel.break_up();
+        let (payload_force_tx, payload_tx, payload_stream) = channel.break_up();
         let stop = StopNotifier(tx_running);
 
         let addr = Addr {
@@ -55,7 +55,7 @@ impl<A: Actor, R: RestartStrategy<A>> Environment<A, R> {
             ctx,
             addr,
             stop,
-            payload_rx,
+            payload_stream,
             config: Default::default(),
             phantom: PhantomData,
         }
@@ -101,7 +101,7 @@ impl<A: Actor, R: RestartStrategy<A>> Environment<A, R> {
             actor.started(&mut self.ctx).await?;
 
             let timeout = self.config.timeout;
-            while let Some(event) = self.payload_rx.recv().await {
+            while let Some(event) = self.payload_stream.next().await {
                 match event {
                     Payload::Restart => actor = R::refresh(actor, &mut self.ctx).await?,
                     Payload::Task(f) => {
@@ -143,7 +143,7 @@ impl<A: Actor, R: RestartStrategy<A>> Environment<A, R> {
             actor.started(&mut self.ctx).await?;
             loop {
                 futures::select! {
-                    actor_msg = self.payload_rx.recv().fuse() => {
+                    actor_msg = self.payload_stream.next().fuse() => {
                         match actor_msg {
                             Some(Payload::Task(f)) => f(&mut actor, &mut self.ctx).await,
                             Some(Payload::Stop)  =>  break,
@@ -188,7 +188,7 @@ where
             addr: self.addr,
             stop: self.stop,
             config: self.config,
-            payload_rx: self.payload_rx,
+            payload_stream: self.payload_stream,
             phantom: PhantomData,
         }
     }

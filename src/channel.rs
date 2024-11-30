@@ -1,17 +1,21 @@
-use futures::StreamExt;
+use futures::{
+    stream::{poll_fn, PollFn},
+    task, Stream as _,
+};
 
 use std::{
     future::Future,
-    pin::Pin,
+    pin::{pin, Pin},
     sync::{Arc, Weak},
 };
 
 use crate::{environment::Payload, error::Result};
 
-pub type RecvFuture<A> = Pin<Box<dyn Future<Output = Option<Payload<A>>> + Send>>;
 pub type WeakChanTx<A> = Weak<dyn TxFn<A>>;
 pub type ChanTx<A> = Arc<dyn TxFn<A>>;
-pub type ChanRx<A> = Box<dyn RxFn<A>>;
+
+pub type PayloadStream<A> =
+    PollFn<Box<dyn FnMut(&mut task::Context<'_>) -> task::Poll<Option<Payload<A>>> + Send>>;
 
 pub(crate) trait TxFn<A>: Send + Sync {
     fn send(&self, msg: Payload<A>) -> Pin<Box<dyn Future<Output = Result<()>> + Send>>;
@@ -44,33 +48,19 @@ where
     }
 }
 
-pub(crate) trait RxFn<A>: Send + Sync {
-    fn recv(&mut self) -> RecvFuture<A>;
-}
-
-impl<F, A> RxFn<A> for F
-where
-    F: FnMut() -> RecvFuture<A>,
-    F: Send + Sync,
-{
-    fn recv(&mut self) -> RecvFuture<A> {
-        self()
-    }
-}
-
 // TODO: consider getting rid of this and just using `Sink` and `
 pub(crate) struct Channel<A> {
     tx_fn: ChanTx<A>,
     force_tx_fn: ForceChanTx<A>,
-    rx_fn: ChanRx<A>,
+    stream: PayloadStream<A>,
 }
 
 impl<A> Channel<A> {
-    fn new(tx_fn: ChanTx<A>, force_tx_fn: ForceChanTx<A>, rx_fn: ChanRx<A>) -> Self {
+    fn new(tx_fn: ChanTx<A>, force_tx_fn: ForceChanTx<A>, stream: PayloadStream<A>) -> Self {
         Channel {
             tx_fn,
             force_tx_fn,
-            rx_fn,
+            stream,
         }
     }
 }
@@ -80,7 +70,7 @@ where
     for<'a> A: 'a,
 {
     pub fn bounded(buffer: usize) -> Self {
-        let (tx, rx) = futures::channel::mpsc::channel::<Payload<A>>(buffer);
+        let (tx, mut rx) = futures::channel::mpsc::channel::<Payload<A>>(buffer);
         let tx2 = tx.clone();
 
         let send = Arc::new(
@@ -100,19 +90,16 @@ where
             Ok(())
         });
 
-        let rx = Arc::new(async_lock::Mutex::new(rx));
-        let recv = Box::new(move || -> RecvFuture<A> {
-            let rx = Arc::clone(&rx);
-            Box::pin(async move {
-                let mut rx = rx.lock().await;
-                rx.next().await
-            })
-        });
+        let recv: PayloadStream<A> = poll_fn(Box::new(move |ctx| {
+            let pinned = pin!(&mut rx);
+            pinned.poll_next(ctx)
+        }));
+
         Self::new(send, force_send, recv)
     }
 
     pub fn unbounded() -> Self {
-        let (tx, rx) = futures::channel::mpsc::unbounded::<Payload<A>>();
+        let (tx, mut rx) = futures::channel::mpsc::unbounded::<Payload<A>>();
         let tx2 = tx.clone();
 
         let send = Arc::new(
@@ -132,19 +119,16 @@ where
             Ok(())
         });
 
-        let rx = Arc::new(async_lock::Mutex::new(rx));
-        let recv = Box::new(move || -> RecvFuture<A> {
-            let rx = Arc::clone(&rx);
-            Box::pin(async move {
-                let mut rx = rx.lock().await;
-                rx.next().await
-            })
-        });
+        let recv: PayloadStream<A> = poll_fn(Box::new(move |ctx| {
+            let pinned = pin!(&mut rx);
+            pinned.poll_next(ctx)
+        }));
+
         Self::new(send, force_send, recv)
     }
 
-    pub fn break_up(self) -> (ForceChanTx<A>, ChanTx<A>, ChanRx<A>) {
-        (self.force_tx_fn, self.tx_fn, self.rx_fn)
+    pub fn break_up(self) -> (ForceChanTx<A>, ChanTx<A>, PayloadStream<A>) {
+        (self.force_tx_fn, self.tx_fn, self.stream)
     }
 
     pub fn weak_force_tx(&self) -> WeakForceChanTx<A> {
