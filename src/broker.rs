@@ -44,7 +44,7 @@ impl<T: Message> Message for Publish<T> {
 
 impl<T: Message<Result = ()> + Clone> Handler<Publish<T>> for Broker<T> {
     async fn handle(&mut self, _ctx: &mut Context<Self>, msg: Publish<T>) {
-        for subscriber in self.subscribers.values().filter_map(|w| w.upgrade()) {
+        for subscriber in self.subscribers.values().filter_map(WeakSender::upgrade) {
             if let Err(_error) = subscriber.send(msg.0.clone()).await {
                 // log::warn!("Failed to send message to subscriber: {:?}", error)
             }
@@ -95,6 +95,7 @@ impl<T: Message<Result = ()> + Clone> Addr<Broker<T>> {
 
 #[cfg(test)]
 mod subscribe_publish_unsubscribe {
+    #![allow(clippy::unwrap_used)]
     use std::time::Duration;
 
     use futures::future::join;
@@ -162,7 +163,6 @@ mod subscribe_publish_unsubscribe {
         subscriber1.call(Notify(notify_tx1)).await.unwrap();
         subscriber2.call(Notify(notify_tx2)).await.unwrap();
 
-        
         Broker::from_registry()
             .await
             .publish(Topic1(42))

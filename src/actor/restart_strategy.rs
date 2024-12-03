@@ -18,7 +18,6 @@ impl<A: Actor> RestartStrategy<A> for NonRestartable {
 pub struct RestartOnly;
 impl<A: Actor> RestartStrategy<A> for RestartOnly {
     async fn refresh(mut actor: A, ctx: &mut Context<A>) -> DynResult<A> {
-        eprintln!("restarting refresh");
         actor.stopped(ctx).await;
         actor.started(ctx).await?;
         Ok(actor)

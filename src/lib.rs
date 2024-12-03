@@ -5,9 +5,9 @@ mod context;
 mod environment;
 pub mod error;
 
-mod handler;
 #[cfg(any(feature = "tokio", feature = "async-std"))]
 mod broker;
+mod handler;
 
 // TODO: flatten module structure
 pub use self::{

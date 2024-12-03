@@ -30,7 +30,7 @@ impl<M: Message<Result = ()>> WeakSender<M> {
         }
     }
 
-    pub async fn try_send(&self, msg: M) -> Result<()>  {
+    pub async fn try_send(&self, msg: M) -> Result<()> {
         if let Some(sender) = self.upgrade.upgrade() {
             sender.send(msg).await
         } else {

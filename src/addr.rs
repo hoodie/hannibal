@@ -169,9 +169,9 @@ impl<A: Actor> OwningAddr<A> {
         self.handle.join()
     }
 
-    pub fn stop_and_join(mut self) -> JoinFuture<A> {
-        self.addr.stop().unwrap();
-        self.join()
+    pub fn stop_and_join(mut self) -> Result<JoinFuture<A>> {
+        self.addr.stop()?;
+        Ok(self.join())
     }
 
     pub const fn as_addr(&self) -> &Addr<A> {
@@ -183,9 +183,9 @@ impl<A: Actor> OwningAddr<A> {
     }
 }
 
-impl<A> Into<Addr<A>> for OwningAddr<A> {
-    fn into(self) -> Addr<A> {
-        self.addr
+impl<A> From<OwningAddr<A>> for Addr<A> {
+    fn from(val: OwningAddr<A>) -> Self {
+        val.addr
     }
 }
 

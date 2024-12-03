@@ -31,6 +31,12 @@ mod id {
         }
     }
 
+    impl std::fmt::Display for ContextID {
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            write!(f, "{}", self.0)
+        }
+    }
+
     #[test]
     fn ids_go_up() {
         let id1 = ContextID::default();
@@ -128,15 +134,25 @@ mod task_handling {
             A::spawn_future(task.map(|_| ()))
         }
 
-        pub fn interval<M: Message<Result = ()> + Clone>(&mut self, message: M, duration: Duration)
-        where
-            A: Handler<M>,
+        #[cfg(test)]
+        pub(crate) fn stop_tasks(&mut self) {
+            for handle in self.tasks.drain(..) {
+                handle.abort();
+            }
+        }
+
+        pub fn interval<M: Message<Result = ()> + Clone + Send + 'static>(
+            &mut self,
+            message: M,
+            duration: Duration,
+        ) where
+            A: Handler<M> + Send + 'static,
         {
             let myself = self.weak_sender();
             self.spawn_task(async move {
                 loop {
                     A::sleep(duration).await;
-                    if myself.try_send(message.clone()).is_err() {
+                    if myself.try_force_send(message.clone()).is_err() {
                         break;
                     }
                 }
@@ -154,7 +170,7 @@ mod task_handling {
             self.spawn_task(async move {
                 loop {
                     A::sleep(duration).await;
-                    if myself.try_send(message_fn()).is_err() {
+                    if myself.try_send(message_fn()).await.is_err() {
                         break;
                     }
                 }
@@ -196,126 +212,252 @@ mod interval_cleanup {
     #![allow(clippy::unwrap_used)]
     #[cfg(feature = "async-std")]
     use async_std::task::sleep;
+
     use std::{
         sync::{
             atomic::{AtomicBool, Ordering},
             Arc,
         },
-        time::Duration,
+        time::{Duration, Instant},
     };
     #[cfg(feature = "tokio")]
     use tokio::time::sleep;
 
-    use crate::prelude::*;
+    mod interval {
+        use super::*;
+        use crate::prelude::*;
 
-    #[derive(Debug)]
-    struct IntervalActor {
-        running: Arc<AtomicBool>,
-    }
-
-    impl Actor for IntervalActor {
-        async fn started(&mut self, ctx: &mut Context<Self>) -> DynResult<()> {
-            ctx.interval((), Duration::from_millis(100));
-            Ok(())
+        #[derive(Debug)]
+        struct IntervalActor {
+            running: Arc<AtomicBool>,
         }
-        async fn stopped(&mut self, _: &mut Context<Self>) {
-            self.running.store(false, Ordering::SeqCst);
-        }
-    }
 
-    impl Handler<()> for IntervalActor {
-        async fn handle(&mut self, _: &mut Context<Self>, _: ()) {
-            self.running.store(true, Ordering::SeqCst);
+        impl Actor for IntervalActor {
+            async fn stopped(&mut self, _: &mut Context<Self>) {
+                self.running.store(false, Ordering::SeqCst);
+            }
         }
-    }
 
-    #[derive(Debug)]
-    struct IntervalWithActor {
-        running: Arc<AtomicBool>,
-    }
-
-    impl Actor for IntervalWithActor {
-        async fn started(&mut self, ctx: &mut Context<Self>) -> DynResult<()> {
-            ctx.interval_with(|| (), Duration::from_millis(100));
-            Ok(())
+        impl Handler<()> for IntervalActor {
+            async fn handle(&mut self, _: &mut Context<Self>, _cmd: ()) {
+                self.running.store(true, Ordering::SeqCst);
+            }
         }
-        async fn stopped(&mut self, _: &mut Context<Self>) {
-            self.running.store(false, Ordering::SeqCst);
-        }
-    }
 
-    impl Handler<()> for IntervalWithActor {
-        async fn handle(&mut self, _: &mut Context<Self>, _: ()) {
-            self.running.store(true, Ordering::SeqCst);
+        #[tokio::test]
+        async fn stopped_when_actor_stopped() {
+            let flag = Arc::new(AtomicBool::new(false));
+            let addr = IntervalActor {
+                running: Arc::clone(&flag),
+            }
+            .spawn();
+            sleep(Duration::from_millis(300)).await;
+            addr.stop_and_join().await.unwrap();
+            sleep(Duration::from_millis(300)).await;
+            assert!(
+                !flag.load(Ordering::SeqCst),
+                "Handler should not be called after actor is stopped"
+            );
         }
     }
 
-    #[derive(Debug)]
-    struct DelayedSendActor {
-        running: Arc<AtomicBool>,
+    mod interval_order {
+        use std::sync::atomic::AtomicU32;
+        use std::sync::Mutex;
+
+        use super::*;
+        use crate::{context::ContextID, prelude::*};
+
+        use std::sync::LazyLock;
+
+        static ATOMIC_VEC: LazyLock<Mutex<Vec<String>>> = LazyLock::new(|| Mutex::new(Vec::new()));
+
+        fn append_to_log(item: impl Into<String>) {
+            let vec = &*ATOMIC_VEC;
+            vec.lock().unwrap().push(item.into());
+        }
+
+        fn print_log() -> usize {
+            let vec = &*ATOMIC_VEC.lock().unwrap();
+            for (i, line) in vec.iter().enumerate() {
+                eprintln!("Log {i:?}: {line:?}");
+            }
+            vec.len()
+        }
+
+        #[derive(Debug)]
+        struct IntervalActor {
+            started: Instant,
+            interval: Duration,
+        }
+
+        #[derive(Clone, Copy, Debug, Default)]
+        struct IntervalSleep(Duration, u32);
+
+        impl Message for IntervalSleep {
+            type Result = ();
+        }
+
+        struct StopTasks;
+        impl Message for StopTasks {
+            type Result = ();
+        }
+
+        impl Handler<IntervalSleep> for IntervalActor {
+            async fn handle(
+                &mut self,
+                _ctx: &mut Context<Self>,
+                IntervalSleep(duration, invocation): IntervalSleep,
+            ) {
+                let call_id = ContextID::default();
+
+                let called = Instant::now();
+                let called_after_ms = called.duration_since(self.started).as_millis();
+                append_to_log(format!(
+                    "handle {call_id}/{invocation} called {called_after_ms}ms"
+                ));
+
+                sleep(duration).await;
+
+                let woke_up = Instant::now();
+                let woke_after_ms = woke_up.duration_since(self.started).as_millis();
+                append_to_log(format!(
+                    "handler {call_id}/{invocation} wakeup {woke_after_ms}ms"
+                ));
+            }
+        }
+
+        impl Handler<StopTasks> for IntervalActor {
+            async fn handle(&mut self, ctx: &mut Context<Self>, _: StopTasks) {
+                append_to_log("stopping tasks");
+                ctx.stop_tasks();
+            }
+        }
+
+        impl Actor for IntervalActor {
+            async fn started(&mut self, ctx: &mut Context<Self>) -> DynResult<()> {
+                let invokation_id = AtomicU32::new(1);
+                ctx.delayed_send(
+                    || {
+                        append_to_log("stopping tasks");
+                        StopTasks
+                    },
+                    Duration::from_millis(80),
+                );
+                ctx.interval_with(
+                    move || {
+                        let invocation = invokation_id.fetch_add(1, Ordering::SeqCst);
+                        append_to_log(format!("invoked {}", invocation));
+                        IntervalSleep(Duration::from_millis(500), invocation)
+                    },
+                    self.interval,
+                );
+                Ok(())
+            }
+            async fn stopped(&mut self, _: &mut Context<Self>) {
+                append_to_log("stopped");
+            }
+        }
+
+        #[tokio::test]
+        async fn dont_overlap_when_tasks_take_too_long() {
+            let addr = crate::build(IntervalActor {
+                started: Instant::now(),
+                interval: Duration::from_millis(30),
+            })
+            .bounded(1)
+            // .unbounded()
+            .spawn();
+
+            sleep(Duration::from_millis(600)).await;
+
+            addr.stop_and_join().await.unwrap();
+            let log_length = print_log();
+            assert_eq!(log_length, 12);
+        }
     }
 
-    impl Actor for DelayedSendActor {
-        async fn started(&mut self, ctx: &mut Context<Self>) -> DynResult<()> {
-            ctx.delayed_send(|| (), Duration::from_millis(100));
-            Ok(())
+    mod interval_with {
+        use super::*;
+        use crate::prelude::*;
+
+        #[derive(Debug)]
+        struct IntervalWithActor {
+            running: Arc<AtomicBool>,
         }
-        async fn stopped(&mut self, _: &mut Context<Self>) {
-            self.running.store(false, Ordering::SeqCst);
+
+        impl Actor for IntervalWithActor {
+            async fn started(&mut self, ctx: &mut Context<Self>) -> DynResult<()> {
+                ctx.interval_with(|| (), Duration::from_millis(100));
+                Ok(())
+            }
+            async fn stopped(&mut self, _: &mut Context<Self>) {
+                self.running.store(false, Ordering::SeqCst);
+            }
+        }
+
+        impl Handler<()> for IntervalWithActor {
+            async fn handle(&mut self, _: &mut Context<Self>, _: ()) {
+                self.running.store(true, Ordering::SeqCst);
+            }
+        }
+
+        #[tokio::test]
+        async fn stopped_when_actor_stopped() {
+            let running = Arc::new(AtomicBool::new(false));
+            let addr = IntervalWithActor {
+                running: Arc::clone(&running),
+            }
+            .spawn();
+            sleep(Duration::from_millis(300)).await;
+            addr.stop_and_join().await.unwrap();
+            sleep(Duration::from_millis(300)).await;
+            assert!(
+                !running.load(Ordering::SeqCst),
+                "Handler should not be called after actor is stopped"
+            );
         }
     }
 
-    impl Handler<()> for DelayedSendActor {
-        async fn handle(&mut self, _: &mut Context<Self>, _: ()) {
-            self.running.store(true, Ordering::SeqCst);
-        }
-    }
+    mod delayed_send {
+        use super::*;
+        use crate::prelude::*;
 
-    #[tokio::test]
-    async fn test_interval_stopped_when_actor_stopped() {
-        let flag = Arc::new(AtomicBool::new(false));
-        let addr = IntervalActor {
-            running: Arc::clone(&flag),
+        #[derive(Debug)]
+        struct DelayedSendActor {
+            running: Arc<AtomicBool>,
         }
-        .spawn();
-        sleep(Duration::from_millis(300)).await;
-        addr.stop_and_join().await.unwrap();
-        sleep(Duration::from_millis(300)).await;
-        assert!(
-            !flag.load(Ordering::SeqCst),
-            "Handler should not be called after actor is stopped"
-        );
-    }
 
-    #[tokio::test]
-    async fn test_interval_with_stopped_when_actor_stopped() {
-        let running = Arc::new(AtomicBool::new(false));
-        let addr = IntervalWithActor {
-            running: Arc::clone(&running),
+        impl Actor for DelayedSendActor {
+            async fn started(&mut self, ctx: &mut Context<Self>) -> DynResult<()> {
+                ctx.delayed_send(|| (), Duration::from_millis(100));
+                Ok(())
+            }
+            async fn stopped(&mut self, _: &mut Context<Self>) {
+                self.running.store(false, Ordering::SeqCst);
+            }
         }
-        .spawn();
-        sleep(Duration::from_millis(300)).await;
-        addr.stop_and_join().await.unwrap();
-        sleep(Duration::from_millis(300)).await;
-        assert!(
-            !running.load(Ordering::SeqCst),
-            "Handler should not be called after actor is stopped"
-        );
-    }
 
-    #[tokio::test]
-    async fn test_delayed_send_stopped_when_actor_stopped() {
-        let running = Arc::new(AtomicBool::new(false));
-        let addr = DelayedSendActor {
-            running: Arc::clone(&running),
+        impl Handler<()> for DelayedSendActor {
+            async fn handle(&mut self, _: &mut Context<Self>, _: ()) {
+                self.running.store(true, Ordering::SeqCst);
+            }
         }
-        .spawn();
-        sleep(Duration::from_millis(300)).await;
-        addr.stop_and_join().await.unwrap();
-        sleep(Duration::from_millis(300)).await;
-        assert!(
-            !running.load(Ordering::SeqCst),
-            "Handler should not be called after actor is stopped"
-        );
+
+        #[tokio::test]
+        async fn stopped_when_actor_stopped() {
+            let running = Arc::new(AtomicBool::new(false));
+            let addr = DelayedSendActor {
+                running: Arc::clone(&running),
+            }
+            .spawn();
+            sleep(Duration::from_millis(300)).await;
+            addr.stop_and_join().await.unwrap();
+            sleep(Duration::from_millis(300)).await;
+            assert!(
+                !running.load(Ordering::SeqCst),
+                "Handler should not be called after actor is stopped"
+            );
+        }
     }
 }

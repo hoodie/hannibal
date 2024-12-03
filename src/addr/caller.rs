@@ -42,7 +42,8 @@ impl<M: Message> Caller<M> {
                             let res = Handler::handle(&mut *actor, ctx, msg).await;
                             let _ = response_tx.send(res);
                         })
-                    })).await?;
+                    }))
+                    .await?;
 
                     Ok(response.await?)
                 })

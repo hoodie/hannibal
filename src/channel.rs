@@ -86,6 +86,8 @@ where
 
         let force_send = Arc::new(move |event: Payload<A>| -> Result<()> {
             let mut tx = tx.clone();
+            // THIS IS A BUG!
+            // Just calling this without checking for readyness will just queue this and ignore the bound
             tx.start_send(event)?;
             Ok(())
         });
@@ -107,6 +109,8 @@ where
                 let tx = tx2.clone();
                 Box::pin(async move {
                     let mut tx = tx.clone();
+                    // THIS IS A BUG!
+                    // Just calling this without checking for readyness will just queue this and ignore the bound
                     futures::SinkExt::send(&mut tx, event).await?;
                     Ok(())
                 })
@@ -114,11 +118,11 @@ where
         );
 
         let force_send = Arc::new(move |event: Payload<A>| -> Result<()> {
+            eprintln!("sending (unbounded {})", tx.len());
             let mut tx = tx.clone();
             tx.start_send(event)?;
             Ok(())
         });
-
         let recv: PayloadStream<A> = poll_fn(Box::new(move |ctx| {
             let pinned = pin!(&mut rx);
             pinned.poll_next(ctx)

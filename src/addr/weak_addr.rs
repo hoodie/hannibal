@@ -3,9 +3,7 @@ use std::sync::Arc;
 use dyn_clone::DynClone;
 
 use crate::context::{ContextID, RunningFuture};
-use crate::{
-    Actor, Addr, 
-};
+use crate::{Actor, Addr};
 
 pub struct WeakAddr<A: Actor> {
     pub(crate) context_id: ContextID,
