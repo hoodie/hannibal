@@ -686,10 +686,20 @@ dependencies = [
  "futures-timer",
  "libc",
  "log",
+ "minibal-derive",
  "test-log",
  "thiserror",
  "tokio",
  "trybuild",
+]
+
+[[package]]
+name = "minibal-derive"
+version = "0.1.0"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.89",
 ]
 
 [[package]]

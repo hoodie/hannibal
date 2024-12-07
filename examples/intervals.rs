@@ -5,10 +5,8 @@ use minibal::prelude::*;
 
 struct MyActor(u8);
 
+#[message]
 struct Stop;
-impl Message for Stop {
-    type Response = ();
-}
 
 impl Actor for MyActor {
     async fn started(&mut self, ctx: &mut Context<Self>) -> DynResult<()> {

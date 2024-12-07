@@ -1,25 +1,16 @@
 use minibal::prelude::*;
 use std::collections::HashMap;
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Actor, Service)]
 struct StorageService {
     storage: HashMap<String, String>,
 }
 
+#[message]
 struct Store(&'static str, &'static str);
 
-impl Message for Store {
-    type Response = ();
-}
-
+#[message(response = Option<String>)]
 struct Retrieve(&'static str);
-
-impl Message for Retrieve {
-    type Response = Option<String>;
-}
-
-impl Actor for StorageService {}
-impl Service for StorageService {}
 
 impl Handler<Store> for StorageService {
     async fn handle(&mut self, _: &mut Context<Self>, Store(key, value): Store) {

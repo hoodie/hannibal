@@ -1,12 +1,11 @@
 use async_signals::Signals;
 use minibal::prelude::*;
 
-#[derive(Debug, Default)]
+#[derive(Actor, Debug, Default)]
 struct SignalService {
     sig_count: u8,
 }
 
-impl Actor for SignalService {}
 impl Service for SignalService {
     async fn setup() -> DynResult<()> {
         let signals = Signals::new([libc::SIGINT])?;
