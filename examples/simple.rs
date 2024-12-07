@@ -3,15 +3,11 @@ use minibal::prelude::*;
 
 struct MyActor(&'static str);
 
+#[message]
 struct Greet(&'static str);
-impl Message for Greet {
-    type Response = ();
-}
 
+#[message(response = i32)]
 struct Add(i32, i32);
-impl Message for Add {
-    type Response = i32;
-}
 
 impl Actor for MyActor {
     async fn started(&mut self, _ctx: &mut Context<Self>) -> DynResult<()> {

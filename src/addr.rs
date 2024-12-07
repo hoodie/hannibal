@@ -198,7 +198,7 @@ impl<A> AsRef<Addr<A>> for OwningAddr<A> {
 #[cfg(test)]
 mod tests {
     #![allow(clippy::unwrap_used)]
-    use crate::{environment::Environment, Context, DynResult};
+    use crate::{environment::Environment, Context, DynResult, Message};
 
     use super::*;
     use std::future::Future;

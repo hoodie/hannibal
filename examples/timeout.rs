@@ -10,10 +10,8 @@ use tokio::time::sleep;
 #[derive(Debug, Default)]
 struct SleepyActor(u8);
 
+#[message]
 struct Sleep(Duration);
-impl Message for Sleep {
-    type Response = ();
-}
 
 impl Actor for SleepyActor {
     async fn started(&mut self, _ctx: &mut Context<Self>) -> DynResult<()> {

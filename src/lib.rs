@@ -5,6 +5,8 @@ mod context;
 mod environment;
 pub mod error;
 
+pub use minibal_derive::message;
+
 #[cfg(any(feature = "tokio", feature = "async-std"))]
 mod broker;
 mod handler;
@@ -32,6 +34,8 @@ pub mod prelude {
         addr::{sender::Sender, weak_caller::WeakCaller, weak_sender::WeakSender, Addr, Message},
         context::Context,
         handler::{Handler, StreamHandler},
+        message,
         spawner::{Spawnable, StreamSpawnable},
     };
+    pub use minibal_derive::*;
 }

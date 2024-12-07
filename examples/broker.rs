@@ -1,18 +1,13 @@
 use minibal::{prelude::*, Broker};
 use std::time::Duration;
 
-#[derive(Clone)]
+#[derive(Clone, Message)]
 struct Topic1(u32);
-impl Message for Topic1 {
-    type Response = ();
-}
 
+#[message(response = Vec<u32>)]
 struct GetValue;
-impl Message for GetValue {
-    type Response = Vec<u32>;
-}
 
-#[derive(Default)]
+#[derive(Default, Message)]
 struct Subscribing(Vec<u32>);
 
 impl Actor for Subscribing {
