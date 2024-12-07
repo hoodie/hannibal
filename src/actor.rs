@@ -36,11 +36,11 @@ pub mod tests {
     pub struct Ping;
     pub struct Pong;
     impl crate::Message for Ping {
-        type Result = Pong;
+        type Response = Pong;
     }
     pub struct Identify;
     impl crate::Message for Identify {
-        type Result = usize;
+        type Response = usize;
     }
 
     #[cfg(feature = "async-std")]

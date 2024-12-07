@@ -20,11 +20,11 @@ use crate::{
 };
 
 pub trait Message: 'static + Send {
-    type Result: 'static + Send;
+    type Response: 'static + Send;
 }
 
 impl Message for () {
-    type Result = ();
+    type Response = ();
 }
 
 pub struct Addr<A> {
@@ -64,7 +64,7 @@ impl<A: Actor> Addr<A> {
         self.running.peek().is_some()
     }
 
-    pub async fn call<M: Message>(&self, msg: M) -> Result<M::Result>
+    pub async fn call<M: Message>(&self, msg: M) -> Result<M::Response>
     where
         A: Handler<M>,
     {
@@ -82,7 +82,7 @@ impl<A: Actor> Addr<A> {
 
     #[deprecated]
     // TODO: look if this can be made available exclusively to unbouded environments
-    pub fn force_send<M: Message<Result = ()>>(&self, msg: M) -> Result<()>
+    pub fn force_send<M: Message<Response = ()>>(&self, msg: M) -> Result<()>
     where
         A: Handler<M>,
     {
@@ -93,7 +93,7 @@ impl<A: Actor> Addr<A> {
         Ok(())
     }
 
-    pub async fn send<M: Message<Result = ()>>(&self, msg: M) -> Result<()>
+    pub async fn send<M: Message<Response = ()>>(&self, msg: M) -> Result<()>
     where
         A: Handler<M>,
     {
@@ -109,14 +109,14 @@ impl<A: Actor> Addr<A> {
         WeakAddr::from(self)
     }
 
-    pub fn sender<M: Message<Result = ()>>(&self) -> sender::Sender<M>
+    pub fn sender<M: Message<Response = ()>>(&self) -> sender::Sender<M>
     where
         A: Handler<M>,
     {
         sender::Sender::from(self.to_owned())
     }
 
-    pub fn weak_sender<M: Message<Result = ()>>(&self) -> weak_sender::WeakSender<M>
+    pub fn weak_sender<M: Message<Response = ()>>(&self) -> weak_sender::WeakSender<M>
     where
         A: Handler<M>,
     {
@@ -208,17 +208,17 @@ mod tests {
 
     pub struct Stop;
     impl Message for Stop {
-        type Result = ();
+        type Response = ();
     }
 
     pub struct Store(pub &'static str);
     impl Message for Store {
-        type Result = ();
+        type Response = ();
     }
 
     pub struct Add(pub i32, pub i32);
     impl Message for Add {
-        type Result = i32;
+        type Response = i32;
     }
 
     impl Actor for MyActor {}

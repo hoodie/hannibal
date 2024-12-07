@@ -7,7 +7,7 @@ pub trait Handler<M: Message>: Actor {
         &mut self,
         ctx: &mut Context<Self>,
         msg: M,
-    ) -> impl futures::Future<Output = M::Result> + Send;
+    ) -> impl futures::Future<Output = M::Response> + Send;
 }
 
 pub trait StreamHandler<M: 'static>: Actor {

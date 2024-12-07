@@ -21,7 +21,7 @@ impl<M: Message> WeakCaller<M> {
         self.upgrade.upgrade()
     }
 
-    pub async fn try_call(&self, msg: M) -> Result<M::Result> {
+    pub async fn try_call(&self, msg: M) -> Result<M::Response> {
         if let Some(caller) = self.upgrade.upgrade() {
             caller.call(msg).await
         } else {

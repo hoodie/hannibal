@@ -2,11 +2,11 @@ use std::collections::HashMap;
 
 use crate::{context::ContextID, Actor, Addr, Context, Handler, Message, Service, WeakSender};
 
-pub struct Broker<T: Message<Result = ()>> {
+pub struct Broker<T: Message<Response = ()>> {
     subscribers: HashMap<ContextID, WeakSender<T>>,
 }
 
-impl<T: Message<Result = ()> + Clone> Broker<T> {
+impl<T: Message<Response = ()> + Clone> Broker<T> {
     pub async fn publish(topic: T) -> crate::error::Result<()> {
         Self::from_registry().await.publish(topic).await
     }
@@ -25,7 +25,7 @@ impl<T: Message<Result = ()> + Clone> Broker<T> {
     }
 }
 
-impl<T: Message<Result = ()>> Default for Broker<T> {
+impl<T: Message<Response = ()>> Default for Broker<T> {
     fn default() -> Self {
         Broker {
             subscribers: Default::default(),
@@ -33,16 +33,16 @@ impl<T: Message<Result = ()>> Default for Broker<T> {
     }
 }
 
-impl<T: Message<Result = ()>> Actor for Broker<T> {}
-impl<T: Message<Result = ()>> Service for Broker<T> {}
+impl<T: Message<Response = ()>> Actor for Broker<T> {}
+impl<T: Message<Response = ()>> Service for Broker<T> {}
 
 struct Publish<T: Message>(T);
 
 impl<T: Message> Message for Publish<T> {
-    type Result = ();
+    type Response = ();
 }
 
-impl<T: Message<Result = ()> + Clone> Handler<Publish<T>> for Broker<T> {
+impl<T: Message<Response = ()> + Clone> Handler<Publish<T>> for Broker<T> {
     async fn handle(&mut self, _ctx: &mut Context<Self>, msg: Publish<T>) {
         for subscriber in self.subscribers.values().filter_map(WeakSender::upgrade) {
             if let Err(_error) = subscriber.send(msg.0.clone()).await {
@@ -55,31 +55,31 @@ impl<T: Message<Result = ()> + Clone> Handler<Publish<T>> for Broker<T> {
     }
 }
 
-struct Subscribe<T: Message<Result = ()>>(WeakSender<T>);
+struct Subscribe<T: Message<Response = ()>>(WeakSender<T>);
 
-impl<T: Message<Result = ()>> Message for Subscribe<T> {
-    type Result = ();
+impl<T: Message<Response = ()>> Message for Subscribe<T> {
+    type Response = ();
 }
 
-struct Unsubscribe<T: Message<Result = ()>>(WeakSender<T>);
+struct Unsubscribe<T: Message<Response = ()>>(WeakSender<T>);
 
-impl<T: Message<Result = ()>> Message for Unsubscribe<T> {
-    type Result = ();
+impl<T: Message<Response = ()>> Message for Unsubscribe<T> {
+    type Response = ();
 }
 
-impl<T: Message<Result = ()> + Clone> Handler<Subscribe<T>> for Broker<T> {
+impl<T: Message<Response = ()> + Clone> Handler<Subscribe<T>> for Broker<T> {
     async fn handle(&mut self, _ctx: &mut Context<Self>, Subscribe(sender): Subscribe<T>) {
         self.subscribers.insert(sender.id, sender);
     }
 }
 
-impl<T: Message<Result = ()> + Clone> Handler<Unsubscribe<T>> for Broker<T> {
+impl<T: Message<Response = ()> + Clone> Handler<Unsubscribe<T>> for Broker<T> {
     async fn handle(&mut self, _ctx: &mut Context<Self>, Unsubscribe(sender): Unsubscribe<T>) {
         self.subscribers.remove(&sender.id);
     }
 }
 
-impl<T: Message<Result = ()> + Clone> Addr<Broker<T>> {
+impl<T: Message<Response = ()> + Clone> Addr<Broker<T>> {
     pub async fn publish(&self, msg: T) -> crate::error::Result<()> {
         self.send(Publish(msg)).await
     }
@@ -108,12 +108,12 @@ mod subscribe_publish_unsubscribe {
     #[derive(Clone)]
     struct Topic1(u32);
     impl Message for Topic1 {
-        type Result = ();
+        type Response = ();
     }
 
     struct GetValue;
     impl Message for GetValue {
-        type Result = Vec<u32>;
+        type Response = Vec<u32>;
     }
 
     #[derive(Default)]
@@ -138,7 +138,7 @@ mod subscribe_publish_unsubscribe {
 
     struct Notify(oneshot::Sender<()>);
     impl Message for Notify {
-        type Result = ();
+        type Response = ();
     }
 
     impl Handler<Notify> for Subscribing {

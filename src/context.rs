@@ -90,7 +90,7 @@ impl<A: Actor> Context<A> {
     }
 
     #[cfg(any(feature = "tokio", feature = "async-std", feature = "custom_runtime"))]
-    pub(crate) fn weak_sender<M: crate::Message<Result = ()>>(&self) -> crate::WeakSender<M>
+    pub(crate) fn weak_sender<M: crate::Message<Response = ()>>(&self) -> crate::WeakSender<M>
     where
         A: Handler<M>,
     {
@@ -102,7 +102,7 @@ impl<A: Actor> Context<A> {
     }
 
     #[cfg(any(feature = "tokio", feature = "async-std"))]
-    pub async fn publish<M: crate::Message<Result = ()> + Clone>(&self, message: M) -> Result<()>
+    pub async fn publish<M: crate::Message<Response = ()> + Clone>(&self, message: M) -> Result<()>
     where
         A: Handler<M>,
     {
@@ -110,7 +110,7 @@ impl<A: Actor> Context<A> {
     }
 
     #[cfg(any(feature = "tokio", feature = "async-std"))]
-    pub async fn subscribe<M: crate::Message<Result = ()> + Clone>(&mut self) -> Result<()>
+    pub async fn subscribe<M: crate::Message<Response = ()> + Clone>(&mut self) -> Result<()>
     where
         A: Handler<M>,
     {
@@ -141,7 +141,7 @@ mod task_handling {
             }
         }
 
-        pub fn interval<M: Message<Result = ()> + Clone + Send + 'static>(
+        pub fn interval<M: Message<Response = ()> + Clone + Send + 'static>(
             &mut self,
             message: M,
             duration: Duration,
@@ -159,7 +159,7 @@ mod task_handling {
             })
         }
 
-        pub fn interval_with<M: Message<Result = ()>>(
+        pub fn interval_with<M: Message<Response = ()>>(
             &mut self,
             message_fn: impl Fn() -> M + Send + Sync + 'static,
             duration: Duration,
@@ -177,7 +177,7 @@ mod task_handling {
             })
         }
 
-        pub fn delayed_send<M: Message<Result = ()>>(
+        pub fn delayed_send<M: Message<Response = ()>>(
             &mut self,
             message_fn: impl Fn() -> M + Send + Sync + 'static,
             duration: Duration,
@@ -295,12 +295,12 @@ mod interval_cleanup {
         struct IntervalSleep(Duration, u32);
 
         impl Message for IntervalSleep {
-            type Result = ();
+            type Response = ();
         }
 
         struct StopTasks;
         impl Message for StopTasks {
-            type Result = ();
+            type Response = ();
         }
 
         impl Handler<IntervalSleep> for IntervalActor {

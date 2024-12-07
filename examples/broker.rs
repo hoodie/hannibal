@@ -4,12 +4,12 @@ use std::time::Duration;
 #[derive(Clone)]
 struct Topic1(u32);
 impl Message for Topic1 {
-    type Result = ();
+    type Response = ();
 }
 
 struct GetValue;
 impl Message for GetValue {
-    type Result = Vec<u32>;
+    type Response = Vec<u32>;
 }
 
 #[derive(Default)]

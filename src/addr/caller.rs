@@ -15,7 +15,7 @@ pub struct Caller<M: Message> {
 }
 
 impl<M: Message> Caller<M> {
-    pub async fn call(&self, msg: M) -> Result<M::Result> {
+    pub async fn call(&self, msg: M) -> Result<M::Response> {
         self.call_fn.call(msg).await
     }
 
@@ -31,7 +31,7 @@ impl<M: Message> Caller<M> {
 
         // TODO: make this queue-safe
         let call_fn = Box::new(
-            move |msg| -> Pin<Box<dyn Future<Output = Result<M::Result>>>> {
+            move |msg| -> Pin<Box<dyn Future<Output = Result<M::Response>>>> {
                 let tx = Arc::clone(&tx);
                 Box::pin(async move {
                     let (response_tx, response) = oneshot::channel();
@@ -66,16 +66,16 @@ impl<M: Message> Caller<M> {
 }
 
 trait CallerFn<M: Message>: Send + Sync + 'static + DynClone {
-    fn call(&self, msg: M) -> Pin<Box<dyn Future<Output = Result<M::Result>>>>;
+    fn call(&self, msg: M) -> Pin<Box<dyn Future<Output = Result<M::Response>>>>;
 }
 
 impl<F, M> CallerFn<M> for F
 where
-    F: Fn(M) -> Pin<Box<dyn Future<Output = Result<M::Result>>>>,
+    F: Fn(M) -> Pin<Box<dyn Future<Output = Result<M::Response>>>>,
     F: 'static + Send + Sync + Clone,
     M: Message,
 {
-    fn call(&self, msg: M) -> Pin<Box<dyn Future<Output = Result<M::Result>>>> {
+    fn call(&self, msg: M) -> Pin<Box<dyn Future<Output = Result<M::Response>>>> {
         self(msg)
     }
 }

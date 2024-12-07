@@ -7,7 +7,7 @@ struct MyActor(u8);
 
 struct Stop;
 impl Message for Stop {
-    type Result = ();
+    type Response = ();
 }
 
 impl Actor for MyActor {

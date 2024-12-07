@@ -9,13 +9,13 @@ struct StorageService {
 struct Store(&'static str, &'static str);
 
 impl Message for Store {
-    type Result = ();
+    type Response = ();
 }
 
 struct Retrieve(&'static str);
 
 impl Message for Retrieve {
-    type Result = Option<String>;
+    type Response = Option<String>;
 }
 
 impl Actor for StorageService {}

@@ -16,7 +16,7 @@ pub struct WeakSender<M> {
     pub(crate) id: ContextID,
 }
 
-impl<M: Message<Result = ()>> WeakSender<M> {
+impl<M: Message<Response = ()>> WeakSender<M> {
     pub fn upgrade(&self) -> Option<Sender<M>> {
         self.upgrade.upgrade()
     }
@@ -41,7 +41,7 @@ impl<M: Message<Result = ()>> WeakSender<M> {
     fn new<A>(tx: ChanTx<A>, force_tx: ForceChanTx<A>, id: ContextID) -> Self
     where
         A: Actor + Handler<M>,
-        M: Message<Result = ()>,
+        M: Message<Response = ()>,
     {
         Self::from_weak_tx(Arc::downgrade(&tx), Arc::downgrade(&force_tx), id)
     }
@@ -53,7 +53,7 @@ impl<M: Message<Result = ()>> WeakSender<M> {
     ) -> Self
     where
         A: Actor + Handler<M>,
-        M: Message<Result = ()>,
+        M: Message<Response = ()>,
     {
         let upgrade = Box::new(move || {
             weak_tx
@@ -66,7 +66,7 @@ impl<M: Message<Result = ()>> WeakSender<M> {
     }
 }
 
-impl<M: Message<Result = ()>, A> From<Addr<A>> for WeakSender<M>
+impl<M: Message<Response = ()>, A> From<Addr<A>> for WeakSender<M>
 where
     A: Actor + Handler<M>,
 {
@@ -79,7 +79,7 @@ where
     }
 }
 
-impl<M: Message<Result = ()>, A> From<&Addr<A>> for WeakSender<M>
+impl<M: Message<Response = ()>, A> From<&Addr<A>> for WeakSender<M>
 where
     A: Actor + Handler<M>,
 {
@@ -92,7 +92,7 @@ where
     }
 }
 
-impl<M: Message<Result = ()>> Clone for WeakSender<M> {
+impl<M: Message<Response = ()>> Clone for WeakSender<M> {
     fn clone(&self) -> Self {
         WeakSender {
             upgrade: dyn_clone::clone_box(&*self.upgrade),
@@ -101,7 +101,7 @@ impl<M: Message<Result = ()>> Clone for WeakSender<M> {
     }
 }
 
-pub(super) trait UpgradeFn<M: Message<Result = ()>>:
+pub(super) trait UpgradeFn<M: Message<Response = ()>>:
     Send + Sync + 'static + DynClone
 {
     fn upgrade(&self) -> Option<Sender<M>>;
@@ -111,7 +111,7 @@ impl<F, M> UpgradeFn<M> for F
 where
     F: Fn() -> Option<Sender<M>>,
     F: 'static + Send + Sync + Clone,
-    M: Message<Result = ()>,
+    M: Message<Response = ()>,
 {
     fn upgrade(&self) -> Option<Sender<M>> {
         self()

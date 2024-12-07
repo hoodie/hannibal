@@ -5,12 +5,12 @@ struct MyActor(&'static str);
 
 struct Greet(&'static str);
 impl Message for Greet {
-    type Result = ();
+    type Response = ();
 }
 
 struct Add(i32, i32);
 impl Message for Add {
-    type Result = i32;
+    type Response = i32;
 }
 
 impl Actor for MyActor {

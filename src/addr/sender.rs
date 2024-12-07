@@ -14,14 +14,14 @@ use crate::{
 
 use super::{weak_sender::WeakSender, Addr, Message, Payload, Result};
 
-pub struct Sender<M: Message<Result = ()>> {
+pub struct Sender<M: Message<Response = ()>> {
     send_fn: Box<dyn SenderFn<M>>,
     force_send_fn: Box<dyn ForceSenderFn<M>>,
     downgrade_fn: Box<dyn DowngradeFn<M>>,
     id: ContextID,
 }
 
-impl<M: Message<Result = ()>> Sender<M> {
+impl<M: Message<Response = ()>> Sender<M> {
     pub fn send(&self, msg: M) -> Pin<Box<dyn Future<Output = Result<()>> + Send>> {
         self.send_fn.send(msg)
     }
@@ -75,11 +75,11 @@ impl<M: Message<Result = ()>> Sender<M> {
     }
 }
 
-trait ForceSenderFn<M: Message<Result = ()>>: 'static + Send + Sync + DynClone {
+trait ForceSenderFn<M: Message<Response = ()>>: 'static + Send + Sync + DynClone {
     fn send(&self, msg: M) -> Result<()>;
 }
 
-impl<F, M: Message<Result = ()>> ForceSenderFn<M> for F
+impl<F, M: Message<Response = ()>> ForceSenderFn<M> for F
 where
     F: Fn(M) -> Result<()>,
     F: 'static + Send + Sync + Clone,
@@ -89,11 +89,11 @@ where
     }
 }
 
-trait SenderFn<M: Message<Result = ()>>: 'static + Send + Sync + DynClone {
+trait SenderFn<M: Message<Response = ()>>: 'static + Send + Sync + DynClone {
     fn send(&self, msg: M) -> Pin<Box<dyn Future<Output = Result<()>> + Send>>;
 }
 
-impl<F, M: Message<Result = ()>> SenderFn<M> for F
+impl<F, M: Message<Response = ()>> SenderFn<M> for F
 where
     F: Fn(M) -> Pin<Box<dyn Future<Output = Result<()>> + Send>>,
     F: 'static + Send + Sync + Clone,
@@ -103,7 +103,7 @@ where
     }
 }
 
-impl<M: Message<Result = ()>, A> From<Addr<A>> for Sender<M>
+impl<M: Message<Response = ()>, A> From<Addr<A>> for Sender<M>
 where
     A: Actor + Handler<M>,
 {
@@ -116,7 +116,7 @@ where
     }
 }
 
-impl<M: Message<Result = ()>, A> From<&Addr<A>> for Sender<M>
+impl<M: Message<Response = ()>, A> From<&Addr<A>> for Sender<M>
 where
     A: Actor + Handler<M>,
 {
@@ -129,7 +129,7 @@ where
     }
 }
 
-impl<M: Message<Result = ()>> Clone for Sender<M> {
+impl<M: Message<Response = ()>> Clone for Sender<M> {
     fn clone(&self) -> Self {
         Sender {
             id: self.id,
@@ -140,7 +140,7 @@ impl<M: Message<Result = ()>> Clone for Sender<M> {
     }
 }
 
-trait DowngradeFn<M: Message<Result = ()>>: Send + Sync + 'static + DynClone {
+trait DowngradeFn<M: Message<Response = ()>>: Send + Sync + 'static + DynClone {
     fn downgrade(&self) -> WeakSender<M>;
 }
 
@@ -148,7 +148,7 @@ impl<F, M> DowngradeFn<M> for F
 where
     F: Fn() -> WeakSender<M>,
     F: 'static + Send + Sync + Clone,
-    M: Message<Result = ()>,
+    M: Message<Response = ()>,
 {
     fn downgrade(&self) -> WeakSender<M> {
         self()

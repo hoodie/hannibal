@@ -418,7 +418,7 @@ mod tests {
 
         struct Sleep(Duration);
         impl Message for Sleep {
-            type Result = ();
+            type Response = ();
         }
 
         impl Actor for SleepyActor {
