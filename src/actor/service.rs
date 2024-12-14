@@ -25,7 +25,7 @@ impl<A: Service> Addr<A> {
         let replaced = if let Some(existing) = registry.get(&key) {
             if existing
                 .downcast_ref::<Addr<A>>()
-                .map_or(false, Addr::stopped)
+                .is_some_and(Addr::stopped)
             {
                 registry
                     .insert(key, Box::new(self.clone()))
