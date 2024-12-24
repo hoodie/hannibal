@@ -1,3 +1,5 @@
+#![deny(clippy::unwrap_used)]
+
 mod actor;
 mod addr;
 mod channel;
