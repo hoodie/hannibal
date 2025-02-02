@@ -96,10 +96,8 @@ impl<T: Message<Response = ()> + Clone> Addr<Broker<T>> {
 #[cfg(test)]
 mod subscribe_publish_unsubscribe {
     #![allow(clippy::unwrap_used)]
-    use std::time::Duration;
 
     use futures::future::join;
-    use tokio::sync::oneshot;
 
     use crate::{
         prelude::Spawnable as _, Actor, Broker, Context, DynResult, Handler, Message, Service,
@@ -111,13 +109,8 @@ mod subscribe_publish_unsubscribe {
         type Response = ();
     }
 
-    struct GetValue;
-    impl Message for GetValue {
-        type Response = Vec<u32>;
-    }
-
-    #[derive(Default)]
-    struct Subscribing(Vec<u32>, Option<oneshot::Sender<()>>);
+    #[derive(Default, Debug, PartialEq)]
+    struct Subscribing(Vec<u32>);
 
     impl Actor for Subscribing {
         async fn started(&mut self, ctx: &mut Context<Self>) -> DynResult<()> {
@@ -129,52 +122,25 @@ mod subscribe_publish_unsubscribe {
     impl Handler<Topic1> for Subscribing {
         async fn handle(&mut self, _ctx: &mut Context<Self>, msg: Topic1) {
             self.0.push(msg.0);
-
-            if let (Some(sender), true) = (self.1.take(), self.0.len() == 2) {
-                let _ = sender.send(());
-            }
-        }
-    }
-
-    struct Notify(oneshot::Sender<()>);
-    impl Message for Notify {
-        type Response = ();
-    }
-
-    impl Handler<Notify> for Subscribing {
-        async fn handle(&mut self, _ctx: &mut Context<Self>, msg: Notify) {
-            self.1.replace(msg.0);
-        }
-    }
-
-    impl Handler<GetValue> for Subscribing {
-        async fn handle(&mut self, _ctx: &mut Context<Self>, _msg: GetValue) -> Vec<u32> {
-            self.0.clone()
         }
     }
 
     #[tokio::test]
     async fn publish_different_ways() -> DynResult<()> {
-        let subscriber1 = Subscribing::default().spawn();
-        let subscriber2 = Subscribing::default().spawn();
+        let subscriber1 = Subscribing::default().spawn_owning();
+        let subscriber2 = Subscribing::default().spawn_owning();
 
-        let (notify_tx1, notify_rx1) = oneshot::channel();
-        let (notify_tx2, notify_rx2) = oneshot::channel();
-        subscriber1.call(Notify(notify_tx1)).await.unwrap();
-        subscriber2.call(Notify(notify_tx2)).await.unwrap();
+        let ping_both = || join(subscriber1.as_addr().ping(), subscriber2.as_addr().ping());
+        let _ = ping_both().await;
 
-        Broker::from_registry()
-            .await
-            .publish(Topic1(42))
-            .await
-            .unwrap();
-        Broker::publish(Topic1(23)).await.unwrap();
-        let _ = join(notify_rx1, notify_rx2).await;
+        let broker = Broker::from_registry().await;
+        broker.publish(Topic1(42)).await.unwrap();
+        broker.publish(Topic1(23)).await.unwrap();
 
-        tokio::time::sleep(Duration::from_secs(1)).await; // Wait for the messages
+        let _ = ping_both().await;
 
-        assert_eq!(subscriber1.call(GetValue).await?, vec![42, 23]);
-        assert_eq!(subscriber2.call(GetValue).await?, vec![42, 23]);
+        assert_eq!(subscriber1.consume().await, Ok(Subscribing(vec![42, 23])));
+        assert_eq!(subscriber2.consume().await, Ok(Subscribing(vec![42, 23])));
 
         Ok(())
     }

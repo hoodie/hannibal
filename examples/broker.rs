@@ -1,13 +1,10 @@
+use futures::future::join;
 use minibal::{prelude::*, Broker};
-use std::time::Duration;
 
 #[derive(Clone, Message)]
 struct Topic1(u32);
 
-#[message(response = Vec<u32>)]
-struct GetValue;
-
-#[derive(Default, Message)]
+#[derive(Debug, Default, PartialEq)]
 struct Subscribing(Vec<u32>);
 
 impl Actor for Subscribing {
@@ -23,27 +20,26 @@ impl Handler<Topic1> for Subscribing {
     }
 }
 
-impl Handler<GetValue> for Subscribing {
-    async fn handle(&mut self, _ctx: &mut Context<Self>, _msg: GetValue) -> Vec<u32> {
-        self.0.clone()
-    }
-}
-
 #[tokio::main]
 async fn main() -> DynResult<()> {
-    let subscriber1 = Subscribing::default().spawn();
-    let subscriber2 = Subscribing::default().spawn();
+    let subscriber1 = Subscribing::default().spawn_owning();
+    let subscriber2 = Subscribing::default().spawn_owning();
 
-    Broker::from_registry()
-        .await
-        .publish(Topic1(42))
-        .await
-        .unwrap();
-    Broker::publish(Topic1(23)).await.unwrap();
+    // avoid race condition in example
+    let ping_both = || join(subscriber1.as_addr().ping(), subscriber2.as_addr().ping());
 
-    tokio::time::sleep(Duration::from_secs(1)).await; // Wait for the messages
+    let _ = ping_both().await;
 
-    assert_eq!(subscriber1.call(GetValue).await?, vec![42, 23]);
-    assert_eq!(subscriber2.call(GetValue).await?, vec![42, 23]);
+    let broker = Broker::from_registry().await;
+    broker.publish(Topic1(42)).await.unwrap();
+    broker.publish(Topic1(23)).await.unwrap();
+
+    // avoid race condition in example
+    let _ = ping_both().await;
+
+    assert_eq!(subscriber1.consume().await, Ok(Subscribing(vec![42, 23])));
+    assert_eq!(subscriber2.consume().await, Ok(Subscribing(vec![42, 23])));
+    println!("both subscribers received all messges");
+
     Ok(())
 }
