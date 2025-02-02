@@ -187,6 +187,12 @@ impl<A: Actor> OwningAddr<A> {
         Ok(self.join())
     }
 
+    pub async fn consume(mut self) -> Result<A> {
+        self.addr.stop()?;
+        let actor = self.join().await;
+        actor.ok_or(crate::error::ActorError::AlreadyStopped)
+    }
+
     pub const fn as_addr(&self) -> &Addr<A> {
         &self.addr
     }

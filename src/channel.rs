@@ -118,7 +118,7 @@ where
         );
 
         let force_send = Arc::new(move |event: Payload<A>| -> Result<()> {
-            eprintln!("sending (unbounded {})", tx.len());
+            log::trace!("sending (unbounded {})", tx.len());
             let mut tx = tx.clone();
             tx.start_send(event)?;
             Ok(())
