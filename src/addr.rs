@@ -197,6 +197,24 @@ impl<A: Actor> OwningAddr<A> {
         &self.addr
     }
 
+    pub async fn ping(&self) -> Result<()> {
+        self.addr.ping().await
+    }
+
+    pub async fn call<M: Message>(&self, msg: M) -> Result<M::Response>
+    where
+        A: Handler<M>,
+    {
+        self.addr.call(msg).await
+    }
+
+    pub async fn send<M: Message<Response = ()>>(&self, msg: M) -> Result<()>
+    where
+        A: Handler<M>,
+    {
+        self.addr.send(msg).await
+    }
+
     pub fn to_addr(&self) -> Addr<A> {
         self.addr.clone()
     }

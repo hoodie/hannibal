@@ -26,7 +26,7 @@ async fn main() -> DynResult<()> {
     let subscriber2 = Subscribing::default().spawn_owning();
 
     // avoid race condition in example
-    let ping_both = || join(subscriber1.as_addr().ping(), subscriber2.as_addr().ping());
+    let ping_both = || join(subscriber1.ping(), subscriber2.ping());
 
     let _ = ping_both().await;
 

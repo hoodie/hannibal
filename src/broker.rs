@@ -130,7 +130,7 @@ mod subscribe_publish_unsubscribe {
         let subscriber1 = Subscribing::default().spawn_owning();
         let subscriber2 = Subscribing::default().spawn_owning();
 
-        let ping_both = || join(subscriber1.as_addr().ping(), subscriber2.as_addr().ping());
+        let ping_both = || join(subscriber1.ping(), subscriber2.ping());
         let _ = ping_both().await;
 
         let broker = Broker::from_registry().await;

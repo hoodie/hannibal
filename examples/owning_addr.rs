@@ -39,8 +39,8 @@ impl Handler<Add> for MyActor {
 #[tokio::main]
 async fn main() {
     let addr = MyActor("Caesar").spawn_owning();
-    addr.as_addr().send(Greet("Cornelius")).await.unwrap();
-    let addition = addr.as_addr().call(Add(1, 2)).await;
+    addr.send(Greet("Cornelius")).await.unwrap();
+    let addition = addr.call(Add(1, 2)).await;
 
     println!("The Actor Calculated: {:?}", addition);
     println!("{:#?}", addr.stop_and_join().unwrap().await);

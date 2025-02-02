@@ -61,17 +61,10 @@ async fn main() {
         .await
         .is_ok());
     assert!(matches!(
-        addr.as_addr()
-            .call(Sleep(Duration::from_secs(4)))
-            .await
-            .unwrap_err(),
+        addr.call(Sleep(Duration::from_secs(4))).await.unwrap_err(),
         ActorError::Canceled(_)
     ));
-    assert!(addr
-        .as_addr()
-        .call(Sleep(Duration::from_secs(0)))
-        .await
-        .is_ok());
+    assert!(addr.call(Sleep(Duration::from_secs(0))).await.is_ok());
     eprintln!("SleepyActor 2 is still alive, stopping");
     assert!(addr.to_addr().stop().is_ok());
     assert!(addr.join().await.is_some());
