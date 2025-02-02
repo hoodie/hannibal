@@ -80,6 +80,19 @@ impl<A: Actor> Addr<A> {
         Ok(response.await?)
     }
 
+    /// Ping the actor to check if it is already/still alive.
+    pub async fn ping(&self) -> Result<()> {
+        let (tx_response, response) = oneshot::channel();
+        self.payload_force_tx
+            .send(Payload::task(move |_actor, _ctx| {
+                Box::pin(async move {
+                    let _ = tx_response.send(());
+                })
+            }))?;
+
+        Ok(response.await?)
+    }
+
     #[deprecated]
     // TODO: look if this can be made available exclusively to unbouded environments
     pub fn force_send<M: Message<Response = ()>>(&self, msg: M) -> Result<()>
