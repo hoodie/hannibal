@@ -39,9 +39,30 @@ impl Handler<Add> for MyActor {
 #[tokio::main]
 async fn main() {
     let mut addr = MyActor("Caesar").spawn();
-    addr.send(Greet("Cornelius")).await.unwrap();
-    let addition = addr.call(Add(1, 2)).await;
 
-    println!("The Actor Calculated: {:?}", addition);
+    // addressing by the concrete type of the actor
+    {
+        // send a message without a response
+        addr.send(Greet("Hannibal")).await.unwrap();
+
+        // expecting a response
+        let addition = addr.call(Add(1, 2)).await;
+
+        println!("The Actor Calculated: {:?}", addition);
+    }
+
+    // addressing by the type of the message only
+    {
+        let sender = addr.sender::<Greet>();
+        let caller = addr.caller::<Add>();
+
+        // send a message without a response
+        sender.send(Greet("Hannibal")).await.unwrap();
+
+        // expecting a response
+        let addition = caller.call(Add(1, 2)).await;
+        println!("The Actor Calculated: {:?}", addition);
+    }
+
     println!("{:#?}", addr.stop());
 }

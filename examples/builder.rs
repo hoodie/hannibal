@@ -66,7 +66,7 @@ async fn main() {
     let addr = minibal::build(MyActor("Caesar"))
         .unbounded()
         .non_restartable()
-        .with_stream(stream::iter(vec![17, 19])) // this shouldn't work
+        .with_stream(stream::iter(17..19)) // this shouldn't work
         .spawn();
     send_greet_and_stop(addr).await;
 
