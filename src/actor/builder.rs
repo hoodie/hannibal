@@ -84,6 +84,30 @@ where
     pub fn unbounded(self) -> ActorBuilderWithChannel<A, P, RestartOnly> {
         self.with_channel(Channel::unbounded())
     }
+
+    /// Create a non-restarable on that stream
+    pub fn bounded_on_stream<S>(self, capacity: usize, stream: S) -> StreamActorBuilder<A, P, S>
+    where
+        S: futures::Stream + Unpin + Send + 'static,
+        S::Item: 'static + Send,
+        A: StreamHandler<S::Item>,
+    {
+        self.with_channel(Channel::bounded(capacity))
+            .non_restartable()
+            .with_stream(stream)
+    }
+
+    /// Create a non-restarable on that stream
+    pub fn on_stream<S>(self, stream: S) -> StreamActorBuilder<A, P, S>
+    where
+        S: futures::Stream + Unpin + Send + 'static,
+        S::Item: 'static + Send,
+        A: StreamHandler<S::Item>,
+    {
+        self.with_channel(Channel::unbounded())
+            .non_restartable()
+            .with_stream(stream)
+    }
 }
 
 /// add stream
@@ -216,5 +240,23 @@ where
         let (event_loop, addr) = env.create_loop_on_stream(actor, stream);
         let _handle = P::spawn_actor(event_loop);
         addr
+    }
+
+    pub fn spawn_owning(self) -> OwningAddr<A> {
+        let Self {
+            with_channel:
+                ActorBuilderWithChannel {
+                    base: BaseActorBuilder { actor, config, .. },
+                    channel,
+                    ..
+                },
+            stream,
+        } = self;
+
+        let env = environment::Environment::<A, NonRestartable>::from_channel(channel)
+            .with_config(config);
+        let (event_loop, addr) = env.create_loop_on_stream(actor, stream);
+        let handle = P::spawn_actor(event_loop);
+        OwningAddr { addr, handle }
     }
 }
