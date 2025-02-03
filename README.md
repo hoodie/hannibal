@@ -4,6 +4,7 @@
 
 <!-- Crates version -->
 
+[![Continuous Integration](https://github.com/hoodie/hannibal/actions/workflows/ci.yml/badge.svg)](https://github.com/hoodie/hannibal/actions/workflows/ci.yml)
 [![version](https://img.shields.io/crates/v/hannibal)](https://crates.io/crates/hannibal/)
 [![downloads](https://img.shields.io/crates/d/hannibal.svg?style=flat-square)](https://crates.io/crates/hannibal)
 [![docs.rs docs](https://img.shields.io/badge/docs-latest-blue.svg?style=flat-square)](https://docs.rs/hannibal)
