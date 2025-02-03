@@ -86,8 +86,8 @@ name = "custom_spawner"
 path = "examples/custom_spawner.rs"
 
 [[example]]
-name = "simple-service"
-path = "examples/simple-service.rs"
+name = "storage-service"
+path = "examples/storage-service.rs"
 required-features = [
     "tokio",
     # "async-std"
