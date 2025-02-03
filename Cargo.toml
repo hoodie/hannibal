@@ -77,6 +77,11 @@ path = "examples/intervals.rs"
 required-features = ["tokio"]
 
 [[example]]
+name = "streams"
+path = "examples/streams.rs"
+required-features = ["tokio"]
+
+[[example]]
 name = "custom_spawner"
 path = "examples/custom_spawner.rs"
 
