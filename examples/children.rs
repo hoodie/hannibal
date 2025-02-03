@@ -1,11 +1,11 @@
 use std::time::Duration;
 
-use minibal::prelude::*;
+use hannibal::prelude::*;
 
 #[derive(Debug)]
 struct Child(usize);
 impl Actor for Child {
-    async fn started(&mut self, ctx: &mut Context<Self>) -> minibal::DynResult<()> {
+    async fn started(&mut self, ctx: &mut Context<Self>) -> hannibal::DynResult<()> {
         println!("{self:?} started");
         ctx.interval_with(|| (), Duration::from_millis(300 + 300 * self.0 as u64));
         Ok(())

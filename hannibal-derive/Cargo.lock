@@ -3,7 +3,7 @@
 version = 4
 
 [[package]]
-name = "minibal-macro"
+name = "hannibal-macro"
 version = "0.1.0"
 dependencies = [
  "proc-macro2",

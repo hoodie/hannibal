@@ -1,5 +1,5 @@
 use async_signals::Signals;
-use minibal::prelude::*;
+use hannibal::prelude::*;
 
 #[derive(Actor, Debug, Default)]
 struct SignalService {

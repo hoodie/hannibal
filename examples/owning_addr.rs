@@ -1,4 +1,4 @@
-use minibal::prelude::*;
+use hannibal::prelude::*;
 
 #[derive(Debug)]
 struct MyActor(&'static str);

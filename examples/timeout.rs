@@ -1,6 +1,6 @@
 use std::time::Duration;
 
-use minibal::{error::ActorError, prelude::*, RestartableActor};
+use hannibal::{error::ActorError, prelude::*, RestartableActor};
 
 #[cfg(feature = "async-std")]
 use async_std::task::sleep;
@@ -39,7 +39,7 @@ impl RestartableActor for SleepyActor {}
 async fn main() {
     // normal case, tasks take long
     println!("SleepyActor 0 will take 1 second to complete");
-    let mut addr = minibal::build(SleepyActor(0))
+    let mut addr = hannibal::build(SleepyActor(0))
         .bounded(1)
         .recreate_from_default()
         .spawn();
@@ -49,7 +49,7 @@ async fn main() {
     // timeout and continue
     println!("SleepyActor 1 will be canceled after 1 second");
     println!("SleepyActor 1 still accepts messages after being canceled");
-    let mut addr = minibal::build(SleepyActor(1))
+    let mut addr = hannibal::build(SleepyActor(1))
         .bounded(1)
         .timeout(Duration::from_millis(100))
         .fail_on_timeout(false)
@@ -71,7 +71,7 @@ async fn main() {
 
     // timeout and fail
     println!("SleepyActor 2 will be canceled after 1 second");
-    let mut addr = minibal::build(SleepyActor(2))
+    let mut addr = hannibal::build(SleepyActor(2))
         .bounded(1)
         .timeout(Duration::from_millis(100))
         .fail_on_timeout(true)

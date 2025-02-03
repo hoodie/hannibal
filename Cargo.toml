@@ -1,7 +1,21 @@
 [package]
-name = "minibal"
-version = "0.1.0"
+name = "hannibal"
+version = "0.12.0-rc.1"
+authors = ["Hendrik Sollich <hendrik@hoodie.de>"]
+license = "MIT/Apache-2.0"
+
+description = "A small actor library"
+documentation = "https://docs.rs/hannibal/"
+homepage = "https://github.com/hoodie/hannibal"
+keywords = ["actor", "async"]
+categories = ["date-and-time", "data-structures", "parsing"]
+
+
+readme = "README.md"
+public = true
 edition = "2021"
+
+rust-version = "1.84"
 
 [dependencies]
 thiserror = "2.0"
@@ -15,7 +29,7 @@ async-std = { version = "1.13.0", optional = true }
 cfg-if = "1.0.0"
 futures-timer = "3"
 log = "0.4"
-minibal-derive = { path = "minibal-derive" }
+hannibal-derive = { path = "hannibal-derive" }
 
 [dev-dependencies]
 tokio = { version = "1.43", features = ["full"] }

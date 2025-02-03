@@ -7,7 +7,7 @@ mod context;
 mod environment;
 pub mod error;
 
-pub use minibal_derive::message;
+pub use hannibal_derive::message;
 
 #[cfg(any(feature = "tokio", feature = "async-std"))]
 mod broker;
@@ -39,5 +39,5 @@ pub mod prelude {
         message,
         spawner::{Spawnable, StreamSpawnable},
     };
-    pub use minibal_derive::*;
+    pub use hannibal_derive::*;
 }

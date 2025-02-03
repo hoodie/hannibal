@@ -9,7 +9,7 @@ mod custom_spawner {
 
     static POOL: LazyLock<Mutex<ThreadPool>> = LazyLock::new(|| ThreadPool::new().unwrap().into());
     use futures::task::SpawnExt as _;
-    use minibal::{
+    use hannibal::{
         prelude::*,
         spawner::{ActorHandle, JoinFuture, Spawner},
         DynResult,
@@ -73,7 +73,7 @@ mod custom_spawner {
 #[cfg(all(not(feature = "tokio"), not(feature = "async-std")))]
 fn main() {
     use custom_spawner::*;
-    use minibal::{prelude::Spawnable as _, spawner::SpawnableWith};
+    use hannibal::{prelude::Spawnable as _, spawner::SpawnableWith};
     color_backtrace::install();
     futures::executor::block_on(async {
         let (mut _addr, _) = MyActor.spawn_with::<CustomSpawner>().unwrap();

@@ -28,7 +28,7 @@ pub fn message(args: TokenStream, input: TokenStream) -> TokenStream {
     let ident = &ast.ident;
     let gen = quote! {
         #ast
-        impl ::minibal::Message for #ident {
+        impl ::hannibal::Message for #ident {
             type Response = #response_type;
         }
     };
@@ -41,7 +41,7 @@ pub fn derive_message(input: TokenStream) -> TokenStream {
 
     let name = &ast.ident;
     let gen = quote! {
-        impl ::minibal::Message for #name {
+        impl ::hannibal::Message for #name {
             type Response = ();
         }
     };
@@ -54,7 +54,7 @@ pub fn derive_actor(input: TokenStream) -> TokenStream {
 
     let name = &ast.ident;
     let gen = quote! {
-        impl ::minibal::Actor for #name {
+        impl ::hannibal::Actor for #name {
         }
     };
     gen.into()
@@ -66,7 +66,7 @@ pub fn derive_service(input: TokenStream) -> TokenStream {
 
     let name = &ast.ident;
     let gen = quote! {
-        impl ::minibal::Service for #name {
+        impl ::hannibal::Service for #name {
         }
     };
     gen.into()
