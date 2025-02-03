@@ -2,7 +2,7 @@
     all(feature = "tokio", feature = "async-std"),
     allow(dead_code, unused)
 )]
-use minibal::prelude::*;
+use hannibal::prelude::*;
 
 struct MyActor(&'static str);
 

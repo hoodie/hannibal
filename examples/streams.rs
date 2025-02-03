@@ -1,4 +1,4 @@
-use minibal::prelude::*;
+use hannibal::prelude::*;
 
 #[derive(Default, Actor)]
 struct FizzBuzzer(&'static str);
@@ -26,7 +26,7 @@ impl StreamHandler<i32> for FizzBuzzer {
 #[tokio::main]
 async fn main() {
     let num_stream = futures::stream::iter(1..30);
-    let addr = minibal::build(FizzBuzzer("Caesar"))
+    let addr = hannibal::build(FizzBuzzer("Caesar"))
         .on_stream(num_stream)
         .spawn();
 

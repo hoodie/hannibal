@@ -1,7 +1,7 @@
 #![cfg(feature = "tokio")]
 use std::time::Duration;
 
-use minibal::prelude::*;
+use hannibal::prelude::*;
 
 struct MyActor(u8);
 

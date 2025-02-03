@@ -1,5 +1,5 @@
 use futures::stream;
-use minibal::{prelude::*, RestartableActor};
+use hannibal::{prelude::*, RestartableActor};
 
 #[derive(Default)]
 struct MyActor(&'static str);
@@ -57,20 +57,20 @@ impl RestartableActor for MyActor {}
 
 #[tokio::main]
 async fn main() {
-    let addr = minibal::build(MyActor("Caesar"))
+    let addr = hannibal::build(MyActor("Caesar"))
         .bounded(6)
         .recreate_from_default()
         .spawn();
     send_greet_and_stop(addr).await;
 
-    let addr = minibal::build(MyActor("Caesar"))
+    let addr = hannibal::build(MyActor("Caesar"))
         .unbounded()
         .non_restartable()
         .with_stream(stream::iter(17..19)) // this shouldn't work
         .spawn();
     send_greet_and_stop(addr).await;
 
-    let addr = minibal::build(MyActor("Caesar")).unbounded().spawn();
+    let addr = hannibal::build(MyActor("Caesar")).unbounded().spawn();
     send_greet_and_stop(addr).await;
 
     let addr = MyActor("Caesar").spawn();

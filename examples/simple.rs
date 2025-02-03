@@ -1,5 +1,5 @@
 #![cfg(feature = "tokio")]
-use minibal::prelude::*;
+use hannibal::prelude::*;
 
 struct MyActor(&'static str);
 

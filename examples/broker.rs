@@ -1,5 +1,5 @@
 use futures::future::join;
-use minibal::{prelude::*, Broker};
+use hannibal::{prelude::*, Broker};
 
 #[derive(Clone, Message)]
 struct Topic1(u32);

@@ -126,7 +126,7 @@ impl StreamHandler<i32> for FizzBuzzer {
 async fn main() {
     // just imagine this is a websocket stream
     let num_stream = futures::stream::iter(1..30);
-    let addr = minibal::build(FizzBuzzer("Caesar"))
+    let addr = hannibal::build(FizzBuzzer("Caesar"))
         .on_stream(num_stream)
         .spawn();
 

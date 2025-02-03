@@ -1,4 +1,4 @@
-use minibal::prelude::*;
+use hannibal::prelude::*;
 use std::collections::HashMap;
 
 #[derive(Debug, Default, Actor, Service)]
