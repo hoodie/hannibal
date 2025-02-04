@@ -11,6 +11,10 @@ use crate::{
 
 use super::{sender::Sender, Addr, Message, Result};
 
+/// A weak reference to an actor that can receive `M`.
+///
+/// This is the weak counterpart to [`Sender`].
+/// It can be upgraded if the Actor is still alive.
 pub struct WeakSender<M> {
     pub(super) upgrade: Box<dyn UpgradeFn<M>>,
     pub(crate) id: ContextID,

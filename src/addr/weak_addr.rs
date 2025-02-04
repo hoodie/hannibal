@@ -5,6 +5,9 @@ use dyn_clone::DynClone;
 use crate::context::{ContextID, RunningFuture};
 use crate::{Actor, Addr};
 
+/// A weak reference to an actor.
+///
+/// This is the weak counterpart to [`Addr`]. It can be upgraded to a strong [`Addr]` if to the Actor is still alive.
 pub struct WeakAddr<A: Actor> {
     pub(crate) context_id: ContextID,
     pub(super) upgrade: Box<dyn UpgradeFn<A>>,

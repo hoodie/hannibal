@@ -8,6 +8,12 @@ use crate::{channel::ChanTx, context::ContextID, Actor, Handler};
 
 use super::{weak_caller::WeakCaller, Addr, Message, Payload, Result};
 
+/// A reference to some actor that can receive `M`.
+///
+/// Can be used to send a message to an actor and receive a response.
+/// If you don't need a response, use [`Sender`](`crate::Sender`) instead.
+///
+/// Callers can be downgraded to [`WeakCaller`](`crate::WeakCaller`) to check if the actor is still alive.
 pub struct Caller<M: Message> {
     call_fn: Box<dyn CallerFn<M>>,
     downgrade_fn: Box<dyn DowngradeFn<M>>,

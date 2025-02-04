@@ -1,4 +1,4 @@
-<div align="center">
+<!-- <div align="center"> -->
 
 # Hannibal
 
@@ -238,6 +238,7 @@ Since 0.12 it is a complete, indicated by skipping versions 0.11 entirely.
 The rewrite with the following features:
 
 - Strong and Weak Senders and Callers (as in actix)
+  - weak and strong  callers and senders can be created from weak and strong addresses
 - Exchangeable Channel Implementation
   - included: bounded and unbounded
 - Streams are Handled by launching an actor together with a stream.

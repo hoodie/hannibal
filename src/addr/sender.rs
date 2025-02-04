@@ -14,6 +14,12 @@ use crate::{
 
 use super::{weak_sender::WeakSender, Addr, Message, Payload, Result};
 
+/// A reference to some actor that can receive `M`.
+///
+/// Can be used to send a message to an actor without expecting a response.
+/// If you need a response, use [`Caller`](`crate::Caller`) instead.
+///
+/// Senders can be downgraded to [`WeakSender`](`crate::WeakSender`) to check if the actor is still alive.
 pub struct Sender<M: Message<Response = ()>> {
     send_fn: Box<dyn SenderFn<M>>,
     force_send_fn: Box<dyn ForceSenderFn<M>>,

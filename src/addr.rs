@@ -19,6 +19,33 @@ use crate::{
     RestartableActor,
 };
 
+/// Anything that you want to send to an actor.
+///
+/// Messages can have a response type like `Ping` and `Pong` in the following example.
+/// ```rust
+/// # use hannibal::message;
+/// #[message(response = Pong)]
+/// struct Ping;
+///
+/// struct Pong; // does not need to implement `Message`
+/// ```
+///
+/// Or they can be fire-and-forget messages like `Stop` in the following example.
+///
+/// ```rust
+/// # use hannibal::message;
+/// #[message]
+/// struct Store(&'static str);
+/// ```
+///
+/// You can also derive the `Message` trait for simple messages without a response.
+///
+/// ```rust
+/// # use hannibal::message;
+/// #[derive(Debug, Message)]
+/// struct Store(&'static str);
+/// ```
+///
 pub trait Message: 'static + Send {
     type Response: 'static + Send;
 }
@@ -27,6 +54,16 @@ impl Message for () {
     type Response = ();
 }
 
+/// A strong reference to an actor.
+///
+/// This is the main way to interact with an actor.
+/// You get the `Addr` when you spawn an actor.
+/// `Addr`s can be cloned and sent to other threads.
+///
+/// # Weak References
+/// The [`Actor`] will be stopped when the last [`Addr`]s are dropped,
+/// if you don't want to prolong the life of the actor you can use a [`WeakAddr`] via [`Addr::downgrade`].
+///
 pub struct Addr<A> {
     pub(crate) context_id: ContextID,
     pub(crate) payload_tx: ChanTx<A>,
