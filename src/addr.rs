@@ -130,9 +130,9 @@ impl<A: Actor> Addr<A> {
         Ok(response.await?)
     }
 
-    #[deprecated]
     // TODO: look if this can be made available exclusively to unbouded environments
-    pub fn force_send<M: Message<Response = ()>>(&self, msg: M) -> Result<()>
+    #[allow(dead_code)]
+    pub(crate) fn force_send<M: Message<Response = ()>>(&self, msg: M) -> Result<()>
     where
         A: Handler<M>,
     {

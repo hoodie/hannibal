@@ -27,7 +27,6 @@ impl<M: Message<Response = ()>> WeakSender<M> {
 
     pub fn try_force_send(&self, msg: M) -> Result<()> {
         if let Some(sender) = self.upgrade.upgrade() {
-            #[allow(deprecated)] // just as deprecated
             sender.force_send(msg)
         } else {
             Err(AlreadyStopped)

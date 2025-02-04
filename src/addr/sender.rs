@@ -32,8 +32,7 @@ impl<M: Message<Response = ()>> Sender<M> {
         self.send_fn.send(msg)
     }
 
-    #[deprecated(note = "use send_safe")]
-    pub fn force_send(&self, msg: M) -> Result<()> {
+    pub(crate) fn force_send(&self, msg: M) -> Result<()> {
         self.force_send_fn.send(msg)
     }
 
