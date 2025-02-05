@@ -17,8 +17,6 @@
 //! #[message(response = i32)]
 //! struct Add(i32, i32);
 //!
-//! impl Actor for MyActor {}
-//!
 //! impl Handler<Greet> for MyActor {
 //!     async fn handle(&mut self, _ctx: &mut Context<Self>, msg: Greet) {
 //!         println!(

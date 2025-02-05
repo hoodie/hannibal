@@ -41,7 +41,7 @@ use crate::{
 /// You can also derive the `Message` trait for simple messages without a response.
 ///
 /// ```rust
-/// # use hannibal::message;
+/// # use hannibal::prelude::*;
 /// #[derive(Debug, Message)]
 /// struct Store(&'static str);
 /// ```
