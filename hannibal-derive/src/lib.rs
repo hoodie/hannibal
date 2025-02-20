@@ -26,13 +26,13 @@ pub fn message(args: TokenStream, input: TokenStream) -> TokenStream {
 
     let ast = syn::parse::<DeriveInput>(input).unwrap();
     let ident = &ast.ident;
-    let gen = quote! {
+    let generated = quote! {
         #ast
         impl ::hannibal::Message for #ident {
             type Response = #response_type;
         }
     };
-    gen.into()
+    generated.into()
 }
 
 #[proc_macro_derive(Message)]
@@ -40,12 +40,12 @@ pub fn derive_message(input: TokenStream) -> TokenStream {
     let ast = syn::parse::<DeriveInput>(input).unwrap();
 
     let name = &ast.ident;
-    let gen = quote! {
+    let generated = quote! {
         impl ::hannibal::Message for #name {
             type Response = ();
         }
     };
-    gen.into()
+    generated.into()
 }
 
 #[proc_macro_derive(Actor)]
@@ -53,11 +53,11 @@ pub fn derive_actor(input: TokenStream) -> TokenStream {
     let ast = syn::parse::<DeriveInput>(input).unwrap();
 
     let name = &ast.ident;
-    let gen = quote! {
+    let generated = quote! {
         impl ::hannibal::Actor for #name {
         }
     };
-    gen.into()
+    generated.into()
 }
 
 #[proc_macro_derive(Service)]
@@ -65,9 +65,9 @@ pub fn derive_service(input: TokenStream) -> TokenStream {
     let ast = syn::parse::<DeriveInput>(input).unwrap();
 
     let name = &ast.ident;
-    let gen = quote! {
+    let generated = quote! {
         impl ::hannibal::Service for #name {
         }
     };
-    gen.into()
+    generated.into()
 }

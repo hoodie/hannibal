@@ -12,7 +12,8 @@ categories = ["date-and-time", "data-structures", "parsing"]
 
 
 readme = "../README.md"
-edition = "2021"
+edition = "2024"
+rust-version = "1.85"
 
 [lib]
 proc-macro = true
