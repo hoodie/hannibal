@@ -1,6 +1,6 @@
 use std::time::Duration;
 
-use hannibal::{error::ActorError, prelude::*, RestartableActor};
+use hannibal::{RestartableActor, error::ActorError, prelude::*};
 
 #[cfg(feature = "async-std")]
 use async_std::task::sleep;
@@ -55,11 +55,12 @@ async fn main() {
         .fail_on_timeout(false)
         .recreate_from_default()
         .spawn_owning();
-    assert!(addr
-        .as_ref()
-        .call(Sleep(Duration::from_secs(0)))
-        .await
-        .is_ok());
+    assert!(
+        addr.as_ref()
+            .call(Sleep(Duration::from_secs(0)))
+            .await
+            .is_ok()
+    );
     assert!(matches!(
         addr.call(Sleep(Duration::from_secs(4))).await.unwrap_err(),
         ActorError::Canceled(_)
@@ -77,17 +78,19 @@ async fn main() {
         .fail_on_timeout(true)
         .recreate_from_default()
         .spawn_owning();
-    assert!(addr
-        .as_ref()
-        .call(Sleep(Duration::from_secs(60)))
-        .await
-        .is_err());
+    assert!(
+        addr.as_ref()
+            .call(Sleep(Duration::from_secs(60)))
+            .await
+            .is_err()
+    );
     println!("SleepyActor 2 nolonger accepts messages after being canceled");
-    assert!(addr
-        .as_ref()
-        .call(Sleep(Duration::from_secs(0)))
-        .await
-        .is_err());
+    assert!(
+        addr.as_ref()
+            .call(Sleep(Duration::from_secs(0)))
+            .await
+            .is_err()
+    );
     assert!(addr.join().await.is_none());
     assert!(addr.to_addr().stop().is_err());
 }

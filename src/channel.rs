@@ -1,11 +1,12 @@
 use futures::{
-    stream::{poll_fn, PollFn},
-    task, Stream as _,
+    Stream as _,
+    stream::{PollFn, poll_fn},
+    task,
 };
 
 use std::{
     future::Future,
-    pin::{pin, Pin},
+    pin::{Pin, pin},
     sync::{Arc, Weak},
 };
 

@@ -1,4 +1,4 @@
-use futures::{channel::oneshot, FutureExt};
+use futures::{FutureExt, channel::oneshot};
 use std::{future::Future, pin::Pin, sync::Arc, task::Poll};
 use weak_addr::WeakAddr;
 
@@ -9,6 +9,7 @@ pub mod weak_caller;
 pub mod weak_sender;
 
 use crate::{
+    RestartableActor,
     actor::Actor,
     channel::{ChanTx, ForceChanTx},
     context::{ContextID, RunningFuture},
@@ -16,7 +17,6 @@ use crate::{
     error::Result,
     handler::Handler,
     spawner::{ActorHandle, JoinFuture},
-    RestartableActor,
 };
 
 /// Anything that you want to send to an actor.
@@ -272,7 +272,7 @@ impl<A> AsRef<Addr<A>> for OwningAddr<A> {
 #[cfg(test)]
 mod tests {
     #![allow(clippy::unwrap_used)]
-    use crate::{environment::Environment, Context, DynResult, Message};
+    use crate::{Context, DynResult, Message, environment::Environment};
 
     use super::*;
     use std::future::Future;

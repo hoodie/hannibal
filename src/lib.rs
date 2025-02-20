@@ -66,12 +66,13 @@ mod handler;
 // TODO: flatten module structure
 pub use self::{
     actor::{
+        Actor, DynResult, RestartableActor,
         service::{self, Service},
-        spawner, Actor, DynResult, RestartableActor,
+        spawner,
     },
     addr::{
-        caller::Caller, sender::Sender, weak_addr::WeakAddr, weak_caller::WeakCaller,
-        weak_sender::WeakSender, Addr, Message,
+        Addr, Message, caller::Caller, sender::Sender, weak_addr::WeakAddr,
+        weak_caller::WeakCaller, weak_sender::WeakSender,
     },
     context::Context,
     handler::{Handler, StreamHandler},
@@ -85,8 +86,8 @@ pub use broker::Broker;
 
 pub mod prelude {
     pub use crate::{
-        actor::{service::Service, Actor, DynResult},
-        addr::{sender::Sender, weak_caller::WeakCaller, weak_sender::WeakSender, Addr, Message},
+        actor::{Actor, DynResult, service::Service},
+        addr::{Addr, Message, sender::Sender, weak_caller::WeakCaller, weak_sender::WeakSender},
         context::Context,
         handler::{Handler, StreamHandler},
         message,

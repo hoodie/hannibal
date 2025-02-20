@@ -7,12 +7,12 @@ use std::{
 };
 
 use crate::{
+    Actor, Handler,
     channel::{ChanTx, ForceChanTx},
     context::ContextID,
-    Actor, Handler,
 };
 
-use super::{weak_sender::WeakSender, Addr, Message, Payload, Result};
+use super::{Addr, Message, Payload, Result, weak_sender::WeakSender};
 
 /// A reference to some actor that can receive `M`.
 ///

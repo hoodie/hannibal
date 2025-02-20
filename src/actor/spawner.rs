@@ -5,7 +5,7 @@ use std::time::Duration;
 )]
 use std::{future::Future, pin::Pin};
 
-use crate::{addr::OwningAddr, environment::Environment, Addr, StreamHandler};
+use crate::{Addr, StreamHandler, addr::OwningAddr, environment::Environment};
 
 #[cfg_attr(
     not(any(feature = "tokio", feature = "async-std")),
@@ -177,7 +177,7 @@ mod tests {
     #[cfg(feature = "tokio")]
     mod spawned_with_tokio {
         use crate::{
-            actor::tests::{spawned_with_tokio::TokioActor, Ping},
+            actor::tests::{Ping, spawned_with_tokio::TokioActor},
             spawner::{DefaultSpawnable, Spawnable, TokioSpawner},
         };
 
@@ -207,7 +207,7 @@ mod tests {
     #[cfg(feature = "async-std")]
     mod spawned_with_asyncstd {
         use crate::{
-            actor::tests::{spawned_with_asyncstd::AsyncStdActor, Ping},
+            actor::tests::{Ping, spawned_with_asyncstd::AsyncStdActor},
             spawner::{AsyncStdSpawner, DefaultSpawnable, Spawnable},
         };
 

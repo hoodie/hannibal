@@ -8,7 +8,7 @@ use futures::FutureExt as _;
 
 use super::{spawner::Spawner, *};
 
-use crate::{environment::Environment, Addr};
+use crate::{Addr, environment::Environment};
 
 type AnyBox = Box<dyn Any + Send + Sync>;
 
@@ -172,10 +172,10 @@ mod tests {
     #[cfg(feature = "tokio")]
     mod spawned_with_tokio {
         use crate::{
-            actor::tests::{spawned_with_tokio::TokioActor, Identify, Ping},
+            Service,
+            actor::tests::{Identify, Ping, spawned_with_tokio::TokioActor},
             prelude::Spawnable as _,
             spawner::{SpawnableWith, TokioSpawner},
-            Service,
         };
 
         #[test_log::test(tokio::test)]
@@ -239,9 +239,9 @@ mod tests {
     #[cfg(feature = "async-std")]
     mod spawned_with_asyncstd {
         use crate::{
-            actor::tests::{spawned_with_asyncstd::AsyncStdActor, Identify, Ping},
-            spawner::{AsyncStdSpawner, SpawnableWith},
             Service,
+            actor::tests::{Identify, Ping, spawned_with_asyncstd::AsyncStdActor},
+            spawner::{AsyncStdSpawner, SpawnableWith},
         };
 
         #[async_std::test]

@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use crate::{context::ContextID, Actor, Addr, Context, Handler, Message, Service, WeakSender};
+use crate::{Actor, Addr, Context, Handler, Message, Service, WeakSender, context::ContextID};
 
 pub struct Broker<T: Message<Response = ()>> {
     subscribers: HashMap<ContextID, WeakSender<T>>,
@@ -100,7 +100,7 @@ mod subscribe_publish_unsubscribe {
     use futures::future::join;
 
     use crate::{
-        prelude::Spawnable as _, Actor, Broker, Context, DynResult, Handler, Message, Service,
+        Actor, Broker, Context, DynResult, Handler, Message, Service, prelude::Spawnable as _,
     };
 
     #[derive(Clone)]

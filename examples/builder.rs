@@ -1,5 +1,5 @@
 use futures::stream;
-use hannibal::{prelude::*, RestartableActor};
+use hannibal::{RestartableActor, prelude::*};
 
 #[derive(Default)]
 struct MyActor(&'static str);

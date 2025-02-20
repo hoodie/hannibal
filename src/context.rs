@@ -1,12 +1,12 @@
 use futures::channel::oneshot;
 
 use crate::{
-    actor::{spawner::Spawner, Actor},
+    Handler, RestartableActor, Sender,
+    actor::{Actor, spawner::Spawner},
     channel::{WeakChanTx, WeakForceChanTx},
     environment::Payload,
     error::{ActorError::AlreadyStopped, Result},
     prelude::Spawnable,
-    Handler, RestartableActor, Sender,
 };
 pub use id::ContextID;
 
@@ -19,7 +19,7 @@ impl StopNotifier {
 }
 
 mod id {
-    use std::sync::{atomic::AtomicU64, LazyLock};
+    use std::sync::{LazyLock, atomic::AtomicU64};
     static CONTEXT_ID: LazyLock<AtomicU64> = LazyLock::new(|| AtomicU64::new(0));
 
     #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -123,7 +123,7 @@ mod task_handling {
     use futures::FutureExt;
     use std::{future::Future, time::Duration};
 
-    use crate::{actor::Actor, spawner::SpawnSelf, Context, Handler, Message};
+    use crate::{Context, Handler, Message, actor::Actor, spawner::SpawnSelf};
 
     /// Task Handling
     impl<A: Actor> Context<A> {
@@ -215,8 +215,8 @@ mod interval_cleanup {
 
     use std::{
         sync::{
-            atomic::{AtomicBool, Ordering},
             Arc,
+            atomic::{AtomicBool, Ordering},
         },
         time::{Duration, Instant},
     };
@@ -262,8 +262,8 @@ mod interval_cleanup {
     }
 
     mod interval_order {
-        use std::sync::atomic::AtomicU32;
         use std::sync::Mutex;
+        use std::sync::atomic::AtomicU32;
 
         use super::*;
         use crate::{context::ContextID, prelude::*};

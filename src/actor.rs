@@ -49,8 +49,8 @@ pub mod tests {
 
         use super::{Identify, Ping, Pong};
         use crate::{
-            actor::{Actor, Context},
             Handler, Service,
+            actor::{Actor, Context},
         };
 
         #[derive(Debug, Default)]
@@ -79,14 +79,14 @@ pub mod tests {
     #[cfg(feature = "tokio")]
     pub mod spawned_with_tokio {
         use std::sync::{
-            atomic::{AtomicUsize, Ordering},
             LazyLock,
+            atomic::{AtomicUsize, Ordering},
         };
 
         use super::{Identify, Ping, Pong};
         use crate::{
-            actor::{Actor, Context},
             Handler, Service,
+            actor::{Actor, Context},
         };
 
         #[derive(Debug)]

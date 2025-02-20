@@ -1,16 +1,16 @@
 use std::{future::Future, marker::PhantomData, time::Duration};
 
-use futures::{channel::oneshot, FutureExt as _, Stream, StreamExt as _};
+use futures::{FutureExt as _, Stream, StreamExt as _, channel::oneshot};
 
 use crate::{
+    Addr, Context,
     actor::{
-        restart_strategy::{RecreateFromDefault, RestartOnly, RestartStrategy},
         Actor,
+        restart_strategy::{RecreateFromDefault, RestartOnly, RestartStrategy},
     },
     channel::{Channel, PayloadStream},
     context::StopNotifier,
     handler::StreamHandler,
-    Addr, Context,
 };
 
 mod payload;
@@ -205,7 +205,7 @@ where
 mod tests {
     #![allow(clippy::unwrap_used)]
     use super::*;
-    use crate::{error::ActorError, Actor, DynResult};
+    use crate::{Actor, DynResult, error::ActorError};
 
     #[derive(Default)]
     struct GoodActor {
@@ -403,7 +403,7 @@ mod tests {
     mod timeout {
         use std::time::Duration;
 
-        use crate::{error::ActorError, prelude::*, RestartableActor};
+        use crate::{RestartableActor, error::ActorError, prelude::*};
 
         cfg_if::cfg_if! {
         if #[cfg(feature = "async-std")] {
@@ -467,11 +467,12 @@ mod tests {
                 .fail_on_timeout(false)
                 .recreate_from_default()
                 .spawn_owning();
-            assert!(addr
-                .as_ref()
-                .call(Sleep(Duration::from_secs(0)))
-                .await
-                .is_ok());
+            assert!(
+                addr.as_ref()
+                    .call(Sleep(Duration::from_secs(0)))
+                    .await
+                    .is_ok()
+            );
             assert!(matches!(
                 addr.call(Sleep(Duration::from_secs(4))).await.unwrap_err(),
                 ActorError::Canceled(_)
@@ -492,17 +493,19 @@ mod tests {
                 .fail_on_timeout(true)
                 .recreate_from_default()
                 .spawn_owning();
-            assert!(addr
-                .as_ref()
-                .call(Sleep(Duration::from_secs(60)))
-                .await
-                .is_err());
+            assert!(
+                addr.as_ref()
+                    .call(Sleep(Duration::from_secs(60)))
+                    .await
+                    .is_err()
+            );
             println!("SleepyActor 2 nolonger accepts messages after being canceled");
-            assert!(addr
-                .as_ref()
-                .call(Sleep(Duration::from_secs(0)))
-                .await
-                .is_err());
+            assert!(
+                addr.as_ref()
+                    .call(Sleep(Duration::from_secs(0)))
+                    .await
+                    .is_err()
+            );
             assert!(addr.join().await.is_none());
             assert!(addr.to_addr().stop().is_err());
         }

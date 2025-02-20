@@ -1,17 +1,17 @@
 use std::{marker::PhantomData, time::Duration};
 
 use crate::{
+    Addr, StreamHandler,
     actor::service::Service,
     addr::OwningAddr,
     channel::Channel,
     environment::{self, EnvironmentConfig},
-    Addr, StreamHandler,
 };
 
 use super::{
+    Actor, RestartableActor,
     restart_strategy::{NonRestartable, RecreateFromDefault, RestartOnly, RestartStrategy},
     spawner::Spawner,
-    Actor, RestartableActor,
 };
 
 #[derive(Default)]

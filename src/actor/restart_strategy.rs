@@ -1,6 +1,6 @@
 use std::future::Future;
 
-use crate::{context::Context, Actor, DynResult};
+use crate::{Actor, DynResult, context::Context};
 
 pub trait RestartStrategy<A> {
     fn refresh(actor: A, ctx: &mut Context<A>) -> impl Future<Output = DynResult<A>> + Send;

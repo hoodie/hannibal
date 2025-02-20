@@ -3,13 +3,13 @@ use dyn_clone::DynClone;
 use std::sync::Arc;
 
 use crate::{
+    Actor, Handler,
     channel::{ChanTx, ForceChanTx, WeakChanTx, WeakForceChanTx},
     context::ContextID,
     error::ActorError::AlreadyStopped,
-    Actor, Handler,
 };
 
-use super::{sender::Sender, Addr, Message, Result};
+use super::{Addr, Message, Result, sender::Sender};
 
 /// A weak reference to an actor that can receive `M`.
 ///

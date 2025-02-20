@@ -10,9 +10,9 @@ mod custom_spawner {
     static POOL: LazyLock<Mutex<ThreadPool>> = LazyLock::new(|| ThreadPool::new().unwrap().into());
     use futures::task::SpawnExt as _;
     use hannibal::{
+        DynResult,
         prelude::*,
         spawner::{ActorHandle, JoinFuture, Spawner},
-        DynResult,
     };
 
     pub struct CustomSpawner;

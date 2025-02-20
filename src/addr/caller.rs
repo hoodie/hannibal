@@ -4,9 +4,9 @@ use futures::channel::oneshot;
 use std::sync::{Arc, Weak};
 use std::{future::Future, pin::Pin};
 
-use crate::{channel::ChanTx, context::ContextID, Actor, Handler};
+use crate::{Actor, Handler, channel::ChanTx, context::ContextID};
 
-use super::{weak_caller::WeakCaller, Addr, Message, Payload, Result};
+use super::{Addr, Message, Payload, Result, weak_caller::WeakCaller};
 
 /// A reference to some actor that can receive `M`.
 ///
