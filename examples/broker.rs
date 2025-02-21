@@ -21,7 +21,7 @@ impl Handler<Topic1> for Subscribing {
 }
 
 #[tokio::main]
-async fn main() -> DynResult<()> {
+async fn main() {
     let subscriber1 = Subscribing::default().spawn_owning();
     let subscriber2 = Subscribing::default().spawn_owning();
 
@@ -40,6 +40,4 @@ async fn main() -> DynResult<()> {
     assert_eq!(subscriber1.consume().await, Ok(Subscribing(vec![42, 23])));
     assert_eq!(subscriber2.consume().await, Ok(Subscribing(vec![42, 23])));
     println!("both subscribers received all messges");
-
-    Ok(())
 }

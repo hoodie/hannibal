@@ -2,17 +2,61 @@ use std::collections::HashMap;
 
 use crate::{Actor, Addr, Context, Handler, Message, Service, WeakSender, context::ContextID};
 
+/// Enables global subscriptions and message distribution.
+///
+/// The `Broker` is a service actor that allows actors to publish and subscribe to messages by type.
+///
+/// # Example
+/// ```
+/// # use futures::future::join;
+/// # use hannibal::{Broker, prelude::*};
+/// #[derive(Clone, Message)]
+/// struct Topic1(u32);
+///
+/// #[derive(Debug, Default, PartialEq)]
+/// struct Subscribing(Vec<u32>);
+///
+/// impl Actor for Subscribing {
+///     async fn started(&mut self, ctx: &mut Context<Self>) -> DynResult<()> {
+///         ctx.subscribe::<Topic1>().await?;
+///         Ok(())
+///     }
+/// }
+///
+/// impl Handler<Topic1> for Subscribing {
+///     async fn handle(&mut self, _ctx: &mut Context<Self>, msg: Topic1) {
+///         self.0.push(msg.0);
+///     }
+/// }
+///
+/// # #[tokio::main]
+/// # async fn main() {
+/// let subscriber1 = Subscribing::default().spawn_owning();
+/// let subscriber2 = Subscribing::default().spawn_owning();
+///
+/// # let ping_both = || join(subscriber1.ping(), subscriber2.ping());
+/// # let _ = ping_both().await;
+/// let broker = Broker::from_registry().await;
+/// broker.publish(Topic1(42)).await.unwrap();
+/// broker.publish(Topic1(23)).await.unwrap();
+///
+/// # let _ = ping_both().await;
+/// assert_eq!(subscriber1.consume().await, Ok(Subscribing(vec![42, 23])));
+/// assert_eq!(subscriber2.consume().await, Ok(Subscribing(vec![42, 23])));
+/// # }
+/// ```
 pub struct Broker<T: Message<Response = ()>> {
     subscribers: HashMap<ContextID, WeakSender<T>>,
 }
 
 impl<T: Message<Response = ()> + Clone> Broker<T> {
+    /// Publishes a message to all subscribers.
     pub async fn publish(topic: T) -> crate::error::Result<()> {
         Self::from_registry().await.publish(topic).await
     }
 
+    /// Tries to publish a message to the broker.
     pub async fn try_publish(topic: T) -> Option<crate::error::Result<()>> {
-        // Self::try_from_registry().map(|broker| broker.publish(topic))
         if let Some(broker) = Self::try_from_registry() {
             Some(broker.publish(topic).await)
         } else {
@@ -20,6 +64,7 @@ impl<T: Message<Response = ()> + Clone> Broker<T> {
         }
     }
 
+    /// Subscribes to messages of the given type.
     pub async fn subscribe(sender: WeakSender<T>) -> crate::error::Result<()> {
         Self::from_registry().await.subscribe(sender).await
     }
@@ -80,14 +125,17 @@ impl<T: Message<Response = ()> + Clone> Handler<Unsubscribe<T>> for Broker<T> {
 }
 
 impl<T: Message<Response = ()> + Clone> Addr<Broker<T>> {
+    /// Publishes a message to all subscribers.
     pub async fn publish(&self, msg: T) -> crate::error::Result<()> {
         self.send(Publish(msg)).await
     }
 
+    /// Subscribes to messages of the given type.
     pub async fn subscribe(&self, sender: WeakSender<T>) -> crate::error::Result<()> {
         self.send(Subscribe(sender)).await
     }
 
+    /// Unsubscribes from messages of the given type.
     pub async fn unsubscribe(&self, sender: WeakSender<T>) -> crate::error::Result<()> {
         self.send(Unsubscribe(sender)).await
     }

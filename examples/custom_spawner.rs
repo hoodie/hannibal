@@ -74,7 +74,6 @@ mod custom_spawner {
 fn main() {
     use custom_spawner::*;
     use hannibal::{prelude::Spawnable as _, spawner::SpawnableWith};
-    color_backtrace::install();
     futures::executor::block_on(async {
         let (mut _addr, _) = MyActor.spawn_with::<CustomSpawner>().unwrap();
         let mut addr = MyActor.spawn_owning();
