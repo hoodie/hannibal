@@ -543,7 +543,7 @@ dependencies = [
 
 [[package]]
 name = "hannibal"
-version = "0.12.0-rc.1"
+version = "0.12.0-rc.2"
 dependencies = [
  "async-lock",
  "async-signals",
@@ -564,7 +564,7 @@ dependencies = [
 
 [[package]]
 name = "hannibal-derive"
-version = "0.12.0-rc.1"
+version = "0.12.0-rc.2"
 dependencies = [
  "proc-macro2",
  "quote",
