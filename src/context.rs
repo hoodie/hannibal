@@ -47,6 +47,11 @@ mod id {
     }
 }
 
+/// The execution context of an actor.
+///
+/// The context is used to interact with the actor system.
+/// You can start intervals, send messages to yourself, and stop the actor.
+///
 pub struct Context<A> {
     pub(crate) id: ContextID,
     #[allow(dead_code)]
@@ -65,7 +70,9 @@ impl<A> Drop for Context<A> {
     }
 }
 
+/// Lifecycle
 impl<A: Actor> Context<A> {
+    /// Stop the actor.
     pub fn stop(&self) -> Result<()> {
         if let Some(tx) = self.weak_force_tx.upgrade() {
             Ok(tx.send(Payload::Stop)?)
@@ -74,10 +81,18 @@ impl<A: Actor> Context<A> {
         }
     }
 
+}
+
+/// Child Actors
+impl<A: Actor> Context<A> {
+    /// Add a child actor to the context.
+    ///
+    /// The child actor will be stopped when the parent actor is stopped.
     pub fn add_child(&mut self, child: impl Into<Sender<()>>) {
         self.children.push(child.into());
     }
 
+    /// Create a child actor and add it to the context.
     pub fn create_child<F, C, S>(&mut self, create_child: F)
     where
         F: FnOnce() -> C,
@@ -88,7 +103,10 @@ impl<A: Actor> Context<A> {
         let child_addr = create_child().spawn();
         self.add_child(child_addr);
     }
+}
 
+impl<A: Actor> Context<A> {
+    /// Create a weak sender to the actor.
     #[cfg(any(feature = "tokio", feature = "async-std", feature = "custom_runtime"))]
     pub(crate) fn weak_sender<M: crate::Message<Response = ()>>(&self) -> crate::WeakSender<M>
     where
@@ -100,7 +118,14 @@ impl<A: Actor> Context<A> {
             self.id,
         )
     }
+}
 
+/// Broker Interaction
+impl<A: Actor> Context<A> {
+    /// Publish to the broker.
+    ///
+    /// Every actor can publish messages to the broker
+    /// which will be delivered to all actors that subscribe to the message.
     #[cfg(any(feature = "tokio", feature = "async-std"))]
     pub async fn publish<M: crate::Message<Response = ()> + Clone>(&self, message: M) -> Result<()>
     where
@@ -109,6 +134,9 @@ impl<A: Actor> Context<A> {
         crate::Broker::publish(message).await
     }
 
+    /// Subscribe to a message.
+    ///
+    /// The actor will receive all messages of this type.
     #[cfg(any(feature = "tokio", feature = "async-std"))]
     pub async fn subscribe<M: crate::Message<Response = ()> + Clone>(&mut self) -> Result<()>
     where
@@ -141,6 +169,7 @@ mod task_handling {
             }
         }
 
+        /// Send yourself a message at a regular interval.
         pub fn interval<M: Message<Response = ()> + Clone + Send + 'static>(
             &mut self,
             message: M,
@@ -159,6 +188,7 @@ mod task_handling {
             })
         }
 
+        /// Send yourself a message at a regular interval.
         pub fn interval_with<M: Message<Response = ()>>(
             &mut self,
             message_fn: impl Fn() -> M + Send + Sync + 'static,
@@ -177,6 +207,7 @@ mod task_handling {
             })
         }
 
+        /// Send yourself a message after a delay.
         pub fn delayed_send<M: Message<Response = ()>>(
             &mut self,
             message_fn: impl Fn() -> M + Send + Sync + 'static,
@@ -196,7 +227,9 @@ mod task_handling {
     }
 }
 
+/// Lifecycle
 impl<A: RestartableActor> Context<A> {
+    /// Restart the actor.
     pub fn restart(&self) -> Result<()> {
         if let Some(tx) = self.weak_force_tx.upgrade() {
             Ok(tx.send(Payload::Restart)?)
