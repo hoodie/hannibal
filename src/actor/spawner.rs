@@ -1,3 +1,6 @@
+//! Abstractors for spawning and managing actorsin an asynchronous environment.
+//! Currently hannibal supports both `tokio` and `async-std`. Custom spawners can be implemented.
+
 use std::time::Duration;
 #[cfg_attr(
     not(any(feature = "tokio", feature = "async-std")),
@@ -42,6 +45,9 @@ where
     }
 }
 
+/// Encapsulates spawning actors and futures, as well as sleeping.
+///
+/// You should implement at this trait if you want to build a custom spawner.
 pub trait Spawner<A: Actor> {
     fn spawn_actor<F>(future: F) -> Box<dyn ActorHandle<A>>
     where
@@ -109,6 +115,7 @@ pub(crate) trait SpawnSelf<S: Spawner<Self>>: Actor {
     }
 }
 
+/// An actor that can handle a stream of messages.
 pub trait StreamSpawnable<S: Spawner<Self>, T>: Actor + StreamHandler<T::Item>
 where
     T: futures::Stream + Unpin + Send + 'static,
@@ -140,6 +147,7 @@ pub trait DefaultSpawnable<S: Spawner<Self>>: Actor + Default {
 }
 
 #[macro_export]
+#[doc(hidden)]
 macro_rules! impl_spawn_traits {
     ($spawner_type:ty) => {
         impl<A> Spawnable<$spawner_type> for A where A: Actor {}

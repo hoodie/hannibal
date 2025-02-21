@@ -189,6 +189,9 @@ impl<A: Actor> Addr<A> {
 }
 
 impl<A: RestartableActor> Addr<A> {
+    /// Restart the actor. This is not possible for all actors.
+    ///
+    /// StreamHandlers for example can't be restarted.
     pub fn restart(&mut self) -> Result<()> {
         self.payload_force_tx.send(Payload::Restart)?;
         Ok(())

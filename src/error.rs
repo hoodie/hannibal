@@ -1,3 +1,5 @@
+//! Error types for the actor system.
+//!
 // use std::sync::{PoisonError, RwLockWriteGuard};
 
 use thiserror::Error;

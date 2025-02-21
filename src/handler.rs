@@ -2,6 +2,7 @@ use std::future::Future;
 
 use crate::{Actor, Context, Message};
 
+/// An actor should implement this trait if it wants to handle messages.
 pub trait Handler<M: Message>: Actor {
     fn handle(
         &mut self,

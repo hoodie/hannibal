@@ -36,4 +36,5 @@ impl<A: Actor + Default> RestartStrategy<A> for RecreateFromDefault {
     }
 }
 
+/// A marker trait for actors that can be restarted.
 pub trait RestartableActor: Actor {}

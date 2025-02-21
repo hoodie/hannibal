@@ -85,6 +85,7 @@ pub use actor::build;
 pub use broker::Broker;
 
 pub mod prelude {
+    //! Re-exports the most commonly used traits and types.
     pub use crate::{
         actor::{Actor, DynResult, service::Service},
         addr::{Addr, Message, sender::Sender, weak_caller::WeakCaller, weak_sender::WeakSender},
