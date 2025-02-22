@@ -3,31 +3,6 @@
 //! A service is a special type of actor that can be registered, replaced, or unregistered
 //! in a global registry. Services are typically used for actors that need to be accessed
 //! globally and do not require ownership by other actors.
-//!
-//! The module supports both `tokio` and `async-std` runtimes, and provides traits and
-//! implementations for registering, replacing, and unregistering services, as well as
-//! checking if a service is already running and retrieving it from the registry.
-//!
-//! # Features
-//! - Registering, replacing, and unregistering services
-//! - Checking if a service is already running
-//! - Retrieving services from the registry
-//! - Support for both `tokio` and `async-std` runtimes
-//!
-//! # Example
-//! ```rust
-//! use crate::actor::service::Service;
-//! use crate::spawner::TokioSpawner;
-//!
-//! #[tokio::main]
-//! async fn main() {
-//!     type MyService = MyActor<u32>;
-//!     let (addr, _) = MyService::new(42).spawn_with::<TokioSpawner>().unwrap();
-//!     addr.register().await.unwrap();
-//!     let mut svc_addr = MyService::from_registry().await;
-//!     assert_eq!(svc_addr.call(Identify).await.unwrap(), 42);
-//! }
-//! ```
 use std::{
     any::{Any, TypeId},
     collections::HashMap,
@@ -53,7 +28,7 @@ impl<A: Service> Addr<A> {
     /// Register an actor as a service.
     ///
     /// If there already is a running service, this method will return an error.
-    /// Use [`replace()`] to replace a running service.
+    /// Use [`Addr::replace()`] to replace a running service.
     pub async fn register(self) -> crate::error::Result<(Self, Option<Self>)> {
         let key = TypeId::of::<A>();
         let mut registry = REGISTRY.write().await;
@@ -82,7 +57,7 @@ impl<A: Service> Addr<A> {
 
     /// Replace a running service.
     ///
-    /// The old service is returned.
+    /// The old service is returned, it is not stopped until you stop or drop it.
     pub async fn replace(self) -> Option<Self> {
         let key = TypeId::of::<A>();
         let mut registry = REGISTRY.write().await;
@@ -180,7 +155,7 @@ pub trait Service<S: Spawner<Self>>: Actor + Default {
 }
 
 #[cfg(any(feature = "tokio", feature = "async-std"))]
-pub (crate) trait SpawnableService<S: Spawner<Self>>: Service {
+pub(crate) trait SpawnableService<S: Spawner<Self>>: Service {
     #[allow(clippy::async_yields_async)]
     fn from_registry_and_spawn() -> impl Future<Output = Addr<Self>> {
         async {

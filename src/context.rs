@@ -47,7 +47,7 @@ mod id {
     }
 }
 
-/// The execution context of an actor.
+/// Available to the actor in every execution call.
 ///
 /// The context is used to interact with the actor system.
 /// You can start intervals, send messages to yourself, and stop the actor.
@@ -80,7 +80,6 @@ impl<A: Actor> Context<A> {
             Err(AlreadyStopped)
         }
     }
-
 }
 
 /// Child Actors
