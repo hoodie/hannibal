@@ -29,7 +29,7 @@ async-std = { version = "1.13.0", optional = true }
 cfg-if = "1.0.0"
 futures-timer = "3"
 log = "0.4"
-hannibal-derive = { path = "hannibal-derive", version = "0.12.0-rc.1" }
+hannibal-derive = { path = "hannibal-derive", version = "0.12.0-rc.2" }
 
 [dev-dependencies]
 tokio = { version = "1.43", features = ["full"] }
