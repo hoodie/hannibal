@@ -237,6 +237,9 @@ Hannibal until v0.10 was a fork of [xactor](https://crates.io/crates/xactor).
 Since 0.12 it is a complete, indicated by skipping versions 0.11 entirely.
 The rewrite with the following features:
 
+- Modern Rust: no more async-trait, no more once_cell
+- simpler but more explicit errors
+  - no more anyhow, but more explicit reasons when the actor fails
 - Strong and Weak Senders and Callers (as in actix)
   - weak and strong  callers and senders can be created from weak and strong addresses
 - Exchangeable Channel Implementation
