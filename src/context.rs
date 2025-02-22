@@ -1,7 +1,7 @@
 use futures::channel::oneshot;
 
 use crate::{
-    Handler, RestartableActor, Sender,
+    Addr, Handler, RestartableActor, Sender, WeakAddr,
     actor::{Actor, spawner::Spawner},
     channel::{WeakChanTx, WeakForceChanTx},
     environment::Payload,
@@ -105,9 +105,34 @@ impl<A: Actor> Context<A> {
 }
 
 impl<A: Actor> Context<A> {
+    /// Create an strong address to the actor.
+    ///
+    /// This only works if the actor is still running, otherwise you'll get `None`.
+    ///
+    /// <div class="warning">Leak Potential!</div>
+    ///
+    /// If you store an `Addr` to the actor within itself it will no longer self terminate.
+    /// This is not public since it offers no more convenience than [`Context::weak_address`] (you need to upgrade either way).
+    fn address(&self) -> Option<Addr<A>> {
+        let payload_tx = self.weak_tx.upgrade()?;
+        let payload_force_tx = self.weak_force_tx.upgrade()?;
+
+        Some(Addr {
+            context_id: self.id,
+            payload_tx,
+            payload_force_tx,
+            running: self.running.clone(),
+        })
+    }
+
+    /// Create an week address to the actor.
+    pub fn weak_address(&self) -> Option<WeakAddr<A>> {
+        self.address().as_ref().map(Addr::downgrade)
+    }
+
     /// Create a weak sender to the actor.
     #[cfg(any(feature = "tokio", feature = "async-std", feature = "custom_runtime"))]
-    pub(crate) fn weak_sender<M: crate::Message<Response = ()>>(&self) -> crate::WeakSender<M>
+    pub fn weak_sender<M: crate::Message<Response = ()>>(&self) -> crate::WeakSender<M>
     where
         A: Handler<M>,
     {
@@ -116,6 +141,14 @@ impl<A: Actor> Context<A> {
             std::sync::Weak::clone(&self.weak_force_tx),
             self.id,
         )
+    }
+
+    #[cfg(any(feature = "tokio", feature = "async-std", feature = "custom_runtime"))]
+    pub fn weak_caller<M: crate::Message<Response = R>, R>(&self) -> crate::WeakCaller<M>
+    where
+        A: Handler<M>,
+    {
+        crate::WeakCaller::from_weak_tx(std::sync::Weak::clone(&self.weak_tx), self.id)
     }
 }
 
