@@ -43,7 +43,8 @@ impl StreamHandler<i32> for MyActor {
     }
 }
 
-// impl Service for MyActor {}
+impl Service for MyActor {}
+
 async fn send_greet_and_stop(mut addr: Addr<MyActor>) {
     addr.send(Greet("Cornelius")).await.unwrap();
     let addition = addr.call(Add(1, 2)).await;
@@ -63,10 +64,23 @@ async fn main() {
         .spawn();
     send_greet_and_stop(addr).await;
 
+    // register
+    hannibal::build(MyActor("Caesar"))
+        .bounded(6)
+        .recreate_from_default()
+        .register()
+        .await
+        .unwrap();
+
     let addr = hannibal::build(MyActor("Caesar"))
         .unbounded()
         .non_restartable()
         .with_stream(stream::iter(17..19)) // this shouldn't work
+        .spawn();
+    send_greet_and_stop(addr).await;
+
+    let addr = hannibal::build(MyActor("Caesar"))
+        .bounded_on_stream(10, stream::iter(17..19)) // this shouldn't work
         .spawn();
     send_greet_and_stop(addr).await;
 

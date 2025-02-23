@@ -1,3 +1,4 @@
+#![warn(missing_docs)]
 use std::{marker::PhantomData, time::Duration};
 
 use crate::{
@@ -136,6 +137,9 @@ where
     P: Spawner<A>,
     R: RestartStrategy<A> + 'static,
 {
+    /// Build a non-restartable Actor.
+    ///
+    /// Only non-restartable actors can handle streams.
     pub fn non_restartable(self) -> ActorBuilderWithChannel<A, P, NonRestartable> {
         ActorBuilderWithChannel {
             base: self.base,
@@ -143,10 +147,15 @@ where
             restart: PhantomData,
         }
     }
+
+    /// Set a maximum time that a handler can take to
     pub const fn timeout(mut self, timeout: Duration) -> Self {
         self.base.config.timeout = Some(timeout);
         self
     }
+
+    /// Terminate the actor if a timeout is exceeded.
+    /// TODO: add a `.restart_on_timeout()` method
     pub const fn fail_on_timeout(mut self, fail: bool) -> Self {
         self.base.config.fail_on_timeout = fail;
         self

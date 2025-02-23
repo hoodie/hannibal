@@ -252,6 +252,7 @@ The rewrite with the following features:
 - Owning Addresses
   - allows returning actor content after stop
 - Builder
+- Timeouts
 
 ## Contribution
 

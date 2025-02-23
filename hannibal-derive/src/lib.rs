@@ -48,6 +48,17 @@ pub fn derive_message(input: TokenStream) -> TokenStream {
     generated.into()
 }
 
+#[proc_macro_derive(RestartableActor)]
+pub fn derive_restartable_actor(input: TokenStream) -> TokenStream {
+    let ast = syn::parse::<DeriveInput>(input).unwrap();
+
+    let name = &ast.ident;
+    let generated = quote! {
+        impl ::hannibal::RestartableActor for #name {
+        }
+    };
+    generated.into()
+}
 #[proc_macro_derive(Actor)]
 pub fn derive_actor(input: TokenStream) -> TokenStream {
     let ast = syn::parse::<DeriveInput>(input).unwrap();

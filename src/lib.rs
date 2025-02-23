@@ -4,7 +4,8 @@
 //! This can become cumbersome in larger projects and complicated when supporting multiple message types.
 //! An [`Actor`] *is* a task that can receive and handle [messages](`Message`) and store internal state.
 //!
-//! ## Example
+//!
+//! ## Simple Example
 //!
 //! ```rust
 //! # use hannibal::prelude::*;
@@ -47,7 +48,15 @@
 //!     println!("The Actor Calculated: {:?}", addition);
 //! }
 //! ```
+//!
+//! ## Runtime behavior
+//! Actors can also be used to handle [Streams](`futures::Stream`),
+//! they can be configured to enfore timeouts and use bounded or unbounded channels under the hood.
+//! Take a look at [`hannibal::build()`](`build`)
+//! to see how to configure an actor's runtime behavior and how to launch them on streams.
 
+#![warn(rustdoc::broken_intra_doc_links)]
+// #![warn(missing_docs)]
 #![deny(clippy::unwrap_used)]
 
 mod actor;
@@ -71,7 +80,7 @@ pub use self::{
         spawner,
     },
     addr::{
-        Addr, Message, caller::Caller, sender::Sender, weak_addr::WeakAddr,
+        Addr, Message, OwningAddr, caller::Caller, sender::Sender, weak_addr::WeakAddr,
         weak_caller::WeakCaller, weak_sender::WeakSender,
     },
     context::Context,

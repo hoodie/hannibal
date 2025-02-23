@@ -491,7 +491,6 @@ mod tests {
                 .bounded(1)
                 .timeout(Duration::from_millis(100))
                 .fail_on_timeout(true)
-                .recreate_from_default()
                 .spawn_owning();
             assert!(
                 addr.as_ref()

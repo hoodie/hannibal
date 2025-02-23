@@ -3,11 +3,16 @@ use std::future::Future;
 use crate::context::Context;
 
 #[cfg(any(feature = "tokio", feature = "async-std"))]
+mod build;
+
+#[cfg(any(feature = "tokio", feature = "async-std"))]
 mod builder;
 pub mod service;
 pub mod spawner;
 
 pub(crate) mod restart_strategy;
+#[cfg(any(feature = "tokio", feature = "async-std"))]
+pub use build::build;
 pub use restart_strategy::RestartableActor;
 
 pub type DynResult<T = ()> = std::result::Result<T, Box<dyn std::error::Error + Send + Sync>>;
@@ -30,11 +35,6 @@ pub trait Actor: Sized + Send + 'static {
     fn stopped(&mut self, ctx: &mut Context<Self>) -> impl Future<Output = ()> + Send {
         async {}
     }
-}
-
-#[cfg(any(feature = "tokio", feature = "async-std"))]
-pub fn build<A: Actor>(actor: A) -> builder::BaseActorBuilder<A, spawner::DefaultSpawner> {
-    builder::BaseActorBuilder::new(actor)
 }
 
 #[cfg(test)]
