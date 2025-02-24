@@ -10,43 +10,27 @@
 //! ```rust
 //! # use hannibal::prelude::*;
 //! #[derive(Actor)]
-//! struct MyActor(&'static str);
+//! struct Adder(&'static str);
 //!
-//! #[message]
-//! struct Greet(&'static str);
-//!
-//! #[message(response = i32)]
+//! #[message(response = String)]
 //! struct Add(i32, i32);
 //!
-//! impl Handler<Greet> for MyActor {
-//!     async fn handle(&mut self, _ctx: &mut Context<Self>, msg: Greet) {
-//!         println!(
-//!             "[Actor {me}] Hello {you}, my name is {me}",
-//!             me = self.0,
-//!             you = msg.0,
-//!         );
+//! impl Handler<Add> for Adder {
+//!     async fn handle(&mut self, _ctx: &mut Context<Self>, msg: Add) -> String {
+//!         format!("{prefix}{result}", prefix = self.0, result = msg.0 + msg.1)
 //!     }
 //! }
 //!
-//! impl Handler<Add> for MyActor {
-//!     async fn handle(&mut self, _ctx: &mut Context<Self>, msg: Add) -> i32 {
-//!         msg.0 + msg.1
-//!     }
-//! }
+//! # #[tokio::main]
+//! # async fn main() {
+//! // Spawn the actor and get its address
+//! let mut addr = Adder("The Answer is = ").spawn();
 //!
-//! #[tokio::main]
-//! async fn main() {
-//!     // Spawn the actor and get its address
-//!     let mut addr = MyActor("Caesar").spawn();
+//! // Expecting a response
+//! let addition = addr.call(Add(1, 2)).await.unwrap();
 //!
-//!     // Send a message without a response
-//!     addr.send(Greet("Hannibal")).await.unwrap();
-//!
-//!     // Expecting a response
-//!     let addition = addr.call(Add(1, 2)).await.unwrap();
-//!
-//!     println!("The Actor Calculated: {:?}", addition);
-//! }
+//! println!("The Actor Calculated: {:?}", addition);
+//! # }
 //! ```
 //!
 //! ## Runtime behavior
