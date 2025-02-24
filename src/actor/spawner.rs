@@ -28,6 +28,7 @@ mod async_spawner;
 #[cfg(feature = "async-std")]
 pub use async_spawner::AsyncStdSpawner;
 
+/// A future that resolves to an actor.
 pub type JoinFuture<A> = Pin<Box<dyn Future<Output = Option<A>> + Send>>;
 
 pub trait ActorHandle<A: Actor>: Send + Sync {

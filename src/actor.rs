@@ -15,10 +15,14 @@ pub(crate) mod restart_strategy;
 pub use build::build;
 pub use restart_strategy::RestartableActor;
 
+/// Convenience type alias for `Box<dyn std::error::Error + Send + Sync>`.
 pub type DynResult<T = ()> = std::result::Result<T, Box<dyn std::error::Error + Send + Sync>>;
 
 /// An actor is an object that can receive messages.
 pub trait Actor: Sized + Send + 'static {
+    /// The name of the actor.
+    ///
+    /// This can be used for logging and debugging purposes, for instance in .
     const NAME: &'static str = "hannibal::Actor";
 
     /// Called when the actor is started.

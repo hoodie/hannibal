@@ -11,7 +11,7 @@ use crate::{
 
 use super::{Addr, Message, Result, sender::Sender};
 
-/// A weak reference to an actor that can receive `M`.
+/// A weak reference to an actor that can receive a message `M`.
 ///
 /// This is the weak counterpart to [`Sender`].
 /// It can be upgraded if the Actor is still alive.

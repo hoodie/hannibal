@@ -14,7 +14,7 @@ use crate::{
 
 use super::{Addr, Message, Payload, Result, weak_sender::WeakSender};
 
-/// A reference to some actor that can receive `M`.
+/// A strong reference to some actor that can receive message `M`.
 ///
 /// Can be used to send a message to an actor without expecting a response.
 /// If you need a response, use [`Caller`](`crate::Caller`) instead.

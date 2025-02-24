@@ -8,7 +8,7 @@ use crate::{Actor, Handler, channel::ChanTx, context::ContextID};
 
 use super::{Addr, Message, Payload, Result, weak_caller::WeakCaller};
 
-/// A reference to some actor that can receive `M`.
+/// A strong reference to some actor that can receive a message `M` and respond.
 ///
 /// Can be used to send a message to an actor and receive a response.
 /// If you don't need a response, use [`Sender`](`crate::Sender`) instead.

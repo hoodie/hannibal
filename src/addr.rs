@@ -47,6 +47,7 @@ use crate::{
 /// ```
 ///
 pub trait Message: 'static + Send {
+    /// What the actor should respond with.
     type Response: 'static + Send;
 }
 
@@ -208,6 +209,11 @@ impl<A> Future for Addr<A> {
     }
 }
 
+/// An even stronger reference to an actor.
+///
+/// Owning Addresses can be used to retrieve the actor after it has been stopped.
+/// There can only be one owning Address to an instance of an actor.
+/// They can be downgraded to normal [`Addr`]s.
 pub struct OwningAddr<A> {
     pub(crate) addr: Addr<A>,
     pub(crate) handle: Box<dyn ActorHandle<A>>,
