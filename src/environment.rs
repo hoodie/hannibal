@@ -155,9 +155,9 @@ impl<A: Actor, R: RestartStrategy<A>> Environment<A, R> {
                             Some(Payload::Task(f)) => f(&mut actor, &mut self.ctx).await,
                             Some(Payload::Stop)  =>  break,
                             Some(Payload::Restart)  =>  {
-                                panic!("restart message in streamhandling actor")
+                                panic!("restart message in stream-handling actor")
                                 // TODO: what does this do with the
-                                // log::warn!("ignoring restart message in streamhandling actor")
+                                // log::warn!("ignoring restart message in stream-handling actor")
                             },
                             None =>  break
                         }
@@ -498,7 +498,7 @@ mod tests {
                     .await
                     .is_err()
             );
-            println!("SleepyActor 2 nolonger accepts messages after being canceled");
+            println!("SleepyActor 2 no longer accepts messages after being canceled");
             assert!(
                 addr.as_ref()
                     .call(Sleep(Duration::from_secs(0)))

@@ -86,7 +86,7 @@ where
         self.with_channel(Channel::unbounded())
     }
 
-    /// Create a non-restarable on that stream
+    /// Create a non-restartable on that stream
     pub fn bounded_on_stream<S>(self, capacity: usize, stream: S) -> StreamActorBuilder<A, P, S>
     where
         S: futures::Stream + Unpin + Send + 'static,
@@ -98,7 +98,7 @@ where
             .with_stream(stream)
     }
 
-    /// Create a non-restarable on that stream
+    /// Create a non-restartable on that stream
     pub fn on_stream<S>(self, stream: S) -> StreamActorBuilder<A, P, S>
     where
         S: futures::Stream + Unpin + Send + 'static,

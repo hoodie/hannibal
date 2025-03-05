@@ -88,7 +88,7 @@ where
         let force_send = Arc::new(move |event: Payload<A>| -> Result<()> {
             let mut tx = tx.clone();
             // THIS IS A BUG!
-            // Just calling this without checking for readyness will just queue this and ignore the bound
+            // Just calling this without checking for readiness will just queue this and ignore the bound
             tx.start_send(event)?;
             Ok(())
         });
@@ -111,7 +111,7 @@ where
                 Box::pin(async move {
                     let mut tx = tx.clone();
                     // THIS IS A BUG!
-                    // Just calling this without checking for readyness will just queue this and ignore the bound
+                    // Just calling this without checking for readiness will just queue this and ignore the bound
                     futures::SinkExt::send(&mut tx, event).await?;
                     Ok(())
                 })

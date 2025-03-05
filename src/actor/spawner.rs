@@ -1,4 +1,4 @@
-//! Abstractors for spawning and managing actorsin an asynchronous environment.
+//! Abstractions for spawning and managing actors in an asynchronous environment.
 //! Currently hannibal supports both `tokio` and `async-std`. Custom spawners can be implemented.
 
 use std::time::Duration;
@@ -174,9 +174,9 @@ cfg_if::cfg_if! {
         impl_spawn_traits!(AsyncStdSpawner);
         pub type DefaultSpawner = AsyncStdSpawner;
     } else if #[cfg(all(feature = "tokio", feature = "async-std") )] {
-        // if both are enabled, we can not provice a default spawner
+        // if both are enabled, we can not provide a default spawner
     } else {
-        // if both are disabled, we can not provice a default spawner either
+        // if both are disabled, we can not provide a default spawner either
     }
 }
 

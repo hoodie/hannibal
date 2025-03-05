@@ -70,7 +70,7 @@ impl<A> Drop for Context<A> {
     }
 }
 
-/// Lifecycle
+/// Life-cycle
 impl<A: Actor> Context<A> {
     /// Stop the actor.
     pub fn stop(&self) -> Result<()> {
@@ -259,7 +259,7 @@ mod task_handling {
     }
 }
 
-/// Lifecycle
+/// Life-cycle
 impl<A: RestartableActor> Context<A> {
     /// Restart the actor.
     pub fn restart(&self) -> Result<()> {
@@ -387,7 +387,7 @@ mod interval_cleanup {
                 let woke_up = Instant::now();
                 let woke_after_ms = woke_up.duration_since(self.started).as_millis();
                 append_to_log(format!(
-                    "handler {call_id}/{invocation} wakeup {woke_after_ms}ms"
+                    "handler {call_id}/{invocation} wake up {woke_after_ms}ms"
                 ));
             }
         }
