@@ -35,7 +35,7 @@
 //!
 //! ## Runtime behavior
 //! Actors can also be used to handle [Streams](`futures::Stream`),
-//! they can be configured to enfore timeouts and use bounded or unbounded channels under the hood.
+//! they can be configured to enforce timeouts and use bounded or unbounded channels under the hood.
 //! Take a look at [`hannibal::build()`](`build`)
 //! to see how to configure an actor's runtime behavior and how to launch them on streams.
 

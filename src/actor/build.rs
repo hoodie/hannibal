@@ -7,7 +7,7 @@ use super::{Actor, builder, spawner};
 /// 1. What kind of channels do you use under the hood and how large are the channel's buffers?
 /// 2. Should the actor create a fresh object on restart?
 /// 3. Should it listen to a stream.
-/// 4. Should the actor enfore timeouts when waiting?
+/// 4. Should the actor enforce timeouts when waiting?
 /// 5. Register as a service
 ///
 /// ## 1. What kind of channels do you use under the hood and how large are the channel's buffers?
@@ -50,7 +50,7 @@ use super::{Actor, builder, spawner};
 /// ## 3. Should it listen to a stream.
 ///
 /// This one is an improvement over 0.10 where under the hood we would start listening to the stream on a separate task and send each message to the actor.
-/// This ment two tasks and twice the amount of sending.
+/// This meant two tasks and twice the amount of sending.
 /// Since 0.12 hannibal can start the actor's event loop tightly coupled to the stream.
 ///
 /// ### Example: Attache to stream
@@ -95,7 +95,7 @@ use super::{Actor, builder, spawner};
 /// ## 4. Timeouts
 ///
 /// One problem that you have to address when handling messages is that you can't wait forever.
-/// You could handle this manualy inside every handler that you implement, but why bother?
+/// You could handle this manually inside every handler that you implement, but why bother?
 /// Find more in the example `timeout.rs`.
 ///
 /// ### Example: configure the actor to abort handling messages if they take too long

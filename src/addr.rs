@@ -131,7 +131,7 @@ impl<A: Actor> Addr<A> {
         Ok(response.await?)
     }
 
-    // TODO: look if this can be made available exclusively to unbouded environments
+    // TODO: look if this can be made available exclusively to unbounded environments
     #[allow(dead_code)]
     pub(crate) fn force_send<M: Message<Response = ()>>(&self, msg: M) -> Result<()>
     where
