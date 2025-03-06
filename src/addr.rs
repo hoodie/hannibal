@@ -224,15 +224,21 @@ impl<A: Actor> OwningAddr<A> {
     pub(crate) fn new(addr: Addr<A>, handle: Box<dyn ActorHandle<A>>) -> Self {
         OwningAddr { addr, handle }
     }
+
+    /// Waits for the actor to stop and returns it.
     pub fn join(&mut self) -> JoinFuture<A> {
         self.handle.join()
     }
 
+    /// Stops the actor and waits for it to stop.
+    ///
+    /// If stop fails you will get an error before waiting for the actor to stop.
     pub fn stop_and_join(mut self) -> Result<JoinFuture<A>> {
         self.addr.stop()?;
         Ok(self.join())
     }
 
+    /// Stops the actor and returns it.
     pub async fn consume(mut self) -> Result<A> {
         self.addr.stop()?;
         let actor = self.join().await;
