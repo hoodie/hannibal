@@ -89,7 +89,7 @@ impl<A: Actor> Addr<A> {
         Ok(())
     }
 
-    pub async fn stop_and_join(mut self) -> Result<()> {
+    pub async fn halt(mut self) -> Result<()> {
         self.stop()?;
         self.await
     }
@@ -230,19 +230,20 @@ impl<A: Actor> OwningAddr<A> {
         self.handle.join()
     }
 
-    /// Stops the actor and waits for it to stop.
-    ///
-    /// If stop fails you will get an error before waiting for the actor to stop.
-    pub fn stop_and_join(mut self) -> Result<JoinFuture<A>> {
-        self.addr.stop()?;
-        Ok(self.join())
-    }
-
     /// Stops the actor and returns it.
     pub async fn consume(mut self) -> Result<A> {
         self.addr.stop()?;
         let actor = self.join().await;
         actor.ok_or(crate::error::ActorError::AlreadyStopped)
+    }
+
+    /// Stops the actor and returns it.
+    ///
+    /// In contrast to `halt()` if stop fails you will get an error before waiting for the actor to stop.
+    /// That does not mean that the join itself isn't still fallible.
+    pub fn consume_sync(mut self) -> Result<JoinFuture<A>> {
+        self.addr.stop()?;
+        Ok(self.join())
     }
 
     pub const fn as_addr(&self) -> &Addr<A> {

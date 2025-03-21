@@ -317,7 +317,7 @@ mod interval_cleanup {
             }
             .spawn();
             sleep(Duration::from_millis(300)).await;
-            addr.stop_and_join().await.unwrap();
+            addr.halt().await.unwrap();
             sleep(Duration::from_millis(300)).await;
             assert!(
                 !flag.load(Ordering::SeqCst),
@@ -436,7 +436,7 @@ mod interval_cleanup {
 
             sleep(Duration::from_millis(600)).await;
 
-            addr.stop_and_join().await.unwrap();
+            addr.halt().await.unwrap();
             let log_length = print_log();
             assert_eq!(log_length, 12);
         }
@@ -475,7 +475,7 @@ mod interval_cleanup {
             }
             .spawn();
             sleep(Duration::from_millis(300)).await;
-            addr.stop_and_join().await.unwrap();
+            addr.halt().await.unwrap();
             sleep(Duration::from_millis(300)).await;
             assert!(
                 !running.load(Ordering::SeqCst),
@@ -517,7 +517,7 @@ mod interval_cleanup {
             }
             .spawn();
             sleep(Duration::from_millis(300)).await;
-            addr.stop_and_join().await.unwrap();
+            addr.halt().await.unwrap();
             sleep(Duration::from_millis(300)).await;
             assert!(
                 !running.load(Ordering::SeqCst),
