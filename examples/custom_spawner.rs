@@ -75,7 +75,7 @@ fn main() {
     use custom_spawner::*;
     use hannibal::{prelude::Spawnable as _, spawner::SpawnableWith};
     futures::executor::block_on(async {
-        let (mut _addr, _) = MyActor.spawn_with::<CustomSpawner>().unwrap();
+        let (mut _addr, _) = MyActor.spawn_with::<CustomSpawner>();
         let mut addr = MyActor.spawn_owning();
 
         addr.join().await;

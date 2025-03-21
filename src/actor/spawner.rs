@@ -62,21 +62,19 @@ pub trait Spawner<A: Actor> {
 }
 
 pub trait SpawnableWith: Actor {
-    fn spawn_with<S: Spawner<Self>>(
-        self,
-    ) -> crate::error::Result<(Addr<Self>, Box<dyn ActorHandle<Self>>)> {
+    fn spawn_with<S: Spawner<Self>>(self) -> (Addr<Self>, Box<dyn ActorHandle<Self>>) {
         let (event_loop, addr) = Environment::unbounded().create_loop(self);
         let handle = S::spawn_actor(event_loop);
-        Ok((addr, handle))
+        (addr, handle)
     }
 
     fn spawn_with_in<S: Spawner<Self>>(
         self,
         environment: Environment<Self>,
-    ) -> crate::error::Result<(Addr<Self>, Box<dyn ActorHandle<Self>>)> {
+    ) -> (Addr<Self>, Box<dyn ActorHandle<Self>>) {
         let (event_loop, addr) = environment.create_loop(self);
         let handle = S::spawn_actor(event_loop);
-        Ok((addr, handle))
+        (addr, handle)
     }
 }
 
