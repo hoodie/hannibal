@@ -14,10 +14,10 @@ clippy:
     cargo --quiet clippy --workspace --quiet --lib --tests --no-default-features --features async-std
 
 
-test:
-    cargo --quiet test --workspace
-    cargo --quiet test --workspace --all-targets --no-default-features
-    cargo --quiet test --workspace --lib --no-default-features --features tokio
-    cargo --quiet test --workspace --lib --no-default-features --features async-std
+test $NEXTEST_STATUS_LEVEL="slow":
+    cargo nextest run --workspace
+    cargo nextest run --workspace --all-targets --no-default-features
+    cargo nextest run --workspace --lib --no-default-features --features tokio
+    cargo nextest run --workspace --lib --no-default-features --features async-std
 
 ci: clippy test
