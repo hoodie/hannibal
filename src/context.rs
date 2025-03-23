@@ -412,7 +412,7 @@ mod interval_cleanup {
 
         impl Actor for IntervalActor {
             async fn started(&mut self, ctx: &mut Context<Self>) -> DynResult<()> {
-                let invokation_id = AtomicU32::new(1);
+                let invocation_id = AtomicU32::new(1);
                 ctx.delayed_send(
                     || {
                         append_to_log("stopping tasks");
@@ -422,7 +422,7 @@ mod interval_cleanup {
                 );
                 ctx.interval_with(
                     move || {
-                        let invocation = invokation_id.fetch_add(1, Ordering::SeqCst);
+                        let invocation = invocation_id.fetch_add(1, Ordering::SeqCst);
                         append_to_log(format!("invoked {}", invocation));
                         IntervalSleep(Duration::from_millis(500), invocation)
                     },

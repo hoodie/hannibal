@@ -37,7 +37,7 @@ impl Handler<Add> for MyActor {
 
 #[hannibal::main]
 async fn main() {
-    let mut addr = MyActor("Caesar").spawn();
+    let mut addr = MyActor("Caesar").spawn_with(SmolSpawner);
 
     // addressing by the concrete type of the actor
     {

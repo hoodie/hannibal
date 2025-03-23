@@ -26,7 +26,7 @@ You can pass around strong and weak Addresses to the concret actor type.
 
 ## Features
 
-- feels like actix, but async
+- feels like actix
   - each actor runs in its own task
   - actors can be stopped or `.await`ed
 - weak and strong addresses (by actor-type)

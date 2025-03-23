@@ -233,8 +233,9 @@ impl<A: Actor> OwningAddr<A> {
     /// Stops the actor and returns it.
     pub async fn consume(mut self) -> Result<A> {
         self.addr.stop()?;
-        let actor = self.join().await;
-        actor.ok_or(crate::error::ActorError::AlreadyStopped)
+        self.join()
+            .await
+            .ok_or(crate::error::ActorError::AlreadyStopped)
     }
 
     /// Stops the actor and returns it.

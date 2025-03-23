@@ -8,7 +8,7 @@ use super::{ActorHandle, JoinFuture, Spawner};
 pub struct AsyncStdSpawner;
 
 impl<A: Actor> Spawner<A> for AsyncStdSpawner {
-    fn spawn_actor<F>(future: F) -> Box<dyn ActorHandle<A>>
+    fn spawn_actor<F>(future: F) -> Box<dyn Joiner<A>>
     where
         F: Future<Output = crate::DynResult<A>> + Send + 'static,
     {
@@ -20,7 +20,7 @@ impl<A: Actor> Spawner<A> for AsyncStdSpawner {
                     handle.lock().await.take();
 
                 if let Some(handle) = handle.take() {
-                    // TODO: don't eat the error
+                    // TODO: don 't eat the error
                     handle.await.ok()
                 } else {
                     None

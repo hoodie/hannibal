@@ -22,6 +22,12 @@ mod async_spawner;
 #[cfg(feature = "async_runtime")]
 pub use async_spawner::AsyncStdSpawner;
 
+#[cfg(feature = "smol_runtime")]
+mod smol_spawner;
+
+#[cfg(feature = "smol_runtime")]
+pub use smol_spawner::SmolSpawner;
+
 /// A future that resolves to an actor.
 pub type JoinFuture<A> = Pin<Box<dyn Future<Output = Option<A>> + Send>>;
 
