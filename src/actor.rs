@@ -2,16 +2,16 @@ use std::future::Future;
 
 use crate::context::Context;
 
-#[cfg(any(feature = "tokio", feature = "async-std"))]
+#[cfg(any(feature = "tokio_runtime", feature = "async_runtime"))]
 mod build;
 
-#[cfg(any(feature = "tokio", feature = "async-std"))]
+#[cfg(any(feature = "tokio_runtime", feature = "async_runtime"))]
 mod builder;
 pub mod service;
 pub mod spawner;
 
 pub(crate) mod restart_strategy;
-#[cfg(any(feature = "tokio", feature = "async-std"))]
+#[cfg(any(feature = "tokio_runtime", feature = "async_runtime"))]
 pub use build::build;
 pub use restart_strategy::RestartableActor;
 
@@ -53,7 +53,7 @@ pub mod tests {
         type Response = usize;
     }
 
-    #[cfg(feature = "async-std")]
+    #[cfg(feature = "async_runtime")]
     pub mod spawned_with_asyncstd {
         use std::marker::PhantomData;
 
@@ -86,7 +86,7 @@ pub mod tests {
         }
     }
 
-    #[cfg(feature = "tokio")]
+    #[cfg(feature = "tokio_runtime")]
     pub mod spawned_with_tokio {
         use std::sync::{
             LazyLock,

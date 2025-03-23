@@ -131,7 +131,11 @@ impl<A: Actor> Context<A> {
     }
 
     /// Create a weak sender to the actor.
-    #[cfg(any(feature = "tokio", feature = "async-std", feature = "custom_runtime"))]
+    #[cfg(any(
+        feature = "tokio_runtime",
+        feature = "async_runtime",
+        feature = "custom_runtime"
+    ))]
     pub fn weak_sender<M: crate::Message<Response = ()>>(&self) -> crate::WeakSender<M>
     where
         A: Handler<M>,
@@ -143,7 +147,11 @@ impl<A: Actor> Context<A> {
         )
     }
 
-    #[cfg(any(feature = "tokio", feature = "async-std", feature = "custom_runtime"))]
+    #[cfg(any(
+        feature = "tokio_runtime",
+        feature = "async_runtime",
+        feature = "custom_runtime"
+    ))]
     pub fn weak_caller<M: crate::Message<Response = R>, R>(&self) -> crate::WeakCaller<M>
     where
         A: Handler<M>,
@@ -158,7 +166,7 @@ impl<A: Actor> Context<A> {
     ///
     /// Every actor can publish messages to the broker
     /// which will be delivered to all actors that subscribe to the message.
-    #[cfg(any(feature = "tokio", feature = "async-std"))]
+    #[cfg(any(feature = "tokio_runtime", feature = "async_runtime"))]
     pub async fn publish<M: crate::Message<Response = ()> + Clone>(&self, message: M) -> Result<()>
     where
         A: Handler<M>,
@@ -169,7 +177,7 @@ impl<A: Actor> Context<A> {
     /// Subscribe to a message.
     ///
     /// The actor will receive all messages of this type.
-    #[cfg(any(feature = "tokio", feature = "async-std"))]
+    #[cfg(any(feature = "tokio_runtime", feature = "async_runtime"))]
     pub async fn subscribe<M: crate::Message<Response = ()> + Clone>(&mut self) -> Result<()>
     where
         A: Handler<M>,
@@ -178,7 +186,11 @@ impl<A: Actor> Context<A> {
     }
 }
 
-#[cfg(any(feature = "tokio", feature = "async-std", feature = "custom_runtime"))]
+#[cfg(any(
+    feature = "tokio_runtime",
+    feature = "async_runtime",
+    feature = "custom_runtime"
+))]
 mod task_handling {
     use futures::FutureExt;
     use std::{future::Future, time::Duration};
@@ -272,10 +284,10 @@ impl<A: RestartableActor> Context<A> {
 }
 
 #[cfg(test)]
-#[cfg(any(feature = "tokio", feature = "async-std"))]
+#[cfg(any(feature = "tokio_runtime", feature = "async_runtime"))]
 mod interval_cleanup {
     #![allow(clippy::unwrap_used)]
-    #[cfg(feature = "async-std")]
+    #[cfg(feature = "async_runtime")]
     use async_std::task::sleep;
 
     use std::{
@@ -285,7 +297,7 @@ mod interval_cleanup {
         },
         time::{Duration, Instant},
     };
-    #[cfg(feature = "tokio")]
+    #[cfg(feature = "tokio_runtime")]
     use tokio::time::sleep;
 
     mod interval {

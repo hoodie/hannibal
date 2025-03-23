@@ -123,10 +123,10 @@ pub trait DefaultSpawnable<S: Spawner<Self>>: Actor + Default {
     }
 }
 
-#[cfg(feature = "tokio")]
+#[cfg(feature = "tokio_runtime")]
 #[derive(Copy, Clone, Debug, Default)]
 pub struct TokioSpawner;
-#[cfg(feature = "tokio")]
+#[cfg(feature = "tokio_runtime")]
 impl<A: Actor> Spawner<A> for TokioSpawner {
     fn spawn_actor<F>(future: F) -> Box<dyn Joiner<A>>
     where
@@ -163,11 +163,11 @@ impl<A: Actor> Spawner<A> for TokioSpawner {
 
 // and now for async-std
 
-#[cfg(feature = "async-std")]
+#[cfg(feature = "async_runtime")]
 #[derive(Copy, Clone, Debug, Default)]
 pub struct AsyncStdSpawner;
 
-#[cfg(feature = "async-std")]
+#[cfg(feature = "async_runtime")]
 impl<A: Actor> Spawner<A> for AsyncStdSpawner {
     fn spawn_actor<F>(future: F) -> Box<dyn Joiner<A>>
     where
@@ -202,7 +202,7 @@ impl<A: Actor> Spawner<A> for AsyncStdSpawner {
 }
 
 cfg_if::cfg_if! {
-    if #[cfg( all(feature = "tokio", not(feature = "async-std")))] {
+    if #[cfg( all(feature = "tokio_runtime", not(feature = "async_runtime")))] {
         impl<A> Spawnable<TokioSpawner> for A where A: Actor {}
         impl<A> SpawnableHack<TokioSpawner> for A where A: Actor {}
 
@@ -216,7 +216,7 @@ cfg_if::cfg_if! {
         impl<A> DefaultSpawnable<TokioSpawner> for A where A: Actor + Default {}
         pub type DefaultSpawner = TokioSpawner;
 
-    } else if #[cfg( all(not(feature = "tokio"), feature = "async-std") )] {
+    } else if #[cfg( all(not(feature = "tokio_runtime"), feature = "async_runtime") )] {
 
         impl<A> Spawnable<AsyncStdSpawner> for A where A: Actor {}
         impl<A> SpawnableHack<AsyncStdSpawner> for A where A: Actor {}
@@ -232,7 +232,7 @@ cfg_if::cfg_if! {
         impl<A> DefaultSpawnable<AsyncStdSpawner> for A where A: Actor + Default {}
         pub type DefaultSpawner = AsyncStdSpawner;
 
-    } else if #[cfg(all(feature = "tokio", feature = "async-std") )] {
+    } else if #[cfg(all(feature = "tokio_runtime", feature = "async_runtime") )] {
         // if both are enabled, we can not provice a default spawner
     } else {
         // if both are disabled, we can not provice a default spawner either
@@ -241,7 +241,7 @@ cfg_if::cfg_if! {
 
 #[cfg(test)]
 mod tests {
-    #[cfg(feature = "tokio")]
+    #[cfg(feature = "tokio_runtime")]
     mod spawned_with_tokio {
         use crate::{
             actor::tests::{spawned_with_tokio::TokioActor, Ping},
@@ -271,7 +271,7 @@ mod tests {
         }
     }
 
-    #[cfg(feature = "async-std")]
+    #[cfg(feature = "async_runtime")]
     mod spawned_with_asyncstd {
         use crate::{
             actor::tests::{spawned_with_asyncstd::AsyncStdActor, Ping},

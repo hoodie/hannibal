@@ -1,4 +1,4 @@
-#![cfg(feature = "tokio")]
+#![cfg(feature = "tokio_runtime")]
 use hannibal::prelude::*;
 
 struct MyActor(&'static str);

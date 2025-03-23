@@ -1,4 +1,4 @@
-#[cfg(all(not(feature = "tokio"), not(feature = "async-std")))]
+#[cfg(all(not(feature = "tokio_runtime"), not(feature = "async_runtime")))]
 mod custom_spawner {
     use std::{
         future::Future,
@@ -70,7 +70,7 @@ mod custom_spawner {
     impl Spawnable<CustomSpawner> for MyActor {}
 }
 
-#[cfg(all(not(feature = "tokio"), not(feature = "async-std")))]
+#[cfg(all(not(feature = "tokio_runtime"), not(feature = "async_runtime")))]
 fn main() {
     use custom_spawner::*;
     use hannibal::{prelude::Spawnable as _, spawner::SpawnableWith};
@@ -83,7 +83,7 @@ fn main() {
     })
 }
 
-#[cfg(any(feature = "tokio", feature = "async-std"))]
+#[cfg(any(feature = "tokio_runtime", feature = "async_runtime"))]
 fn main() {
     panic!("use `--no-default-features`");
 }
