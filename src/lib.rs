@@ -52,7 +52,7 @@ pub mod error;
 
 pub use hannibal_derive::message;
 
-#[cfg(any(feature = "tokio", feature = "async-std"))]
+#[cfg(any(feature = "tokio_runtime", feature = "async_runtime"))]
 mod broker;
 mod handler;
 
@@ -71,10 +71,10 @@ pub use self::{
     handler::{Handler, StreamHandler},
 };
 
-#[cfg(any(feature = "tokio", feature = "async-std"))]
+#[cfg(any(feature = "tokio_runtime", feature = "async_runtime"))]
 pub use actor::build;
 
-#[cfg(any(feature = "tokio", feature = "async-std"))]
+#[cfg(any(feature = "tokio_runtime", feature = "async_runtime"))]
 pub use broker::Broker;
 
 pub mod prelude {

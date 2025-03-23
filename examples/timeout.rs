@@ -2,9 +2,9 @@ use std::time::Duration;
 
 use hannibal::{RestartableActor, error::ActorError, prelude::*};
 
-#[cfg(feature = "async-std")]
+#[cfg(feature = "async_runtime")]
 use async_std::task::sleep;
-#[cfg(feature = "tokio")]
+#[cfg(feature = "tokio_runtime")]
 use tokio::time::sleep;
 
 #[derive(Debug, Default)]

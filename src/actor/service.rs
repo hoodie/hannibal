@@ -23,7 +23,7 @@ static REGISTRY: LazyLock<async_lock::RwLock<HashMap<TypeId, AnyBox>>> =
 /// Service Related
 ///
 /// An actor that implements the [`Service`] trait can be registered, unregistered and replaced via an `Addr` as a service.
-#[cfg(any(feature = "tokio", feature = "async-std"))]
+#[cfg(any(feature = "tokio_runtime", feature = "async_runtime"))]
 impl<A: Service> Addr<A> {
     /// Register an actor as a service.
     ///
@@ -81,7 +81,7 @@ impl<A: Service> Addr<A> {
 /// A service is an actor that does not need to be owned
 ///
 /// Some functionality of the service is available on the [`Addr`](`Addr`#impl-Addr%3CA%3E) of the service.
-#[cfg(any(feature = "tokio", feature = "async-std"))]
+#[cfg(any(feature = "tokio_runtime", feature = "async_runtime"))]
 pub trait Service: Actor + Default {
     /// Setup the service.
     ///
@@ -120,7 +120,7 @@ pub trait Service: Actor + Default {
     }
 }
 
-#[cfg(not(any(feature = "tokio", feature = "async-std")))]
+#[cfg(not(any(feature = "tokio_runtime", feature = "async_runtime")))]
 pub trait Service<S: Spawner<Self>>: Actor + Default {
     fn setup() -> impl Future<Output = ()> {
         Self::from_registry_and_spawn().map(|_| ())
@@ -154,7 +154,7 @@ pub trait Service<S: Spawner<Self>>: Actor + Default {
     }
 }
 
-#[cfg(any(feature = "tokio", feature = "async-std"))]
+#[cfg(any(feature = "tokio_runtime", feature = "async_runtime"))]
 pub(crate) trait SpawnableService<S: Spawner<Self>>: Service {
     #[allow(clippy::async_yields_async)]
     fn from_registry_and_spawn() -> impl Future<Output = Addr<Self>> {
@@ -181,8 +181,8 @@ pub(crate) trait SpawnableService<S: Spawner<Self>>: Service {
 }
 
 #[cfg(any(
-    all(feature = "tokio", not(feature = "async-std")),
-    all(not(feature = "tokio"), feature = "async-std")
+    all(feature = "tokio_runtime", not(feature = "async_runtime")),
+    all(not(feature = "tokio_runtime"), feature = "async_runtime")
 ))]
 impl<A, S> SpawnableService<S> for A
 where
@@ -196,7 +196,7 @@ where
 mod tests {
     #![allow(clippy::unwrap_used)]
 
-    #[cfg(feature = "tokio")]
+    #[cfg(feature = "tokio_runtime")]
     mod spawned_with_tokio {
         use crate::{
             Service,
@@ -263,7 +263,7 @@ mod tests {
         }
     }
 
-    #[cfg(feature = "async-std")]
+    #[cfg(feature = "async_runtime")]
     mod spawned_with_asyncstd {
         use crate::{
             Service,

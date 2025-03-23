@@ -3,7 +3,7 @@
 
 use std::time::Duration;
 #[cfg_attr(
-    not(any(feature = "tokio", feature = "async-std")),
+    not(any(feature = "tokio_runtime", feature = "async_runtime")),
     allow(unused_imports)
 )]
 use std::{future::Future, pin::Pin};
@@ -11,21 +11,21 @@ use std::{future::Future, pin::Pin};
 use crate::{Addr, StreamHandler, addr::OwningAddr, environment::Environment};
 
 #[cfg_attr(
-    not(any(feature = "tokio", feature = "async-std")),
+    not(any(feature = "tokio_runtime", feature = "async_runtime")),
     allow(unused_imports)
 )]
 use super::Actor;
 
-#[cfg(feature = "tokio")]
+#[cfg(feature = "tokio_runtime")]
 mod tokio_spawner;
 
-#[cfg(feature = "tokio")]
+#[cfg(feature = "tokio_runtime")]
 pub use tokio_spawner::TokioSpawner;
 
-#[cfg(feature = "async-std")]
+#[cfg(feature = "async_runtime")]
 mod async_spawner;
 
-#[cfg(feature = "async-std")]
+#[cfg(feature = "async_runtime")]
 pub use async_spawner::AsyncStdSpawner;
 
 /// A future that resolves to an actor.
@@ -100,7 +100,7 @@ pub trait Spawnable<S: Spawner<Self>>: Actor {
     }
 }
 
-#[cfg(any(feature = "tokio", feature = "async-std"))]
+#[cfg(any(feature = "tokio_runtime", feature = "async_runtime"))]
 pub(crate) trait SpawnSelf<S: Spawner<Self>>: Actor {
     fn spawn_future<F>(future: F)
     where
@@ -165,13 +165,13 @@ macro_rules! impl_spawn_traits {
 }
 
 cfg_if::cfg_if! {
-    if #[cfg(all(feature = "tokio", not(feature = "async-std")))] {
+    if #[cfg(all(feature = "tokio_runtime", not(feature = "async_runtime")))] {
         impl_spawn_traits!(TokioSpawner);
         pub type DefaultSpawner = TokioSpawner;
-    } else if #[cfg( all(not(feature = "tokio"), feature = "async-std") )] {
+    } else if #[cfg( all(not(feature = "tokio_runtime"), feature = "async_runtime") )] {
         impl_spawn_traits!(AsyncStdSpawner);
         pub type DefaultSpawner = AsyncStdSpawner;
-    } else if #[cfg(all(feature = "tokio", feature = "async-std") )] {
+    } else if #[cfg(all(feature = "tokio_runtime", feature = "async_runtime") )] {
         // if both are enabled, we can not provide a default spawner
     } else {
         // if both are disabled, we can not provide a default spawner either
@@ -181,7 +181,7 @@ cfg_if::cfg_if! {
 #[cfg(test)]
 mod tests {
     #![allow(clippy::unwrap_used)]
-    #[cfg(feature = "tokio")]
+    #[cfg(feature = "tokio_runtime")]
     mod spawned_with_tokio {
         use crate::{
             actor::tests::{Ping, spawned_with_tokio::TokioActor},
@@ -211,7 +211,7 @@ mod tests {
         }
     }
 
-    #[cfg(feature = "async-std")]
+    #[cfg(feature = "async_runtime")]
     mod spawned_with_asyncstd {
         use crate::{
             actor::tests::{Ping, spawned_with_asyncstd::AsyncStdActor},

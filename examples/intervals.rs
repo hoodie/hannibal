@@ -1,4 +1,4 @@
-#![cfg(feature = "tokio")]
+#![cfg(feature = "tokio_runtime")]
 use std::time::Duration;
 
 use hannibal::prelude::*;

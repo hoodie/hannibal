@@ -1,5 +1,5 @@
 #![cfg_attr(
-    all(feature = "tokio", feature = "async-std"),
+    all(feature = "tokio_runtime", feature = "async_runtime"),
     allow(dead_code, unused)
 )]
 use hannibal::prelude::*;
@@ -40,11 +40,11 @@ impl Handler<Add> for MyActor {
 }
 
 #[cfg(any(
-    all(feature = "tokio", not(feature = "async-std")),
-    all(not(feature = "tokio"), feature = "async-std")
+    all(feature = "tokio_runtime", not(feature = "async_runtime")),
+    all(not(feature = "tokio_runtime"), feature = "async_runtime")
 ))]
-#[cfg_attr(feature = "tokio", tokio::main)]
-#[cfg_attr(feature = "async-std", async_std::main)]
+#[cfg_attr(feature = "tokio_runtime", tokio::main)]
+#[cfg_attr(feature = "async_runtime", async_std::main)]
 async fn main() {
     let mut addr = MyActor("Caesar").spawn();
     addr.send(Greet("Cornelius")).await.unwrap();
@@ -54,5 +54,5 @@ async fn main() {
     println!("{:#?}", addr.stop());
 }
 
-#[cfg(all(feature = "tokio", feature = "async-std"))]
+#[cfg(all(feature = "tokio_runtime", feature = "async_runtime"))]
 fn main() {}

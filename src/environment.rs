@@ -60,7 +60,10 @@ impl<A: Actor, R: RestartStrategy<A>> Environment<A, R> {
             phantom: PhantomData,
         }
     }
-    #[cfg_attr(not(any(feature = "tokio", feature = "async-std")), allow(dead_code))]
+    #[cfg_attr(
+        not(any(feature = "tokio_runtime", feature = "async_runtime")),
+        allow(dead_code)
+    )]
     pub(crate) const fn with_config(mut self, config: EnvironmentConfig) -> Self {
         self.config = config;
         self
@@ -399,14 +402,14 @@ mod tests {
         }
     }
 
-    #[cfg(any(feature = "tokio", feature = "async-std"))]
+    #[cfg(any(feature = "tokio_runtime", feature = "async_runtime"))]
     mod timeout {
         use std::time::Duration;
 
         use crate::{RestartableActor, error::ActorError, prelude::*};
 
         cfg_if::cfg_if! {
-        if #[cfg(feature = "async-std")] {
+        if #[cfg(feature = "async_runtime")] {
             use async_std::task::sleep;
         } else {
             use tokio::time::sleep;
