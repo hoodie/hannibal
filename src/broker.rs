@@ -18,31 +18,34 @@ use crate::{Actor, Addr, Context, Handler, Message, Service, WeakSender, context
 ///
 /// impl Actor for Subscribing {
 ///     async fn started(&mut self, ctx: &mut Context<Self>) -> DynResult<()> {
+///         // subscribe to `Topic1`
 ///         ctx.subscribe::<Topic1>().await?;
 ///         Ok(())
 ///     }
 /// }
 ///
 /// impl Handler<Topic1> for Subscribing {
-///     async fn handle(&mut self, _ctx: &mut Context<Self>, msg: Topic1) {
+///     async fn handle(&mut self, ctx: &mut Context<Self>, msg: Topic1) {
 ///         self.0.push(msg.0);
+///         # if self.0.len() == 2 {
+///         #     ctx.stop().unwrap()
+///         # }
 ///     }
 /// }
 ///
 /// # #[tokio::main]
 /// # async fn main() {
-/// let subscriber1 = Subscribing::default().spawn_owning();
-/// let subscriber2 = Subscribing::default().spawn_owning();
+/// let mut subscriber1 = Subscribing::default().spawn_owning();
+/// let mut subscriber2 = Subscribing::default().spawn_owning();
+/// # subscriber1.ping().await.unwrap();
+/// # subscriber2.ping().await.unwrap();
 ///
-/// # let ping_both = || join(subscriber1.ping(), subscriber2.ping());
-/// # let _ = ping_both().await;
 /// let broker = Broker::from_registry().await;
 /// broker.publish(Topic1(42)).await.unwrap();
 /// broker.publish(Topic1(23)).await.unwrap();
 ///
-/// # let _ = ping_both().await;
-/// assert_eq!(subscriber1.consume().await, Ok(Subscribing(vec![42, 23])));
-/// assert_eq!(subscriber2.consume().await, Ok(Subscribing(vec![42, 23])));
+/// assert_eq!(subscriber1.join().await, Some(Subscribing(vec![42, 23])));
+/// assert_eq!(subscriber2.join().await, Some(Subscribing(vec![42, 23])));
 /// # }
 /// ```
 pub struct Broker<T: Message<Response = ()>> {
@@ -168,15 +171,21 @@ mod subscribe_publish_unsubscribe {
     }
 
     impl Handler<Topic1> for Subscribing {
-        async fn handle(&mut self, _ctx: &mut Context<Self>, msg: Topic1) {
+        async fn handle(&mut self, ctx: &mut Context<Self>, msg: Topic1) {
             self.0.push(msg.0);
+            if self.0.len() == 2 {
+                ctx.stop().unwrap()
+            }
         }
     }
 
     #[tokio::test]
     async fn publish_different_ways() -> DynResult<()> {
-        let subscriber1 = Subscribing::default().spawn_owning();
-        let subscriber2 = Subscribing::default().spawn_owning();
+        let mut subscriber1 = Subscribing::default().spawn_owning();
+        subscriber1.ping().await.unwrap();
+
+        let mut subscriber2 = Subscribing::default().spawn_owning();
+        subscriber2.ping().await.unwrap();
 
         let ping_both = || join(subscriber1.ping(), subscriber2.ping());
         let _ = ping_both().await;
@@ -187,8 +196,8 @@ mod subscribe_publish_unsubscribe {
 
         let _ = ping_both().await;
 
-        assert_eq!(subscriber1.consume().await, Ok(Subscribing(vec![42, 23])));
-        assert_eq!(subscriber2.consume().await, Ok(Subscribing(vec![42, 23])));
+        assert_eq!(subscriber1.join().await, Some(Subscribing(vec![42, 23])));
+        assert_eq!(subscriber2.join().await, Some(Subscribing(vec![42, 23])));
 
         Ok(())
     }

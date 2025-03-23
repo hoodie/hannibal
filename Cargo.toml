@@ -39,6 +39,7 @@ futures-executor = { version = "0.3", features = ["thread-pool"] }
 libc = "0.2"
 trybuild = "1"
 test-log = "0.2"
+env_logger = "0.11.7"
 
 [features]
 # TODO: make tokio optional
