@@ -4,6 +4,15 @@ use crate::{Addr, StreamHandler, environment::Environment};
 
 use super::{Actor, DynResult};
 
+#[cfg(feature = "async_runtime")]
+mod async_spawner;
+
+#[cfg(feature = "tokio_runtime")]
+mod tokio_spawner;
+
+#[cfg(feature = "smol_runtime")]
+mod smol_spawner;
+
 pub type JoinFuture<A> = Pin<Box<dyn Future<Output = Option<A>> + Send>>;
 
 // TODO: rename to `Handle`
@@ -123,86 +132,13 @@ pub trait DefaultSpawnable<S: Spawner<Self>>: Actor + Default {
     }
 }
 
-#[cfg(feature = "tokio_runtime")]
-#[derive(Copy, Clone, Debug, Default)]
-pub struct TokioSpawner;
-#[cfg(feature = "tokio_runtime")]
-impl<A: Actor> Spawner<A> for TokioSpawner {
-    fn spawn_actor<F>(future: F) -> Box<dyn Joiner<A>>
-    where
-        F: Future<Output = crate::DynResult<A>> + Send + 'static,
-    {
-        let handle = Arc::new(async_lock::Mutex::new(Some(tokio::spawn(future))));
-        Box::new(move || -> JoinFuture<A> {
-            let handle = Arc::clone(&handle);
-            Box::pin(async move {
-                let mut handle: Option<tokio::task::JoinHandle<DynResult<A>>> =
-                    handle.lock().await.take();
-
-                if let Some(handle) = handle.take() {
-                    // TODO: don't eat the error
-                    handle.await.ok().and_then(Result::ok)
-                } else {
-                    None
-                }
-            })
-        })
-    }
-
-    fn spawn_future<F>(future: F)
-    where
-        F: Future<Output = ()> + Send + 'static,
-    {
-        tokio::spawn(future);
-    }
-
-    async fn sleep(duration: Duration) {
-        tokio::time::sleep(duration).await;
-    }
-}
-
-// and now for async-std
-
-#[cfg(feature = "async_runtime")]
-#[derive(Copy, Clone, Debug, Default)]
-pub struct AsyncStdSpawner;
-
-#[cfg(feature = "async_runtime")]
-impl<A: Actor> Spawner<A> for AsyncStdSpawner {
-    fn spawn_actor<F>(future: F) -> Box<dyn Joiner<A>>
-    where
-        F: Future<Output = crate::DynResult<A>> + Send + 'static,
-    {
-        let handle = Arc::new(async_lock::Mutex::new(Some(async_std::task::spawn(future))));
-        Box::new(move || -> JoinFuture<A> {
-            let handle = Arc::clone(&handle);
-            Box::pin(async move {
-                let mut handle: Option<async_std::task::JoinHandle<DynResult<A>>> =
-                    handle.lock().await.take();
-
-                if let Some(handle) = handle.take() {
-                    // TODO: don 't eat the error
-                    handle.await.ok()
-                } else {
-                    None
-                }
-            })
-        })
-    }
-    fn spawn_future<F>(future: F)
-    where
-        F: Future<Output = ()> + Send + 'static,
-    {
-        async_std::task::spawn(future);
-    }
-
-    async fn sleep(duration: Duration) {
-        async_std::task::sleep(duration).await;
-    }
-}
-
 cfg_if::cfg_if! {
-    if #[cfg( all(feature = "tokio_runtime", not(feature = "async_runtime")))] {
+    if #[cfg(all(
+        feature = "tokio_runtime",
+        not(any(feature = "async_runtime", feature = "smol_runtime"))
+    ))] {
+
+        compile_error!("don't use tokio");
         impl<A> Spawnable<TokioSpawner> for A where A: Actor {}
         impl<A> SpawnableHack<TokioSpawner> for A where A: Actor {}
 
@@ -216,7 +152,11 @@ cfg_if::cfg_if! {
         impl<A> DefaultSpawnable<TokioSpawner> for A where A: Actor + Default {}
         pub type DefaultSpawner = TokioSpawner;
 
-    } else if #[cfg( all(not(feature = "tokio_runtime"), feature = "async_runtime") )] {
+    } else if #[cfg( all(
+        feature = "async_runtime",
+        not(any(feature = "tokio_runtime", feature="smol_runtime")),
+    ) )] {
+        compile_error!("don't use async-std");
 
         impl<A> Spawnable<AsyncStdSpawner> for A where A: Actor {}
         impl<A> SpawnableHack<AsyncStdSpawner> for A where A: Actor {}
@@ -232,9 +172,33 @@ cfg_if::cfg_if! {
         impl<A> DefaultSpawnable<AsyncStdSpawner> for A where A: Actor + Default {}
         pub type DefaultSpawner = AsyncStdSpawner;
 
-    } else if #[cfg(all(feature = "tokio_runtime", feature = "async_runtime") )] {
+
+    } else if #[cfg( all(
+        feature = "smol_runtime",
+        not(any(feature="tokio_runtime", feature="async_runtime")),
+    ) )] {
+        use smol_spawner::SmolSpawner;
+        compile_error!("USE SMOL YES");
+
+        impl<A> Spawnable<SmolSpawner> for A where A: Actor {}
+        impl<A> SpawnableHack<SmolSpawner> for A where A: Actor {}
+
+        impl<A, T> StreamSpawnable<SmolSpawner, T> for A
+        where
+            A: Actor + StreamHandler<T::Item>,
+            T: futures::Stream + Unpin + Send + 'static,
+            T::Item: 'static + Send,
+        {
+        }
+
+        impl<A> DefaultSpawnable<SmolSpawner> for A where A: Actor + Default {}
+        pub type DefaultSpawner = SmolSpawner;
+
+    } else if #[cfg(all(feature = "tokio_runtime", feature = "async_runtime", feature = "smol") )] {
+        compile_error!("all runtimes are on");
         // if both are enabled, we can not provice a default spawner
     } else {
+        compile_error!("no runtimes are on");
         // if both are disabled, we can not provice a default spawner either
     }
 }

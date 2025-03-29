@@ -23,7 +23,7 @@ static REGISTRY: LazyLock<async_lock::RwLock<HashMap<TypeId, AnyBox>>> =
 /// Service Related
 ///
 /// An actor that implements the [`Service`] trait can be registered, unregistered and replaced via an `Addr` as a service.
-#[cfg(any(feature = "tokio_runtime", feature = "async_runtime"))]
+#[cfg(feature = "runtime")]
 impl<A: Service> Addr<A> {
     /// Register an actor as a service.
     ///
@@ -32,6 +32,8 @@ impl<A: Service> Addr<A> {
     pub async fn register(self) -> crate::error::Result<(Self, Option<Self>)> {
         let key = TypeId::of::<A>();
         let mut registry = REGISTRY.write().await;
+
+        log::trace!("registering service {}", std::any::type_name::<A>());
 
         let replaced = if let Some(existing) = registry.get(&key) {
             if existing
@@ -60,6 +62,7 @@ impl<A: Service> Addr<A> {
     /// The old service is returned, it is not stopped until you stop or drop it.
     pub async fn replace(self) -> Option<Self> {
         let key = TypeId::of::<A>();
+        log::trace!("replacing service {}", std::any::type_name::<A>());
         let mut registry = REGISTRY.write().await;
         registry
             .insert(key, Box::new(self.clone()))
@@ -70,6 +73,7 @@ impl<A: Service> Addr<A> {
     /// Unregister a service.
     pub async fn unregister() -> Option<Addr<A>> {
         let key = TypeId::of::<A>();
+        log::trace!("unregistering service {}", std::any::type_name::<A>());
         let mut registry = REGISTRY.write().await;
         registry
             .remove(&key)
@@ -105,12 +109,17 @@ pub trait Service: Actor + Default {
 
     /// Get the service from the registry.
     fn from_registry() -> impl Future<Output = Addr<Self>> {
+        log::trace!(
+            "getting service from registry {}",
+            std::any::type_name::<Self>()
+        );
         Self::from_registry_and_spawn()
     }
 
     /// Get the service from the registry synchronously if it is running.
     fn try_from_registry() -> Option<Addr<Self>> {
         let key = TypeId::of::<Self>();
+        log::trace!("trying to get service from registry");
         REGISTRY
             .try_read()?
             .get(&key)
@@ -123,6 +132,7 @@ pub trait Service: Actor + Default {
 #[cfg(not(feature = "runtime"))]
 pub trait Service<S: Spawner<Self>>: Actor + Default {
     fn setup() -> impl Future<Output = ()> {
+        log::trace!("setting up service");
         Self::from_registry_and_spawn().map(|_| ())
     }
 
@@ -132,6 +142,10 @@ pub trait Service<S: Spawner<Self>>: Actor + Default {
 
     #[allow(clippy::async_yields_async)]
     fn from_registry_and_spawn() -> impl Future<Output = Addr<Self>> {
+        log::trace!(
+            "spawning new instance of {} service in registry",
+            std::any::type_name::<Self>()
+        );
         async {
             let key = TypeId::of::<Self>();
 
@@ -145,9 +159,12 @@ pub trait Service<S: Spawner<Self>>: Actor + Default {
             {
                 addr
             } else {
+                log::trace!("spawning new service {}", std::any::type_name::<Self>());
                 let (event_loop, addr) = Environment::unbounded().create_loop(Self::default());
-                S::spawn_actor(event_loop);
+                let handle = S::spawn_actor(event_loop);
+                handle.detach();
                 registry.insert(key, Box::new(addr.clone()));
+                debug_assert!(addr.ping().await.is_ok(), "service failed ping");
                 addr
             }
         }
@@ -158,6 +175,10 @@ pub trait Service<S: Spawner<Self>>: Actor + Default {
 pub(crate) trait SpawnableService<S: Spawner<Self>>: Service {
     #[allow(clippy::async_yields_async)]
     fn from_registry_and_spawn() -> impl Future<Output = Addr<Self>> {
+        log::trace!(
+            "spawning new instance of {} service in registry",
+            std::any::type_name::<Self>()
+        );
         async {
             let key = TypeId::of::<Self>();
 
@@ -169,21 +190,22 @@ pub(crate) trait SpawnableService<S: Spawner<Self>>: Service {
                 .map(ToOwned::to_owned)
                 .filter(Addr::running)
             {
+                log::trace!("service already running {}", std::any::type_name::<Self>());
                 addr
             } else {
+                log::trace!("spawning new service {}", std::any::type_name::<Self>());
                 let (event_loop, addr) = Environment::unbounded().create_loop(Self::default());
-                S::spawn_actor(event_loop);
+                let handle = S::spawn_actor(event_loop);
+                handle.detach();
                 registry.insert(key, Box::new(addr.clone()));
+                debug_assert!(addr.ping().await.is_ok(), "service failed ping");
                 addr
             }
         }
     }
 }
 
-#[cfg(any(
-    all(feature = "tokio_runtime", not(feature = "async_runtime")),
-    all(not(feature = "tokio_runtime"), feature = "async_runtime")
-))]
+#[cfg(feature = "runtime")]
 impl<A, S> SpawnableService<S> for A
 where
     A: Service,

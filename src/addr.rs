@@ -85,11 +85,13 @@ impl<A: Actor> Clone for Addr<A> {
 
 impl<A: Actor> Addr<A> {
     pub fn stop(&mut self) -> Result<()> {
+        log::trace!("stopping actor");
         self.payload_force_tx.send(Payload::Stop)?;
         Ok(())
     }
 
     pub async fn halt(mut self) -> Result<()> {
+        log::trace!("halting actor");
         self.stop()?;
         self.await
     }
@@ -107,19 +109,25 @@ impl<A: Actor> Addr<A> {
         A: Handler<M>,
     {
         let (tx_response, response) = oneshot::channel();
+        log::trace!("calling actor {}", std::any::type_name::<M>());
         self.payload_force_tx
             .send(Payload::task(move |actor, ctx| {
+                log::trace!("handling task call");
                 Box::pin(async move {
+                    log::trace!("actor handling call {}", std::any::type_name::<M>());
                     let res = Handler::handle(actor, ctx, msg).await;
                     let _ = tx_response.send(res);
                 })
             }))?;
 
-        Ok(response.await?)
+        let response = response.await?;
+        log::trace!("received response from actor");
+        Ok(response)
     }
 
     /// Ping the actor to check if it is already/still alive.
     pub async fn ping(&self) -> Result<()> {
+        log::trace!("pinging actor");
         let (tx_response, response) = oneshot::channel();
         self.payload_force_tx
             .send(Payload::task(move |_actor, _ctx| {
@@ -137,6 +145,10 @@ impl<A: Actor> Addr<A> {
     where
         A: Handler<M>,
     {
+        log::trace!(
+            "force sending message to actor {}",
+            std::any::type_name::<M>()
+        );
         self.payload_force_tx
             .send(Payload::task(move |actor, ctx| {
                 Box::pin(Handler::handle(actor, ctx, msg))
@@ -148,6 +160,7 @@ impl<A: Actor> Addr<A> {
     where
         A: Handler<M>,
     {
+        log::trace!("sending message to actor {}", std::any::type_name::<M>());
         self.payload_tx
             .send(Payload::task(move |actor, ctx| {
                 Box::pin(Handler::handle(actor, ctx, msg))
@@ -164,6 +177,7 @@ impl<A: Actor> Addr<A> {
     where
         A: Handler<M>,
     {
+        log::trace!("creating sender for actor {}", std::any::type_name::<M>());
         sender::Sender::from(self.to_owned())
     }
 
@@ -202,6 +216,7 @@ impl<A: RestartableActor> Addr<A> {
 impl<A> Future for Addr<A> {
     type Output = Result<()>;
     fn poll(self: Pin<&mut Self>, cx: &mut std::task::Context<'_>) -> Poll<Self::Output> {
+        log::trace!("polling actor");
         self.get_mut()
             .running
             .poll_unpin(cx)
@@ -227,14 +242,17 @@ impl<A: Actor> OwningAddr<A> {
 
     /// Waits for the actor to stop and returns it.
     pub fn join(&mut self) -> JoinFuture<A> {
+        log::trace!("joining actor");
         self.handle.join()
     }
 
     /// Stops the actor and returns it.
     pub async fn consume(mut self) -> Result<A> {
+        log::trace!("consuming actor");
         self.addr.stop()?;
-        let actor = self.join().await;
-        actor.ok_or(crate::error::ActorError::AlreadyStopped)
+        self.join()
+            .await
+            .ok_or(crate::error::ActorError::AlreadyStopped)
     }
 
     /// Stops the actor and returns it.
@@ -242,6 +260,7 @@ impl<A: Actor> OwningAddr<A> {
     /// In contrast to `halt()` if stop fails you will get an error before waiting for the actor to stop.
     /// That does not mean that the join itself isn't still fallible.
     pub fn consume_sync(mut self) -> Result<JoinFuture<A>> {
+        log::trace!("consuming actor synchronously");
         self.addr.stop()?;
         Ok(self.join())
     }
@@ -251,6 +270,7 @@ impl<A: Actor> OwningAddr<A> {
     }
 
     pub async fn ping(&self) -> Result<()> {
+        log::trace!("pinging actor");
         self.addr.ping().await
     }
 
@@ -258,6 +278,7 @@ impl<A: Actor> OwningAddr<A> {
     where
         A: Handler<M>,
     {
+        log::trace!("calling actor {}", std::any::type_name::<M>());
         self.addr.call(msg).await
     }
 
@@ -265,17 +286,19 @@ impl<A: Actor> OwningAddr<A> {
     where
         A: Handler<M>,
     {
+        log::trace!("sending message to actor {}", std::any::type_name::<M>());
         self.addr.send(msg).await
     }
 
     pub fn to_addr(&self) -> Addr<A> {
+        log::trace!("converting to normal addr");
         self.addr.clone()
     }
-}
 
-impl<A> From<OwningAddr<A>> for Addr<A> {
-    fn from(val: OwningAddr<A>) -> Self {
-        val.addr
+    pub fn detach(self) -> Addr<A> {
+        log::trace!("detaching owning addr");
+        self.handle.detach();
+        self.addr
     }
 }
 

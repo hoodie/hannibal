@@ -128,4 +128,37 @@ pub mod tests {
             }
         }
     }
+
+    #[cfg(feature = "smol_runtime")]
+    pub mod spawned_with_smol {
+        use std::marker::PhantomData;
+
+        use super::{Identify, Ping, Pong};
+        use crate::{
+            Handler, Service,
+            actor::{Actor, Context},
+        };
+
+        #[derive(Debug, Default)]
+        pub struct SmolActor<T: Send + Sync + Default>(pub usize, pub PhantomData<T>);
+
+        // impl<T: Send + Sync + Default> SmolActor<T> {
+        //     pub fn new(value: usize) -> Self {
+        //         Self(value, Default::default())
+        //     }
+        // }
+
+        impl<T: Send + Sync + Default + 'static> Actor for SmolActor<T> {}
+        impl<T: Send + Sync + Default + 'static> Service for SmolActor<T> {}
+        impl<T: Send + Sync + Default + 'static> Handler<Ping> for SmolActor<T> {
+            async fn handle(&mut self, _ctx: &mut Context<Self>, _msg: Ping) -> Pong {
+                Pong
+            }
+        }
+        impl<T: Send + Sync + Default + 'static> Handler<Identify> for SmolActor<T> {
+            async fn handle(&mut self, _ctx: &mut Context<Self>, _msg: Identify) -> usize {
+                self.0
+            }
+        }
+    }
 }

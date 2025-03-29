@@ -13,7 +13,8 @@ impl<A: Actor> Spawner<A> for TokioSpawner {
         F: Future<Output = crate::DynResult<A>> + Send + 'static,
     {
         let handle = Arc::new(async_lock::Mutex::new(Some(tokio::spawn(future))));
-        let join_fn = Box::new(move || -> JoinFuture<A> {
+
+        ActorHandle::new(move || -> JoinFuture<A> {
             let handle = Arc::clone(&handle);
             Box::pin(async move {
                 let mut handle: Option<tokio::task::JoinHandle<DynResult<A>>> =
@@ -26,9 +27,7 @@ impl<A: Actor> Spawner<A> for TokioSpawner {
                     None
                 }
             })
-        });
-
-        ActorHandle { join_fn }
+        })
     }
 
     fn spawn_future<F>(future: F)

@@ -37,7 +37,12 @@ impl Handler<Add> for MyActor {
 
 #[hannibal::main]
 async fn main() {
+    color_backtrace::install();
+    env_logger::init();
+    // let (mut addr, _handle) = MyActor("Caesar").spawn_with::<SmolSpawner>();
     let mut addr = MyActor("Caesar").spawn();
+
+    addr.ping().await.unwrap();
 
     // addressing by the concrete type of the actor
     {

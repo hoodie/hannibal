@@ -26,6 +26,7 @@ impl Handler<Retrieve> for StorageService {
 
 #[hannibal::main]
 async fn main() {
+    env_logger::init();
     StorageService::from_registry()
         .await
         .send(Store("password", "hello world"))
