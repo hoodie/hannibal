@@ -2,8 +2,11 @@ use std::sync::Arc;
 
 use dyn_clone::DynClone;
 
-use crate::context::{ContextID, RunningFuture};
-use crate::{Actor, Addr};
+use crate::{
+    Actor, Addr,
+    context::{ContextID, RunningFuture},
+    error::{ActorError::AlreadyStopped, Result},
+};
 
 /// A weak reference to an actor.
 ///
@@ -21,6 +24,23 @@ impl<A: Actor> WeakAddr<A> {
 
     pub fn stopped(&self) -> bool {
         self.running.peek().is_some()
+    }
+
+    pub fn try_stop(&mut self) -> Result<()> {
+        if let Some(mut addr) = self.upgrade() {
+            addr.stop()
+        } else {
+            Err(AlreadyStopped)
+        }
+    }
+
+    pub async fn try_halt(&mut self) -> Result<()> {
+        if let Some(mut addr) = self.upgrade() {
+            addr.stop()?;
+            addr.await
+        } else {
+            Err(AlreadyStopped)
+        }
     }
 }
 
