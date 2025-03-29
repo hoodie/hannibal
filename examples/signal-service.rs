@@ -33,8 +33,9 @@ impl StreamHandler<i32> for SignalService {
     }
 }
 
-#[tokio::main(flavor = "current_thread")]
+#[hannibal::main(flavor = "current_thread")]
 async fn main() {
+    env_logger::init();
     SignalService::setup().await.unwrap();
 
     let addr = SignalService::from_registry().await;

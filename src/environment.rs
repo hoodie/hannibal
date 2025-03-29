@@ -60,10 +60,7 @@ impl<A: Actor, R: RestartStrategy<A>> Environment<A, R> {
             phantom: PhantomData,
         }
     }
-    #[cfg_attr(
-        not(any(feature = "tokio_runtime", feature = "async_runtime")),
-        allow(dead_code)
-    )]
+    #[cfg_attr(not(feature = "runtime"), allow(dead_code))]
     pub(crate) const fn with_config(mut self, config: EnvironmentConfig) -> Self {
         self.config = config;
         self

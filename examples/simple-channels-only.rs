@@ -1,5 +1,9 @@
-use tokio::sync::{mpsc, oneshot};
-use tokio::task;
+#![cfg(feature = "tokio")]
+
+use tokio::{
+    sync::{mpsc, oneshot},
+    task,
+};
 
 #[derive(Debug)]
 enum Message {

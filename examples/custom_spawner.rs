@@ -1,4 +1,4 @@
-#[cfg(all(not(feature = "tokio_runtime"), not(feature = "async_runtime")))]
+#[cfg(not(feature = "runtime"))]
 mod custom_spawner {
     use std::{
         future::Future,
@@ -83,7 +83,7 @@ fn main() {
     })
 }
 
-#[cfg(any(feature = "tokio_runtime", feature = "async_runtime"))]
+#[cfg(feature = "runtime")]
 fn main() {
     panic!("use `--no-default-features`");
 }

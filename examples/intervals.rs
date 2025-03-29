@@ -1,4 +1,3 @@
-#![cfg(feature = "tokio_runtime")]
 use std::time::Duration;
 
 use hannibal::prelude::*;
@@ -35,7 +34,7 @@ impl Handler<Stop> for MyActor {
     }
 }
 
-#[tokio::main]
+#[hannibal::main]
 async fn main() {
     MyActor(0).spawn().await.unwrap();
 }

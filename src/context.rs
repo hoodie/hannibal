@@ -131,11 +131,7 @@ impl<A: Actor> Context<A> {
     }
 
     /// Create a weak sender to the actor.
-    #[cfg(any(
-        feature = "tokio_runtime",
-        feature = "async_runtime",
-        feature = "custom_runtime"
-    ))]
+    #[cfg(feature = "runtime")]
     pub fn weak_sender<M: crate::Message<Response = ()>>(&self) -> crate::WeakSender<M>
     where
         A: Handler<M>,
@@ -147,11 +143,7 @@ impl<A: Actor> Context<A> {
         )
     }
 
-    #[cfg(any(
-        feature = "tokio_runtime",
-        feature = "async_runtime",
-        feature = "custom_runtime"
-    ))]
+    #[cfg(feature = "runtime")]
     pub fn weak_caller<M: crate::Message<Response = R>, R>(&self) -> crate::WeakCaller<M>
     where
         A: Handler<M>,
@@ -177,7 +169,7 @@ impl<A: Actor> Context<A> {
     /// Subscribe to a message.
     ///
     /// The actor will receive all messages of this type.
-    #[cfg(any(feature = "tokio_runtime", feature = "async_runtime"))]
+    #[cfg(feature = "runtime")]
     pub async fn subscribe<M: crate::Message<Response = ()> + Clone>(&mut self) -> Result<()>
     where
         A: Handler<M>,
@@ -186,11 +178,7 @@ impl<A: Actor> Context<A> {
     }
 }
 
-#[cfg(any(
-    feature = "tokio_runtime",
-    feature = "async_runtime",
-    feature = "custom_runtime"
-))]
+#[cfg(feature = "runtime")]
 mod task_handling {
     use futures::FutureExt;
     use std::{future::Future, time::Duration};
@@ -295,7 +283,7 @@ impl<A: RestartableActor> Context<A> {
 }
 
 #[cfg(test)]
-#[cfg(any(feature = "tokio_runtime", feature = "async_runtime"))]
+#[cfg(feature = "runtime")]
 mod interval_cleanup {
     #![allow(clippy::unwrap_used)]
     #[cfg(feature = "async_runtime")]

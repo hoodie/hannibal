@@ -23,7 +23,7 @@ impl Handler<Topic1> for Subscribing {
     }
 }
 
-#[tokio::main]
+#[hannibal::main]
 async fn main() {
     let mut subscriber1 = Subscribing::default().spawn_owning();
     subscriber1.ping().await.unwrap();

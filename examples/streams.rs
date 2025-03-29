@@ -23,7 +23,7 @@ impl StreamHandler<i32> for FizzBuzzer {
     }
 }
 
-#[tokio::main]
+#[hannibal::main]
 async fn main() {
     let num_stream = futures::stream::iter(1..30);
     let addr = hannibal::build(FizzBuzzer("Caesar"))
