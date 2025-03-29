@@ -1,8 +1,27 @@
 extern crate proc_macro;
 
 use proc_macro::TokenStream;
+use proc_macro2::Span;
 use quote::quote;
-use syn::{DeriveInput, parse_macro_input};
+use syn::{DeriveInput, Ident, parse_macro_input};
+
+#[proc_macro_attribute]
+pub fn main(_args: TokenStream, input: TokenStream) -> TokenStream {
+    let mut input: syn::ItemFn = syn::parse_macro_input!(input);
+
+    input.sig.ident = Ident::new("original_main", Span::call_site());
+    let return_type = &input.sig.output;
+
+    let generated = quote! {
+        #input
+
+        fn main() #return_type {
+            hannibal::runtime::block_on(original_main())
+        }
+    };
+
+    generated.into()
+}
 
 #[proc_macro_attribute]
 pub fn message(args: TokenStream, input: TokenStream) -> TokenStream {

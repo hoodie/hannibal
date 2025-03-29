@@ -33,7 +33,7 @@ use crate::{Actor, Addr, Context, Handler, Message, Service, WeakSender, context
 ///     }
 /// }
 ///
-/// # #[tokio::main]
+/// # #[hannibal::main]
 /// # async fn main() {
 /// let mut subscriber1 = Subscribing::default().spawn_owning();
 /// let mut subscriber2 = Subscribing::default().spawn_owning();

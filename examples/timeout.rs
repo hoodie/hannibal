@@ -35,7 +35,7 @@ impl Handler<Sleep> for SleepyActor {
 // TODO: can we encode the restart strategy in an associated type or as a trait function?
 impl RestartableActor for SleepyActor {}
 
-#[tokio::main]
+#[hannibal::main]
 async fn main() {
     // normal case, tasks take long
     println!("SleepyActor 0 will take 1 second to complete");

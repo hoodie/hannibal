@@ -2,18 +2,12 @@
 //! Currently hannibal supports both `tokio` and `async-std`. Custom spawners can be implemented.
 
 use std::time::Duration;
-#[cfg_attr(
-    not(any(feature = "tokio_runtime", feature = "async_runtime")),
-    allow(unused_imports)
-)]
+#[cfg_attr(not(feature = "runtime"), allow(unused_imports))]
 use std::{future::Future, pin::Pin};
 
 use crate::{Addr, StreamHandler, addr::OwningAddr, environment::Environment};
 
-#[cfg_attr(
-    not(any(feature = "tokio_runtime", feature = "async_runtime")),
-    allow(unused_imports)
-)]
+#[cfg_attr(not(feature = "runtime"), allow(unused_imports))]
 use super::Actor;
 
 #[cfg(feature = "tokio_runtime")]
@@ -100,7 +94,7 @@ pub trait Spawnable<S: Spawner<Self>>: Actor {
     }
 }
 
-#[cfg(any(feature = "tokio_runtime", feature = "async_runtime"))]
+#[cfg(feature = "runtime")]
 pub(crate) trait SpawnSelf<S: Spawner<Self>>: Actor {
     fn spawn_future<F>(future: F)
     where

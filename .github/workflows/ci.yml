@@ -2,7 +2,6 @@ on: [push, pull_request]
 
 name: Continuous Integration
 
-
 jobs:
   check:
     name: cargo-check
@@ -67,7 +66,7 @@ jobs:
     strategy:
       matrix:
         rust: [stable, beta, nightly]
-        features: [default,tokio_runtime, async_runtime]
+        features: [default, tokio_runtime, async_runtime]
     steps:
       - uses: actions/checkout@v4
       - uses: Swatinem/rust-cache@v2
@@ -81,7 +80,6 @@ jobs:
 
       - name: clippy ${{matrix.features}}
         run: cargo clippy --workspace --no-default-features --features ${{matrix.features}}
-
 
       - name: cargo-clippy
         run: cargo clippy --workspace --all-targets -- -D warnings

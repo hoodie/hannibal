@@ -1,4 +1,3 @@
-#![cfg(feature = "tokio_runtime")]
 use hannibal::prelude::*;
 
 struct MyActor(&'static str);
@@ -36,7 +35,7 @@ impl Handler<Add> for MyActor {
     }
 }
 
-#[tokio::main]
+#[hannibal::main]
 async fn main() {
     let mut addr = MyActor("Caesar").spawn();
 

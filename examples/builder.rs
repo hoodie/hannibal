@@ -56,7 +56,7 @@ async fn send_greet_and_stop(mut addr: Addr<MyActor>) {
 // TODO: can we encode the restart strategy in an associated type or as a trait function?
 impl RestartableActor for MyActor {}
 
-#[tokio::main]
+#[hannibal::main]
 async fn main() {
     let addr = hannibal::build(MyActor("Caesar"))
         .bounded(6)

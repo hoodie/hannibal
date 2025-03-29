@@ -47,7 +47,7 @@ impl Actor for Root {
     }
 }
 
-#[tokio::main]
+#[hannibal::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     Root.spawn().await?;
     Ok(())

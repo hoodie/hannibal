@@ -24,7 +24,7 @@ impl Handler<Retrieve> for StorageService {
     }
 }
 
-#[tokio::main]
+#[hannibal::main]
 async fn main() {
     StorageService::from_registry()
         .await

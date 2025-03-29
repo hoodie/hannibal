@@ -21,7 +21,7 @@
 //!     }
 //! }
 //!
-//! # #[tokio::main]
+//! # #[hannibal::main]
 //! # async fn main() {
 //! // Spawn the actor and get its address
 //! let mut addr = Adder("The Answer is = ").spawn();
@@ -50,11 +50,14 @@ mod context;
 mod environment;
 pub mod error;
 
-pub use hannibal_derive::message;
+pub use hannibal_derive::{main, message};
 
-#[cfg(any(feature = "tokio_runtime", feature = "async_runtime"))]
+#[cfg(feature = "runtime")]
 mod broker;
 mod handler;
+
+#[cfg(feature = "runtime")]
+pub mod runtime;
 
 #[cfg(all(feature = "async_runtime", feature = "tokio_runtime"))]
 compile_error!("only one runtime featured allowed");
@@ -74,10 +77,10 @@ pub use self::{
     handler::{Handler, StreamHandler},
 };
 
-#[cfg(any(feature = "tokio_runtime", feature = "async_runtime"))]
+#[cfg(feature = "runtime")]
 pub use actor::build;
 
-#[cfg(any(feature = "tokio_runtime", feature = "async_runtime"))]
+#[cfg(feature = "runtime")]
 pub use broker::Broker;
 
 pub mod prelude {
@@ -87,7 +90,7 @@ pub mod prelude {
         addr::{Addr, Message, sender::Sender, weak_caller::WeakCaller, weak_sender::WeakSender},
         context::Context,
         handler::{Handler, StreamHandler},
-        message,
+        main, message,
         spawner::{Spawnable, StreamSpawnable},
     };
     pub use hannibal_derive::*;

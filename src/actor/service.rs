@@ -81,7 +81,7 @@ impl<A: Service> Addr<A> {
 /// A service is an actor that does not need to be owned
 ///
 /// Some functionality of the service is available on the [`Addr`](`Addr`#impl-Addr%3CA%3E) of the service.
-#[cfg(any(feature = "tokio_runtime", feature = "async_runtime"))]
+#[cfg(feature = "runtime")]
 pub trait Service: Actor + Default {
     /// Setup the service.
     ///
@@ -120,7 +120,7 @@ pub trait Service: Actor + Default {
     }
 }
 
-#[cfg(not(any(feature = "tokio_runtime", feature = "async_runtime")))]
+#[cfg(not(feature = "runtime"))]
 pub trait Service<S: Spawner<Self>>: Actor + Default {
     fn setup() -> impl Future<Output = ()> {
         Self::from_registry_and_spawn().map(|_| ())
@@ -154,7 +154,7 @@ pub trait Service<S: Spawner<Self>>: Actor + Default {
     }
 }
 
-#[cfg(any(feature = "tokio_runtime", feature = "async_runtime"))]
+#[cfg(feature = "runtime")]
 pub(crate) trait SpawnableService<S: Spawner<Self>>: Service {
     #[allow(clippy::async_yields_async)]
     fn from_registry_and_spawn() -> impl Future<Output = Addr<Self>> {

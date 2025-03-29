@@ -36,7 +36,7 @@ impl Handler<Add> for MyActor {
     }
 }
 
-#[tokio::main]
+#[hannibal::main]
 async fn main() {
     let addr = MyActor("Caesar").spawn_owning();
     addr.send(Greet("Cornelius")).await.unwrap();

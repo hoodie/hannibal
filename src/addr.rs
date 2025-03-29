@@ -219,10 +219,7 @@ pub struct OwningAddr<A> {
     pub(crate) handle: Box<dyn ActorHandle<A>>,
 }
 
-#[cfg_attr(
-    not(any(feature = "tokio_runtime", feature = "async_runtime")),
-    allow(dead_code)
-)]
+#[cfg_attr(not(feature = "runtime"), allow(dead_code))]
 impl<A: Actor> OwningAddr<A> {
     pub(crate) fn new(addr: Addr<A>, handle: Box<dyn ActorHandle<A>>) -> Self {
         OwningAddr { addr, handle }
