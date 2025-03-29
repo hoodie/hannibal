@@ -18,7 +18,7 @@ mod custom_spawner {
     pub struct CustomSpawner;
 
     impl<A: Actor> Spawner<A> for CustomSpawner {
-        fn spawn_actor<F>(future: F) -> Box<dyn ActorHandle<A>>
+        fn spawn_actor<F>(future: F) -> ActorHandle<A>
         where
             F: Future<Output = DynResult<A>> + Send + 'static,
         {
@@ -29,7 +29,7 @@ mod custom_spawner {
             })));
 
             eprintln!("Spawned actor with custom spawner");
-            Box::new(move || -> JoinFuture<A> {
+            let join_fn = Box::new(move || -> JoinFuture<A> {
                 let handle = Arc::clone(&handle);
                 Box::pin(async move {
                     let mut handle = handle.lock().await.take().and_then(Result::ok);
@@ -41,7 +41,8 @@ mod custom_spawner {
                         None
                     }
                 })
-            })
+            });
+            ActorHandle { join_fn }
         }
 
         fn spawn_future<F>(_future: F)

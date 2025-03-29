@@ -25,18 +25,14 @@ pub use async_spawner::AsyncStdSpawner;
 /// A future that resolves to an actor.
 pub type JoinFuture<A> = Pin<Box<dyn Future<Output = Option<A>> + Send>>;
 
-pub trait ActorHandle<A: Actor>: Send + Sync {
-    fn join(&mut self) -> JoinFuture<A>;
+pub struct ActorHandle<A> {
+    pub join_fn: Box<dyn FnMut() -> JoinFuture<A>>,
+    // detach_fn: Option<Box<dyn FnOnce()>>,
 }
 
-impl<A, F> ActorHandle<A> for F
-where
-    A: Actor,
-    F: FnMut() -> JoinFuture<A>,
-    F: Send + Sync,
-{
-    fn join(&mut self) -> JoinFuture<A> {
-        self()
+impl<A> ActorHandle<A> {
+    pub fn join(&mut self) -> JoinFuture<A> {
+        (self.join_fn)()
     }
 }
 
@@ -44,7 +40,7 @@ where
 ///
 /// You should implement at this trait if you want to build a custom spawner.
 pub trait Spawner<A: Actor> {
-    fn spawn_actor<F>(future: F) -> Box<dyn ActorHandle<A>>
+    fn spawn_actor<F>(future: F) -> ActorHandle<A>
     where
         F: Future<Output = crate::DynResult<A>> + Send + 'static;
 
@@ -56,7 +52,7 @@ pub trait Spawner<A: Actor> {
 }
 
 pub trait SpawnableWith: Actor {
-    fn spawn_with<S: Spawner<Self>>(self) -> (Addr<Self>, Box<dyn ActorHandle<Self>>) {
+    fn spawn_with<S: Spawner<Self>>(self) -> (Addr<Self>, ActorHandle<Self>) {
         let (event_loop, addr) = Environment::unbounded().create_loop(self);
         let handle = S::spawn_actor(event_loop);
         (addr, handle)
@@ -65,7 +61,7 @@ pub trait SpawnableWith: Actor {
     fn spawn_with_in<S: Spawner<Self>>(
         self,
         environment: Environment<Self>,
-    ) -> (Addr<Self>, Box<dyn ActorHandle<Self>>) {
+    ) -> (Addr<Self>, ActorHandle<Self>) {
         let (event_loop, addr) = environment.create_loop(self);
         let handle = S::spawn_actor(event_loop);
         (addr, handle)

@@ -216,12 +216,12 @@ impl<A> Future for Addr<A> {
 /// They can be downgraded to normal [`Addr`]s.
 pub struct OwningAddr<A> {
     pub(crate) addr: Addr<A>,
-    pub(crate) handle: Box<dyn ActorHandle<A>>,
+    pub(crate) handle: ActorHandle<A>,
 }
 
 #[cfg_attr(not(feature = "runtime"), allow(dead_code))]
 impl<A: Actor> OwningAddr<A> {
-    pub(crate) fn new(addr: Addr<A>, handle: Box<dyn ActorHandle<A>>) -> Self {
+    pub(crate) const fn new(addr: Addr<A>, handle: ActorHandle<A>) -> Self {
         OwningAddr { addr, handle }
     }
 

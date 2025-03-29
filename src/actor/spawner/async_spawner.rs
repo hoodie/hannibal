@@ -8,12 +8,12 @@ use super::{ActorHandle, JoinFuture, Spawner};
 pub struct AsyncStdSpawner;
 
 impl<A: Actor> Spawner<A> for AsyncStdSpawner {
-    fn spawn_actor<F>(future: F) -> Box<dyn ActorHandle<A>>
+    fn spawn_actor<F>(future: F) -> ActorHandle<A>
     where
         F: Future<Output = crate::DynResult<A>> + Send + 'static,
     {
         let handle = Arc::new(async_lock::Mutex::new(Some(async_std::task::spawn(future))));
-        Box::new(move || -> JoinFuture<A> {
+        let join_fn = Box::new(move || -> JoinFuture<A> {
             let handle = Arc::clone(&handle);
             Box::pin(async move {
                 let mut handle: Option<async_std::task::JoinHandle<DynResult<A>>> =
@@ -26,7 +26,9 @@ impl<A: Actor> Spawner<A> for AsyncStdSpawner {
                     None
                 }
             })
-        })
+        });
+
+        ActorHandle { join_fn }
     }
 
     fn spawn_future<F>(future: F)
