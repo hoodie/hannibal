@@ -56,6 +56,9 @@ pub use hannibal_derive::message;
 mod broker;
 mod handler;
 
+#[cfg(all(feature = "async_runtime", feature = "tokio_runtime"))]
+compile_error!("only one runtime featured allowed");
+
 // TODO: flatten module structure
 pub use self::{
     actor::{
