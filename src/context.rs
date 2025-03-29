@@ -268,6 +268,17 @@ mod task_handling {
                 }
             })
         }
+
+        pub fn delayed_exec<F: Future<Output = ()> + Send + 'static>(
+            &mut self,
+            task: F,
+            duration: Duration,
+        ) {
+            self.spawn_task(async move {
+                A::sleep(duration).await;
+                task.await;
+            })
+        }
     }
 }
 
