@@ -31,6 +31,15 @@ impl Actor for Root {
         ctx.create_child(|| Child(1));
         ctx.create_child(|| Child(2));
         ctx.create_child(|| Child(3));
+
+        let mut me = ctx.weak_address().ok_or("Sorry")?;
+        ctx.delayed_exec(
+            async move {
+                me.try_halt().await.unwrap();
+                println!("shut down root");
+            },
+            Duration::from_secs(5),
+        );
         Ok(())
     }
     async fn stopped(&mut self, _: &mut Context<Self>) {
@@ -40,12 +49,6 @@ impl Actor for Root {
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let mut root_addr = Root.spawn();
-
-    tokio::time::sleep(Duration::from_secs(5)).await;
-
-    root_addr.stop()?;
-
-    root_addr.await?;
+    Root.spawn().await?;
     Ok(())
 }
