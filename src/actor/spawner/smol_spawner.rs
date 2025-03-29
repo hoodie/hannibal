@@ -16,12 +16,17 @@ impl<A: Actor> Spawner<A> for SmolSpawner {
         Box::new(move || -> JoinFuture<A> {
             let handle = Arc::clone(&handle);
             Box::pin(async move {
+                log::trace!("spawning smol task");
                 let mut handle: Option<smol::Task<DynResult<A>>> = handle.lock().await.take();
 
                 if let Some(handle) = handle.take() {
                     // TODO: don't eat the error
-                    handle.await.ok()
+
+                    let actor = handle.await.ok();
+                    log::trace!("smol task completed");
+                    return actor
                 } else {
+                    log::warn!("smol task already completed");
                     None
                 }
             })
