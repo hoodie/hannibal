@@ -1,6 +1,6 @@
 use std::{future::Future, pin::Pin, sync::Arc, time::Duration};
 
-use crate::{environment::Environment, Addr, StreamHandler};
+use crate::{Addr, StreamHandler, environment::Environment};
 
 use super::{Actor, DynResult};
 
@@ -244,7 +244,7 @@ mod tests {
     #[cfg(feature = "tokio_runtime")]
     mod spawned_with_tokio {
         use crate::{
-            actor::tests::{spawned_with_tokio::TokioActor, Ping},
+            actor::tests::{Ping, spawned_with_tokio::TokioActor},
             spawn_strategy::{DefaultSpawnable, Spawnable, TokioSpawner},
         };
 
@@ -274,7 +274,7 @@ mod tests {
     #[cfg(feature = "async_runtime")]
     mod spawned_with_asyncstd {
         use crate::{
-            actor::tests::{spawned_with_asyncstd::AsyncStdActor, Ping},
+            actor::tests::{Ping, spawned_with_asyncstd::AsyncStdActor},
             spawn_strategy::{AsyncStdSpawner, DefaultSpawnable, Spawnable},
         };
 
