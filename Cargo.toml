@@ -40,12 +40,13 @@ hannibal-derive = { path = "hannibal-derive", version = "0.12.0-rc.3" }
 # TODO: make tokio optional
 tokio = { version = "1.43", features = ["full"] }
 async-std = { version = "1.13", features = ["attributes"] }
-# async-signals = "0.5.0"
+async-signals = "0.5.0"
 futures-executor = { version = "0.3", features = ["thread-pool"] }
 libc = "0.2"
 trybuild = "1"
 test-log = "0.2"
 env_logger = { version = "0.11", features = ["unstable-kv"] }
+color-backtrace = "0.7"
 
 [features]
 default = [

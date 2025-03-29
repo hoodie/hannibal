@@ -107,19 +107,26 @@ impl<A: Actor> Addr<A> {
         A: Handler<M>,
     {
         let (tx_response, response) = oneshot::channel();
+        log::trace!("calling actor {}", std::any::type_name::<M>());
         self.payload_force_tx
             .send(Payload::task(move |actor, ctx| {
+
+                log::trace!("handling task call");
                 Box::pin(async move {
+                    log::trace!("actor handling call {}", std::any::type_name::<M>());
                     let res = Handler::handle(actor, ctx, msg).await;
                     let _ = tx_response.send(res);
                 })
             }))?;
 
-        Ok(response.await?)
+        let response = response.await?;
+        log::trace!("received response from actor");
+        Ok(response)
     }
 
     /// Ping the actor to check if it is already/still alive.
     pub async fn ping(&self) -> Result<()> {
+        log::trace!("pinging actor");
         let (tx_response, response) = oneshot::channel();
         self.payload_force_tx
             .send(Payload::task(move |_actor, _ctx| {
@@ -148,6 +155,7 @@ impl<A: Actor> Addr<A> {
     where
         A: Handler<M>,
     {
+        log::trace!("sending message to actor {}", std::any::type_name::<M>());
         self.payload_tx
             .send(Payload::task(move |actor, ctx| {
                 Box::pin(Handler::handle(actor, ctx, msg))

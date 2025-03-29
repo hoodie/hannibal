@@ -1,4 +1,7 @@
-use hannibal::prelude::*;
+use hannibal::{
+    prelude::*,
+    spawner::{SmolSpawner, SpawnableWith},
+};
 
 struct MyActor(&'static str);
 
@@ -37,7 +40,11 @@ impl Handler<Add> for MyActor {
 
 #[hannibal::main]
 async fn main() {
-    let mut addr = MyActor("Caesar").spawn_with(SmolSpawner);
+    color_backtrace::install();
+    env_logger::init();
+    let (mut addr, _handle) = MyActor("Caesar").spawn_with::<SmolSpawner>();
+
+    addr.ping().await.unwrap();
 
     // addressing by the concrete type of the actor
     {

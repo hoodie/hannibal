@@ -66,11 +66,11 @@ pub mod tests {
         #[derive(Debug, Default)]
         pub struct AsyncStdActor<T: Send + Sync + Default>(pub usize, pub PhantomData<T>);
 
-        impl<T: Send + Sync + Default> AsyncStdActor<T> {
-            pub fn new(value: usize) -> Self {
-                Self(value, Default::default())
-            }
-        }
+        // impl<T: Send + Sync + Default> AsyncStdActor<T> {
+        //     pub fn new(value: usize) -> Self {
+        //         Self(value, Default::default())
+        //     }
+        // }
 
         impl<T: Send + Sync + Default + 'static> Actor for AsyncStdActor<T> {}
         impl<T: Send + Sync + Default + 'static> Service for AsyncStdActor<T> {}
@@ -142,11 +142,11 @@ pub mod tests {
         #[derive(Debug, Default)]
         pub struct SmolActor<T: Send + Sync + Default>(pub usize, pub PhantomData<T>);
 
-        impl<T: Send + Sync + Default> SmolActor<T> {
-            pub fn new(value: usize) -> Self {
-                Self(value, Default::default())
-            }
-        }
+        // impl<T: Send + Sync + Default> SmolActor<T> {
+        //     pub fn new(value: usize) -> Self {
+        //         Self(value, Default::default())
+        //     }
+        // }
 
         impl<T: Send + Sync + Default + 'static> Actor for SmolActor<T> {}
         impl<T: Send + Sync + Default + 'static> Service for SmolActor<T> {}

@@ -180,10 +180,7 @@ pub(crate) trait SpawnableService<S: Spawner<Self>>: Service {
     }
 }
 
-#[cfg(any(
-    all(feature = "tokio_runtime", not(feature = "async_runtime")),
-    all(not(feature = "tokio_runtime"), feature = "async_runtime")
-))]
+#[cfg(feature="runtime")]
 impl<A, S> SpawnableService<S> for A
 where
     A: Service,

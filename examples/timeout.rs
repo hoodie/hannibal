@@ -1,11 +1,6 @@
 use std::time::Duration;
 
-use hannibal::{RestartableActor, error::ActorError, prelude::*};
-
-#[cfg(feature = "async_runtime")]
-use async_std::task::sleep;
-#[cfg(feature = "tokio_runtime")]
-use tokio::time::sleep;
+use hannibal::{RestartableActor, error::ActorError, prelude::*, runtime::sleep};
 
 #[derive(Debug, Default)]
 struct SleepyActor(u8);
@@ -37,6 +32,9 @@ impl RestartableActor for SleepyActor {}
 
 #[hannibal::main]
 async fn main() {
+    env_logger::init();
+    color_backtrace::install();
+
     // normal case, tasks take long
     println!("SleepyActor 0 will take 1 second to complete");
     let mut addr = hannibal::build(SleepyActor(0))

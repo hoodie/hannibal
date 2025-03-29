@@ -70,7 +70,7 @@ mod custom_spawner {
     impl Spawnable<CustomSpawner> for MyActor {}
 }
 
-#[cfg(all(not(feature = "tokio_runtime"), not(feature = "async_runtime")))]
+#[cfg(not(feature = "runtime"))]
 fn main() {
     use custom_spawner::*;
     use hannibal::{prelude::Spawnable as _, spawner::SpawnableWith};
