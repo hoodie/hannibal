@@ -287,8 +287,6 @@ impl<A: RestartableActor> Context<A> {
 #[cfg(feature = "runtime")]
 mod interval_cleanup {
     #![allow(clippy::unwrap_used)]
-    #[cfg(feature = "async_runtime")]
-    use async_std::task::sleep;
 
     use std::{
         sync::{
@@ -297,8 +295,8 @@ mod interval_cleanup {
         },
         time::{Duration, Instant},
     };
-    #[cfg(feature = "tokio_runtime")]
-    use tokio::time::sleep;
+
+    use crate::runtime::sleep;
 
     mod interval {
         use super::*;
@@ -413,7 +411,7 @@ mod interval_cleanup {
 
         impl Actor for IntervalActor {
             async fn started(&mut self, ctx: &mut Context<Self>) -> DynResult<()> {
-                let invokation_id = AtomicU32::new(1);
+                let invocation_id = AtomicU32::new(1);
                 ctx.delayed_send(
                     || {
                         append_to_log("stopping tasks");
@@ -423,7 +421,7 @@ mod interval_cleanup {
                 );
                 ctx.interval_with(
                     move || {
-                        let invocation = invokation_id.fetch_add(1, Ordering::SeqCst);
+                        let invocation = invocation_id.fetch_add(1, Ordering::SeqCst);
                         append_to_log(format!("invoked {}", invocation));
                         IntervalSleep(Duration::from_millis(500), invocation)
                     },

@@ -108,6 +108,7 @@ impl<A: Actor, R: RestartStrategy<A>> Environment<A, R> {
                         actor = R::refresh(actor, &mut self.ctx).await?
                     }
                     Payload::Task(f) => {
+                        log::trace!(name = A::NAME;  "received task");
                         if let Err(err) = timeout_fut(f(&mut actor, &mut self.ctx), timeout).await {
                             if self.config.fail_on_timeout {
                                 log::warn!("{:?} task took too long: {:?}, exiting", A::NAME, err);
@@ -150,8 +151,8 @@ impl<A: Actor, R: RestartStrategy<A>> Environment<A, R> {
             actor.started(&mut self.ctx).await?;
             loop {
                 futures::select! {
-                    actor_msg = self.payload_stream.next().fuse() => {
-                        match actor_msg {
+                    event = self.payload_stream.next().fuse() => {
+                        match event {
                             Some(Payload::Task(f)) => f(&mut actor, &mut self.ctx).await,
                             Some(Payload::Stop)  =>  break,
                             Some(Payload::Restart)  =>  {

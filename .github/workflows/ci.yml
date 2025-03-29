@@ -9,7 +9,7 @@ jobs:
     strategy:
       matrix:
         rust: [stable, beta, nightly]
-        features: [default, tokio_runtime, async_runtime]
+        features: [default, tokio_runtime, async_runtime, smol_runtime]
     steps:
       - uses: actions/checkout@v4
       - uses: Swatinem/rust-cache@v2
@@ -32,7 +32,7 @@ jobs:
     strategy:
       matrix:
         rust: [stable, beta, nightly]
-        features: [tokio_runtime, async_runtime]
+        features: [tokio_runtime, async_runtime, smol_runtime]
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
@@ -66,7 +66,7 @@ jobs:
     strategy:
       matrix:
         rust: [stable, beta, nightly]
-        features: [default, tokio_runtime, async_runtime]
+        features: [default, tokio_runtime, async_runtime, smol_runtime]
     steps:
       - uses: actions/checkout@v4
       - uses: Swatinem/rust-cache@v2

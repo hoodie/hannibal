@@ -92,11 +92,21 @@ impl<T: Message> Message for Publish<T> {
 
 impl<T: Message<Response = ()> + Clone> Handler<Publish<T>> for Broker<T> {
     async fn handle(&mut self, _ctx: &mut Context<Self>, msg: Publish<T>) {
-        for subscriber in self.subscribers.values().filter_map(WeakSender::upgrade) {
+        let live_subscribers = self
+            .subscribers
+            .values()
+            .filter_map(WeakSender::upgrade)
+            .collect::<Vec<_>>();
+        for subscriber in &live_subscribers {
             if let Err(_error) = subscriber.send(msg.0.clone()).await {
                 // log::warn!("Failed to send message to subscriber: {:?}", error)
             }
         }
+        log::trace!(
+            "published to {} subscribers, topic {:?}",
+            live_subscribers.len(),
+            std::any::type_name::<T>()
+        );
 
         self.subscribers
             .retain(|_, sender| sender.upgrade().is_some());
@@ -118,23 +128,27 @@ impl<T: Message<Response = ()>> Message for Unsubscribe<T> {
 impl<T: Message<Response = ()> + Clone> Handler<Subscribe<T>> for Broker<T> {
     async fn handle(&mut self, _ctx: &mut Context<Self>, Subscribe(sender): Subscribe<T>) {
         self.subscribers.insert(sender.id, sender);
+        log::trace!("subscribed to topic {:?}", std::any::type_name::<T>());
     }
 }
 
 impl<T: Message<Response = ()> + Clone> Handler<Unsubscribe<T>> for Broker<T> {
     async fn handle(&mut self, _ctx: &mut Context<Self>, Unsubscribe(sender): Unsubscribe<T>) {
         self.subscribers.remove(&sender.id);
+        log::trace!("unsubscribed to topic {:?}", std::any::type_name::<T>());
     }
 }
 
 impl<T: Message<Response = ()> + Clone> Addr<Broker<T>> {
     /// Publishes a message to all subscribers.
     pub async fn publish(&self, msg: T) -> crate::error::Result<()> {
+        log::trace!("publishing to topic {:?}", std::any::type_name::<T>());
         self.send(Publish(msg)).await
     }
 
     /// Subscribes to messages of the given type.
     pub async fn subscribe(&self, sender: WeakSender<T>) -> crate::error::Result<()> {
+        log::debug!("subscribing to topic {:?}", std::any::type_name::<T>());
         self.send(Subscribe(sender)).await
     }
 
@@ -154,7 +168,7 @@ mod subscribe_publish_unsubscribe {
         Actor, Broker, Context, DynResult, Handler, Message, Service, prelude::Spawnable as _,
     };
 
-    #[derive(Clone)]
+    #[derive(Clone, Debug)]
     struct Topic1(u32);
     impl Message for Topic1 {
         type Response = ();
@@ -179,7 +193,7 @@ mod subscribe_publish_unsubscribe {
         }
     }
 
-    #[tokio::test]
+    #[test_log::test(tokio::test)]
     async fn publish_different_ways() -> DynResult<()> {
         let mut subscriber1 = Subscribing::default().spawn_owning();
         subscriber1.ping().await.unwrap();

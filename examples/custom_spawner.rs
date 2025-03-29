@@ -29,7 +29,7 @@ mod custom_spawner {
             })));
 
             eprintln!("Spawned actor with custom spawner");
-            let join_fn = Box::new(move || -> JoinFuture<A> {
+            ActorHandle::new(move || -> JoinFuture<A> {
                 let handle = Arc::clone(&handle);
                 Box::pin(async move {
                     let mut handle = handle.lock().await.take().and_then(Result::ok);
@@ -41,8 +41,7 @@ mod custom_spawner {
                         None
                     }
                 })
-            });
-            ActorHandle { join_fn }
+            })
         }
 
         fn spawn_future<F>(_future: F)
@@ -71,7 +70,7 @@ mod custom_spawner {
     impl Spawnable<CustomSpawner> for MyActor {}
 }
 
-#[cfg(all(not(feature = "tokio_runtime"), not(feature = "async_runtime")))]
+#[cfg(not(feature = "runtime"))]
 fn main() {
     use custom_spawner::*;
     use hannibal::{prelude::Spawnable as _, spawner::SpawnableWith};

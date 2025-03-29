@@ -25,6 +25,7 @@ impl Handler<Topic1> for Subscribing {
 
 #[hannibal::main]
 async fn main() {
+    env_logger::init();
     let mut subscriber1 = Subscribing::default().spawn_owning();
     subscriber1.ping().await.unwrap();
 
@@ -37,5 +38,5 @@ async fn main() {
 
     assert_eq!(subscriber1.join().await, Some(Subscribing(vec![42, 23])));
     assert_eq!(subscriber2.join().await, Some(Subscribing(vec![42, 23])));
-    println!("both subscribers received all messges");
+    println!("both subscribers received all messages");
 }

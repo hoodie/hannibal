@@ -13,22 +13,20 @@ impl<A: Actor> Spawner<A> for AsyncStdSpawner {
         F: Future<Output = crate::DynResult<A>> + Send + 'static,
     {
         let handle = Arc::new(async_lock::Mutex::new(Some(async_std::task::spawn(future))));
-        let join_fn = Box::new(move || -> JoinFuture<A> {
+        ActorHandle::new(move || -> JoinFuture<A> {
             let handle = Arc::clone(&handle);
             Box::pin(async move {
                 let mut handle: Option<async_std::task::JoinHandle<DynResult<A>>> =
                     handle.lock().await.take();
 
                 if let Some(handle) = handle.take() {
-                    // TODO: don't eat the error
+                    // TODO: don 't eat the error
                     handle.await.ok()
                 } else {
                     None
                 }
             })
-        });
-
-        ActorHandle { join_fn }
+        })
     }
 
     fn spawn_future<F>(future: F)
