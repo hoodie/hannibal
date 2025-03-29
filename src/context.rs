@@ -286,8 +286,6 @@ impl<A: RestartableActor> Context<A> {
 #[cfg(feature = "runtime")]
 mod interval_cleanup {
     #![allow(clippy::unwrap_used)]
-    #[cfg(feature = "async_runtime")]
-    use async_std::task::sleep;
 
     use std::{
         sync::{
@@ -296,8 +294,8 @@ mod interval_cleanup {
         },
         time::{Duration, Instant},
     };
-    #[cfg(feature = "tokio_runtime")]
-    use tokio::time::sleep;
+
+    use crate::runtime::sleep;
 
     mod interval {
         use super::*;

@@ -23,7 +23,7 @@ static REGISTRY: LazyLock<async_lock::RwLock<HashMap<TypeId, AnyBox>>> =
 /// Service Related
 ///
 /// An actor that implements the [`Service`] trait can be registered, unregistered and replaced via an `Addr` as a service.
-#[cfg(any(feature = "tokio_runtime", feature = "async_runtime"))]
+#[cfg(feature = "runtime")]
 impl<A: Service> Addr<A> {
     /// Register an actor as a service.
     ///

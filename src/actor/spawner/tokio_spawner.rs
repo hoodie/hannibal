@@ -2,13 +2,13 @@ use std::{future::Future, sync::Arc, time::Duration};
 
 use crate::{Actor, DynResult};
 
-use super::{ActorHandle, JoinFuture, Spawner, Joiner};
+use super::{ActorHandle, JoinFuture, Spawner};
 
 #[derive(Copy, Clone, Debug, Default)]
 pub struct TokioSpawner;
 
 impl<A: Actor> Spawner<A> for TokioSpawner {
-    fn spawn_actor<F>(future: F) -> Box<dyn Joiner<A>>
+    fn spawn_actor<F>(future: F) -> Box<dyn ActorHandle<A>>
     where
         F: Future<Output = crate::DynResult<A>> + Send + 'static,
     {

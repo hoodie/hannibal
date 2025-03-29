@@ -8,7 +8,7 @@ use super::{ActorHandle, JoinFuture, Spawner};
 pub struct AsyncStdSpawner;
 
 impl<A: Actor> Spawner<A> for AsyncStdSpawner {
-    fn spawn_actor<F>(future: F) -> Box<dyn Joiner<A>>
+    fn spawn_actor<F>(future: F) -> Box<dyn ActorHandle<A>>
     where
         F: Future<Output = crate::DynResult<A>> + Send + 'static,
     {

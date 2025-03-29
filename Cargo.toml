@@ -27,6 +27,8 @@ dyn-clone = "1.0"
 
 tokio = { version = "1.43", features = ["full"], optional = true }
 smol = { version = "2", optional = true }
+smol-macros = { version = "0.1", optional = true }
+macro_rules_attribute = { version = "0.2", optional = true }
 async-std = { version = "1.13.0", optional = true }
 
 cfg-if = "1.0.0"
@@ -35,24 +37,24 @@ log = { version = "0.4", features = ["kv"] }
 hannibal-derive = { path = "hannibal-derive", version = "0.12.0-rc.3" }
 
 [dev-dependencies]
+# TODO: make tokio optional
 tokio = { version = "1.43", features = ["full"] }
 async-std = { version = "1.13", features = ["attributes"] }
-async-signals = "0.5.0"
+# async-signals = "0.5.0"
 futures-executor = { version = "0.3", features = ["thread-pool"] }
 libc = "0.2"
 trybuild = "1"
 test-log = "0.2"
-env_logger = {version = "0.11", features = ["unstable-kv"]}
+env_logger = { version = "0.11", features = ["unstable-kv"] }
 
 [features]
-# TODO: make tokio optional
 default = [
-    # "smol_runtime",
-    "tokio_runtime",
+    "smol_runtime"
+    # "tokio_runtime",
     # "async_runtime",
 ]
 tokio_runtime = ["tokio", "runtime"]
-smol_runtime = ["smol", "runtime"]
+smol_runtime = ["smol", "smol-macros", "macro_rules_attribute", "runtime"]
 async_runtime = ["async-std", "runtime"]
 runtime = []
 

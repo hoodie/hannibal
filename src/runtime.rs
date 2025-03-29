@@ -11,6 +11,18 @@ where
     let rt = tokio::runtime::Runtime::new().unwrap();
     rt.block_on(future)
 }
+#[cfg(feature = "tokio_runtime")]
+pub use tokio::time::sleep;
+
 
 #[cfg(feature = "async_runtime")]
-pub use async_std::task::block_on;
+pub use async_std::task::{block_on, sleep};
+
+
+#[cfg(feature = "smol_runtime")]
+pub use smol::block_on;
+
+#[cfg(feature = "smol_runtime")]
+pub async fn sleep(duration: std::time::Duration) {
+    smol::Timer::after(duration).await;
+}

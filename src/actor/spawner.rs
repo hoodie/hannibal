@@ -12,19 +12,16 @@ use super::Actor;
 
 #[cfg(feature = "tokio_runtime")]
 mod tokio_spawner;
-
 #[cfg(feature = "tokio_runtime")]
 pub use tokio_spawner::TokioSpawner;
 
 #[cfg(feature = "async_runtime")]
 mod async_spawner;
-
 #[cfg(feature = "async_runtime")]
 pub use async_spawner::AsyncStdSpawner;
 
 #[cfg(feature = "smol_runtime")]
 mod smol_spawner;
-
 #[cfg(feature = "smol_runtime")]
 pub use smol_spawner::SmolSpawner;
 
@@ -165,14 +162,28 @@ macro_rules! impl_spawn_traits {
 }
 
 cfg_if::cfg_if! {
-    if #[cfg(all(feature = "tokio_runtime", not(feature = "async_runtime")))] {
+    if #[cfg(
+        all(feature = "tokio_runtime",
+        all(not(feature = "async_runtime"),not(feature = "smol_runtime")))
+    )] {
         impl_spawn_traits!(TokioSpawner);
         pub type DefaultSpawner = TokioSpawner;
-    } else if #[cfg( all(not(feature = "tokio_runtime"), feature = "async_runtime") )] {
+    } else if #[cfg(
+        all(
+            feature = "async_runtime",
+            all(not(feature = "tokio_runtime"),not(feature = "smol_runtime"))
+        )
+    )] {
         impl_spawn_traits!(AsyncStdSpawner);
         pub type DefaultSpawner = AsyncStdSpawner;
-    } else if #[cfg(all(feature = "tokio_runtime", feature = "async_runtime") )] {
-        // if both are enabled, we can not provide a default spawner
+    } else if #[cfg(
+        all(
+            feature = "smol_runtime",
+            all(not(feature = "tokio_runtime"),not(feature = "async_runtime"))
+        )
+    )] {
+        impl_spawn_traits!(SmolSpawner);
+        pub type DefaultSpawner = SmolSpawner;
     } else {
         // if both are disabled, we can not provide a default spawner either
     }
@@ -233,6 +244,38 @@ mod tests {
         async fn spawn_default() {
             let mut addr =
                 <AsyncStdActor<()> as DefaultSpawnable<AsyncStdSpawner>>::spawn_default().unwrap();
+            assert!(!addr.stopped());
+
+            addr.call(Ping).await.unwrap();
+            addr.stop().unwrap();
+            addr.await.unwrap()
+        }
+    }
+
+    #[cfg(feature = "smol_runtime")]
+    mod spawned_with_smol {
+        use crate::{
+            actor::tests::{Ping, spawned_with_smol::SmolActor},
+            spawner::{DefaultSpawnable, SmolSpawner, Spawnable},
+        };
+        use macro_rules_attribute::apply;
+        use smol_macros::test;
+
+        #[apply(test!)]
+        async fn spawn() {
+            let tokio_actor = SmolActor::default();
+            let mut addr = <SmolActor<()> as Spawnable<SmolSpawner>>::spawn(tokio_actor);
+            assert!(!addr.stopped());
+
+            addr.call(Ping).await.unwrap();
+            addr.stop().unwrap();
+            addr.await.unwrap()
+        }
+
+        #[apply(test)]
+        async fn spawn_default() {
+            let mut addr =
+                <SmolActor<()> as DefaultSpawnable<SmolSpawner>>::spawn_default().unwrap();
             assert!(!addr.stopped());
 
             addr.call(Ping).await.unwrap();
