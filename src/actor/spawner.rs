@@ -5,7 +5,7 @@ use std::time::Duration;
 #[cfg_attr(not(feature = "runtime"), allow(unused_imports))]
 use std::{future::Future, pin::Pin};
 
-use crate::{Addr, StreamHandler, addr::OwningAddr, environment::Environment};
+use crate::{Addr, DynResult, StreamHandler, addr::OwningAddr, environment::Environment};
 
 #[cfg_attr(not(feature = "runtime"), allow(unused_imports))]
 use super::Actor;
@@ -40,17 +40,14 @@ impl<A> ActorHandle<A> {
 ///
 /// You should implement at this trait if you want to build a custom spawner.
 pub trait Spawner<A: Actor> {
-    fn spawn_actor<F>(future: F) -> ActorHandle<A>
-    where
-        F: Future<Output = crate::DynResult<A>> + Send + 'static;
-
-    fn spawn_future<F>(future: F)
-    where
-        F: Future<Output = ()> + Send + 'static;
-
+    fn spawn_actor<F: Future<Output = DynResult<A>> + Send + 'static>(future: F) -> ActorHandle<A>;
+    fn spawn_future<F: Future<Output = ()> + Send + 'static>(future: F);
     fn sleep(duration: Duration) -> impl Future<Output = ()> + Send;
 }
 
+/// Enables an actor to spawn itself with a specific [`Spawner`].
+///
+/// See the [`custom_spawner`](../example/custom_spawner.rs) example for a demonstration.
 pub trait SpawnableWith: Actor {
     fn spawn_with<S: Spawner<Self>>(self) -> (Addr<Self>, ActorHandle<Self>) {
         let (event_loop, addr) = Environment::unbounded().create_loop(self);
@@ -70,27 +67,39 @@ pub trait SpawnableWith: Actor {
 
 impl<A: Actor> SpawnableWith for A {}
 
+/// Enables an actor to spawn itself.
 pub trait Spawnable<S: Spawner<Self>>: Actor {
+    /// Spawns the actor and returns an `Addr` to it.
     fn spawn(self) -> Addr<Self> {
         self.spawn_owning().into()
     }
 
-    fn spawn_in(self, environment: Environment<Self>) -> Addr<Self> {
-        self.spawn_owning_in(environment).into()
-    }
-
+    /// Spawns the actor and returns an [`OwningAddr`] to it.
     fn spawn_owning(self) -> OwningAddr<Self> {
-        self.spawn_owning_in(Environment::unbounded())
-    }
-
-    fn spawn_owning_in(self, environment: Environment<Self>) -> OwningAddr<Self> {
+        let environment = Environment::unbounded();
         let (event_loop, addr) = environment.create_loop(self);
         let handle = S::spawn_actor(event_loop);
         OwningAddr::new(addr, handle)
     }
 }
 
+// TODO: reenable this once it becomes interesting to allow spawning in specific environments
+// pub(crate) trait SpawnableIn<S: Spawner<Self>>: Actor {
+//     /// Spawns an actor in a specific environment and returns an `Addr` to it.
+//     fn spawn_in(self, environment: Environment<Self>) -> Addr<Self> {
+//         self.spawn_owning_in(environment).into()
+//     }
+
+//     /// Spawns an actor in a specific environment and returns an [`OwningAddr`] to it.
+//     fn spawn_owning_in(self, environment: Environment<Self>) -> OwningAddr<Self> {
+//         let (event_loop, addr) = environment.create_loop(self);
+//         let handle = S::spawn_actor(event_loop);
+//         OwningAddr::new(addr, handle)
+//     }
+// }
+
 #[cfg(feature = "runtime")]
+/// Enables an actor to spawn futures and sleep.
 pub(crate) trait SpawnSelf<S: Spawner<Self>>: Actor {
     fn spawn_future<F>(future: F)
     where
@@ -140,6 +149,7 @@ pub trait DefaultSpawnable<S: Spawner<Self>>: Actor + Default {
 macro_rules! impl_spawn_traits {
     ($spawner_type:ty) => {
         impl<A> Spawnable<$spawner_type> for A where A: Actor {}
+        // impl<A> SpawnableIn<$spawner_type> for A where A: Actor {}
         impl<A> SpawnSelf<$spawner_type> for A where A: Actor {}
 
         impl<A, T> StreamSpawnable<$spawner_type, T> for A
