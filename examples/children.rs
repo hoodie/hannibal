@@ -16,6 +16,20 @@ impl Actor for Child {
     }
 }
 
+#[derive(Clone, Message)]
+struct Hello;
+impl Handler<Hello> for Child {
+    async fn handle(&mut self, _: &mut Context<Self>, _: Hello) {
+        println!("Hello I'm child {}", self.0);
+    }
+}
+impl Handler<Hello> for Root {
+    async fn handle(&mut self, ctx: &mut Context<Self>, msg: Hello) {
+        println!("Greeting My Children");
+        ctx.send_to_children(msg);
+    }
+}
+
 impl Handler<()> for Child {
     async fn handle(&mut self, _: &mut Context<Self>, _: ()) {
         println!("{self:?} {:>width$}!", "x", width = (self.0 + 1) * 10);
@@ -27,10 +41,15 @@ struct Root;
 impl Actor for Root {
     async fn started(&mut self, ctx: &mut Context<Self>) -> DynResult<()> {
         println!("{self:?} started");
-        ctx.create_child(|| Child(0));
-        ctx.create_child(|| Child(1));
-        ctx.create_child(|| Child(2));
-        ctx.create_child(|| Child(3));
+        ctx.add_child(Child(0).spawn());
+        ctx.add_child(Child(1).spawn());
+        ctx.add_child(Child(2).spawn());
+
+        ctx.register_child::<Hello>(Child(3).spawn());
+        ctx.register_child::<Hello>(Child(4).spawn());
+        ctx.register_child::<Hello>(Child(5).spawn());
+
+        ctx.interval_with(|| Hello, Duration::from_millis(500));
 
         let mut me = ctx.weak_address().ok_or("Sorry")?;
         ctx.delayed_exec(
@@ -49,6 +68,7 @@ impl Actor for Root {
 
 #[hannibal::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    env_logger::init();
     Root.spawn().await?;
     Ok(())
 }

@@ -1,12 +1,16 @@
+use std::{
+    any::{Any, TypeId},
+    collections::HashMap,
+};
+
 use futures::channel::oneshot;
 
 use crate::{
-    Addr, Handler, RestartableActor, Sender, WeakAddr,
-    actor::{Actor, spawner::Spawner},
+    Addr, Handler, Message, RestartableActor, Sender, WeakAddr,
+    actor::Actor,
     channel::{WeakChanTx, WeakForceChanTx},
     environment::Payload,
     error::{ActorError::AlreadyStopped, Result},
-    prelude::Spawnable,
 };
 pub use id::ContextID;
 
@@ -47,6 +51,8 @@ mod id {
     }
 }
 
+type AnyBox = Box<dyn Any + Send + Sync>;
+
 /// Available to the actor in every execution call.
 ///
 /// The context is used to interact with the actor system.
@@ -58,7 +64,7 @@ pub struct Context<A> {
     pub(crate) weak_tx: WeakChanTx<A>,
     pub(crate) weak_force_tx: WeakForceChanTx<A>,
     pub(crate) running: RunningFuture,
-    pub(crate) children: Vec<Sender<()>>,
+    pub(crate) children: HashMap<TypeId, Vec<AnyBox>>,
     pub(crate) tasks: Vec<futures::future::AbortHandle>,
 }
 
@@ -84,23 +90,45 @@ impl<A: Actor> Context<A> {
 
 /// Child Actors
 impl<A: Actor> Context<A> {
-    /// Add a child actor to the context.
+    /// Add a child actor.
     ///
-    /// The child actor will be stopped when the parent actor is stopped.
+    /// This actor will be held until this actor is stopped.
     pub fn add_child(&mut self, child: impl Into<Sender<()>>) {
-        self.children.push(child.into());
+        self.children
+            .entry(TypeId::of::<()>())
+            .or_insert(Default::default())
+            .push(Box::new(child.into()));
     }
 
-    /// Create a child actor and add it to the context.
-    pub fn create_child<F, C, S>(&mut self, create_child: F)
+    /// Register a child actor.
+    ///
+    /// This actor will be held until this actor is stopped.
+    pub fn register_child<M: Message<Response = ()>>(&mut self, child: impl Into<Sender<M>>) {
+        self.children
+            .entry(TypeId::of::<M>())
+            .or_insert(Default::default())
+            .push(Box::new(child.into()));
+    }
+
+    /// Send a message to all child actors registered with this message type.
+    pub fn send_to_children<M>(&mut self, message: M)
     where
-        F: FnOnce() -> C,
-        C: Actor + Spawnable<S>,
-        C: Handler<()>,
-        S: Spawner<C>,
+        M: Message<Response = ()>,
+        M: Clone,
     {
-        let child_addr = create_child().spawn();
-        self.add_child(child_addr);
+        let key = TypeId::of::<M>();
+
+        if let Some(children) = self.children.get(&key) {
+            for child in children.iter().filter_map(|child| {
+                let sender = child.downcast_ref::<Sender<M>>();
+                // what is this?
+                sender
+            }) {
+                if let Err(error) = child.force_send(message.clone()) {
+                    log::error!("Failed to send message to child: {}", error);
+                }
+            }
+        }
     }
 }
 
