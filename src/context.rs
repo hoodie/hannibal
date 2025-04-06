@@ -96,7 +96,7 @@ impl<A: Actor> Context<A> {
     pub fn add_child(&mut self, child: impl Into<Sender<()>>) {
         self.children
             .entry(TypeId::of::<()>())
-            .or_insert(Default::default())
+            .or_default()
             .push(Box::new(child.into()));
     }
 
@@ -106,7 +106,7 @@ impl<A: Actor> Context<A> {
     pub fn register_child<M: Message<Response = ()>>(&mut self, child: impl Into<Sender<M>>) {
         self.children
             .entry(TypeId::of::<M>())
-            .or_insert(Default::default())
+            .or_default()
             .push(Box::new(child.into()));
     }
 
