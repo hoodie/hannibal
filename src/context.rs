@@ -208,7 +208,7 @@ impl<A: Actor> Context<A> {
 
 #[cfg(feature = "runtime")]
 mod task_handling {
-    use crate::actor::spawner::SpawnSelf;
+    use crate::actor::spawner::SpawnFutures;
     use futures::FutureExt;
     use std::{future::Future, time::Duration};
 

@@ -1,9 +1,9 @@
 //! Abstractions for spawning and managing actors in an asynchronous environment.
 //! Currently hannibal supports both `tokio` and `async-std`. Custom spawners can be implemented.
 
-use std::time::Duration;
 #[cfg_attr(not(feature = "runtime"), allow(unused_imports))]
-use std::{future::Future, pin::Pin};
+use std::future::Future;
+use std::time::Duration;
 
 use crate::{Addr, DynResult, StreamHandler, addr::OwningAddr, environment::Environment};
 
@@ -25,40 +25,9 @@ mod smol_spawner;
 #[cfg(feature = "smol_runtime")]
 pub use smol_spawner::SmolSpawner;
 
-/// A future that resolves to an actor.
-pub type JoinFuture<A> = Pin<Box<dyn Future<Output = Option<A>> + Send>>;
+mod actor_handle;
 
-pub struct ActorHandle<A> {
-    join_fn: Box<dyn FnMut() -> JoinFuture<A>>,
-    detach_fn: Option<Box<dyn FnOnce()>>,
-}
-
-impl<A> ActorHandle<A> {
-    pub fn new<F>(join_fn: F) -> Self
-    where
-        F: FnMut() -> JoinFuture<A> + 'static,
-    {
-        Self {
-            join_fn: Box::new(join_fn),
-            detach_fn: None,
-        }
-    }
-
-    pub fn with_detach_fn<F: FnOnce() + 'static>(mut self, detach_fn: F) -> Self {
-        self.detach_fn = Some(Box::new(detach_fn));
-        self
-    }
-
-    pub fn join(&mut self) -> JoinFuture<A> {
-        (self.join_fn)()
-    }
-
-    pub fn detach(self) {
-        if let Some(detach_fn) = self.detach_fn {
-            detach_fn();
-        }
-    }
-}
+pub use actor_handle::{ActorHandle, JoinFuture};
 
 /// Encapsulates spawning actors and futures, as well as sleeping.
 ///
@@ -111,7 +80,6 @@ pub trait Spawnable<S: Spawner<Self>>: Actor {
     }
     // }
 
-    // pub(crate) trait SpawnableIn<S: Spawner<Self>>: Actor {
     /// Spawns an actor in a specific environment and returns an [`OwningAddr`] to it.
     #[doc(hidden)]
     fn spawn_owning_in(self, environment: Environment<Self>) -> OwningAddr<Self> {
@@ -123,7 +91,7 @@ pub trait Spawnable<S: Spawner<Self>>: Actor {
 
 #[cfg(feature = "runtime")]
 /// Enables an actor to spawn futures and sleep.
-pub(crate) trait SpawnSelf<S: Spawner<Self>>: Actor {
+pub(crate) trait SpawnFutures<S: Spawner<Self>>: Actor {
     fn spawn_future<F>(future: F)
     where
         F: Future<Output = ()> + Send + 'static,
@@ -171,7 +139,7 @@ pub trait DefaultSpawnable<S: Spawner<Self>>: Actor + Default {
 macro_rules! impl_spawn_traits {
     ($spawner_type:ty) => {
         impl<A> Spawnable<$spawner_type> for A where A: Actor {}
-        impl<A> SpawnSelf<$spawner_type> for A where A: Actor {}
+        impl<A> SpawnFutures<$spawner_type> for A where A: Actor {}
 
         impl<A, T> StreamSpawnable<$spawner_type, T> for A
         where
