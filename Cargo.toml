@@ -36,6 +36,10 @@ futures-timer = "3"
 log = { version = "0.4", features = ["kv"] }
 hannibal-derive = { path = "hannibal-derive", version = "0.12.0-rc.3" }
 
+[dependencies.async-global-executor]
+version = "3.1.0"
+optional = true
+
 [dev-dependencies]
 # TODO: make tokio optional
 tokio = { version = "1", features = ["full"] }
@@ -50,10 +54,13 @@ color-backtrace = "0.7"
 
 [features]
 default = [
-    "tokio_runtime",
+    "global_runtime",
+    # "tokio_runtime",
     # "async_runtime",
     # "smol_runtime",
 ]
+global_runtime = ["dep:async-global-executor", "runtime"]
+
 tokio_runtime = ["tokio", "runtime"]
 smol_runtime = ["smol", "smol-macros", "macro_rules_attribute", "runtime"]
 async_runtime = ["async-std", "runtime"]

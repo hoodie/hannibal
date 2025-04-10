@@ -149,6 +149,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "async-global-executor"
+version = "3.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "13f937e26114b93193065fd44f507aa2e9169ad0cdabbb996920b1fe1ddea7ba"
+dependencies = [
+ "async-channel 2.3.1",
+ "async-executor",
+ "async-io",
+ "async-lock",
+ "blocking",
+ "futures-lite",
+]
+
+[[package]]
 name = "async-io"
 version = "2.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -247,7 +261,7 @@ checksum = "730294c1c08c2e0f85759590518f6333f0d5a0a766a27d519c1b244c3dfd8a24"
 dependencies = [
  "async-attributes",
  "async-channel 1.9.0",
- "async-global-executor",
+ "async-global-executor 2.4.1",
  "async-io",
  "async-lock",
  "crossbeam-utils",
@@ -616,6 +630,7 @@ dependencies = [
 name = "hannibal"
 version = "0.12.0-rc.3"
 dependencies = [
+ "async-global-executor 3.1.0",
  "async-lock",
  "async-signals",
  "async-std",

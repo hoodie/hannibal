@@ -3,7 +3,7 @@
 
 #[cfg_attr(not(feature = "runtime"), allow(unused_imports))]
 use std::future::Future;
-use std::time::Duration;
+use std::{sync::Arc, time::Duration};
 
 use crate::{Addr, DynResult, StreamHandler, addr::OwningAddr, environment::Environment};
 
@@ -26,6 +26,7 @@ mod smol_spawner;
 pub use smol_spawner::SmolSpawner;
 
 mod actor_handle;
+
 
 pub use actor_handle::{ActorHandle, JoinFuture};
 
@@ -59,6 +60,72 @@ pub trait SpawnableWith: Actor {
 }
 
 impl<A: Actor> SpawnableWith for A {}
+
+pub trait GloballySpawnable: Actor {
+    /// Spawn the actor using the `async_global_executor`
+    // #[cfg(feature = "async_global_executor")]
+    fn spawn_global(self) -> (Addr<Self>, ActorHandle<Self>) {
+        let (event_loop, addr) = Environment::unbounded().create_loop(self);
+
+        let task = async_global_executor::spawn(event_loop);
+        let handle = Arc::new(async_lock::Mutex::new(Some(task)));
+        let detach_handle = Arc::clone(&handle);
+
+        let actor_handle = ActorHandle::new(move || -> JoinFuture<Self> {
+            let handle = Arc::clone(&handle);
+            Box::pin(async move {
+                let handle_opt = handle.lock().await.take();
+
+                if let Some(handle) = handle_opt {
+                    handle.await.ok()
+                } else {
+                    None
+                }
+            })
+        })
+        .with_detach_fn(move || {
+            let mut handle = detach_handle.lock_blocking().take();
+            if let Some(handle) = handle.take() {
+                handle.detach();
+            }
+        });
+
+        (addr, actor_handle)
+    }
+
+    /// Spawn the actor using the `async_global_executor` with a custom environment
+    // #[cfg(feature = "async_global_executor")]
+    fn spawn_global_in(self, environment: Environment<Self>) -> (Addr<Self>, ActorHandle<Self>) {
+        let (event_loop, addr) = environment.create_loop(self);
+
+        let task = async_global_executor::spawn(event_loop);
+        let handle = Arc::new(async_lock::Mutex::new(Some(task)));
+        let detach_handle = Arc::clone(&handle);
+
+        let actor_handle = ActorHandle::new(move || -> JoinFuture<Self> {
+            let handle = Arc::clone(&handle);
+            Box::pin(async move {
+                let mut handle_opt = handle.lock().await.take();
+
+                if let Some(handle) = handle_opt.take() {
+                    handle.await.ok()
+                } else {
+                    None
+                }
+            })
+        })
+        .with_detach_fn(move || {
+            let mut handle = detach_handle.lock_blocking().take();
+            if let Some(handle) = handle.take() {
+                handle.detach();
+            }
+        });
+
+        (addr, actor_handle)
+    }
+}
+
+impl<A: Actor> GloballySpawnable for A {}
 
 /// Enables an actor to spawn itself.
 pub trait Spawnable<S: Spawner<Self>>: Actor {
@@ -156,14 +223,14 @@ macro_rules! impl_spawn_traits {
 cfg_if::cfg_if! {
     if #[cfg(
         all(feature = "tokio_runtime",
-        all(not(feature = "async_runtime"),not(feature = "smol_runtime")))
+        all(not(feature = "async_runtime"),not(feature = "smol_runtime"),not(feature = "global_runtime")))
     )] {
         impl_spawn_traits!(TokioSpawner);
         pub type DefaultSpawner = TokioSpawner;
     } else if #[cfg(
         all(
             feature = "async_runtime",
-            all(not(feature = "tokio_runtime"),not(feature = "smol_runtime"))
+            all(not(feature = "tokio_runtime"),not(feature = "smol_runtime"),not(feature = "global_runtime"))
         )
     )] {
         impl_spawn_traits!(AsyncStdSpawner);
@@ -171,13 +238,26 @@ cfg_if::cfg_if! {
     } else if #[cfg(
         all(
             feature = "smol_runtime",
-            all(not(feature = "tokio_runtime"),not(feature = "async_runtime"))
+            all(not(feature = "tokio_runtime"),not(feature = "async_runtime"),not(feature = "global_runtime"))
         )
     )] {
         impl_spawn_traits!(SmolSpawner);
         pub type DefaultSpawner = SmolSpawner;
+    } else if #[cfg(
+        all(
+            feature = "global_runtime",
+            all(not(feature = "tokio_runtime"),not(feature = "async_runtime"),not(feature = "smol_runtime"))
+        )
+    )] {
+        // When only global_runtime is enabled, no DefaultSpawner is provided
+        // Users should use the GloballySpawnable trait methods instead
+    } else if #[cfg(
+        all(feature = "tokio_runtime", feature = "global_runtime")
+    )] {
+        impl_spawn_traits!(TokioSpawner);
+        pub type DefaultSpawner = TokioSpawner;
     } else {
-        // if both are disabled, we can not provide a default spawner either
+        // if all runtime features are disabled, we cannot provide a default spawner
     }
 }
 
