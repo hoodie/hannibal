@@ -11,9 +11,9 @@ use std::{
 
 use futures::FutureExt as _;
 
-use super::{spawner::Spawner, *};
+use super::*; //{spawner::Spawner, *};
 
-use crate::{Addr, environment::Environment};
+use crate::{environment::Environment, spawner::spawn_actor, Addr};
 
 type AnyBox = Box<dyn Any + Send + Sync>;
 
@@ -172,7 +172,7 @@ pub trait Service<S: Spawner<Self>>: Actor + Default {
 }
 
 #[cfg(feature = "runtime")]
-pub(crate) trait SpawnableService<S: Spawner<Self>>: Service {
+pub(crate) trait SpawnableService/*<S: Spawner<Self>>*/: Service {
     #[allow(clippy::async_yields_async)]
     fn from_registry_and_spawn() -> impl Future<Output = Addr<Self>> {
         log::trace!(
@@ -195,7 +195,7 @@ pub(crate) trait SpawnableService<S: Spawner<Self>>: Service {
             } else {
                 log::trace!("spawning new service {}", std::any::type_name::<Self>());
                 let (event_loop, addr) = Environment::unbounded().create_loop(Self::default());
-                let handle = S::spawn_actor(event_loop);
+                let handle = spawn_actor(event_loop);
                 handle.detach();
                 registry.insert(key, Box::new(addr.clone()));
                 debug_assert!(addr.ping().await.is_ok(), "service failed ping");
@@ -206,11 +206,10 @@ pub(crate) trait SpawnableService<S: Spawner<Self>>: Service {
 }
 
 #[cfg(feature = "runtime")]
-impl<A, S> SpawnableService<S> for A
-where
-    A: Service,
-    A: spawner::Spawnable<S>,
-    S: Spawner<A>,
+impl<A> SpawnableService for A where
+    A: Service
+    // A: spawner::Spawnable<S>,
+    // S: Spawner<A>,
 {
 }
 

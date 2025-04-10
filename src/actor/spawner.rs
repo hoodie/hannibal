@@ -27,39 +27,71 @@ pub use smol_spawner::SmolSpawner;
 
 mod actor_handle;
 
-
 pub use actor_handle::{ActorHandle, JoinFuture};
 
-/// Encapsulates spawning actors and futures, as well as sleeping.
-///
-/// You should implement at this trait if you want to build a custom spawner.
-pub trait Spawner<A: Actor> {
-    fn spawn_actor<F: Future<Output = DynResult<A>> + Send + 'static>(future: F) -> ActorHandle<A>;
-    fn spawn_future<F: Future<Output = ()> + Send + 'static>(future: F);
-    fn sleep(duration: Duration) -> impl Future<Output = ()> + Send;
+// /// Encapsulates spawning actors and futures, as well as sleeping.
+// ///
+// /// You should implement at this trait if you want to build a custom spawner.
+// pub trait Spawner<A: Actor> {
+//     fn spawn_actor<F: Future<Output = DynResult<A>> + Send + 'static>(future: F) -> ActorHandle<A>;
+//     fn spawn_future<F: Future<Output = ()> + Send + 'static>(future: F);
+//     fn sleep(duration: Duration) -> impl Future<Output = ()> + Send;
+// }
+
+// /// Enables an actor to spawn itself with a specific [`Spawner`].
+// ///
+// /// See the [`custom_spawner`](../example/custom_spawner.rs) example for a demonstration.
+// pub trait SpawnableWith: Actor {
+//     fn spawn_with<S: Spawner<Self>>(self) -> (Addr<Self>, ActorHandle<Self>) {
+//         let (event_loop, addr) = Environment::unbounded().create_loop(self);
+//         let handle = S::spawn_actor(event_loop);
+//         (addr, handle)
+//     }
+
+//     fn spawn_with_in<S: Spawner<Self>>(
+//         self,
+//         environment: Environment<Self>,
+//     ) -> (Addr<Self>, ActorHandle<Self>) {
+//         let (event_loop, addr) = environment.create_loop(self);
+//         let handle = S::spawn_actor(event_loop);
+//         (addr, handle)
+//     }
+// }
+
+// impl<A: Actor> SpawnableWith for A {}
+
+pub fn spawn_actor<A: Actor, F: Future<Output = DynResult<A>> + Send + 'static>(
+    future: F,
+) -> ActorHandle<A> {
+    let task = async_global_executor::spawn(future);
+    let handle = Arc::new(async_lock::Mutex::new(Some(task)));
+    let detach_handle = Arc::clone(&handle);
+
+    ActorHandle::new(move || -> JoinFuture<A> {
+        let handle = Arc::clone(&handle);
+        Box::pin(async move {
+            let handle_opt = handle.lock().await.take();
+
+            if let Some(handle) = handle_opt {
+                handle.await.ok()
+            } else {
+                None
+            }
+        })
+    })
+    .with_detach_fn(move || {
+        let mut handle = detach_handle.lock_blocking().take();
+        if let Some(handle) = handle.take() {
+            handle.detach();
+        }
+    })
 }
-
-/// Enables an actor to spawn itself with a specific [`Spawner`].
-///
-/// See the [`custom_spawner`](../example/custom_spawner.rs) example for a demonstration.
-pub trait SpawnableWith: Actor {
-    fn spawn_with<S: Spawner<Self>>(self) -> (Addr<Self>, ActorHandle<Self>) {
-        let (event_loop, addr) = Environment::unbounded().create_loop(self);
-        let handle = S::spawn_actor(event_loop);
-        (addr, handle)
-    }
-
-    fn spawn_with_in<S: Spawner<Self>>(
-        self,
-        environment: Environment<Self>,
-    ) -> (Addr<Self>, ActorHandle<Self>) {
-        let (event_loop, addr) = environment.create_loop(self);
-        let handle = S::spawn_actor(event_loop);
-        (addr, handle)
-    }
+pub fn spawn_future<F: Future<Output = ()> + Send + 'static>(future: F) {
+    smol::spawn(future).detach();
 }
-
-impl<A: Actor> SpawnableWith for A {}
+async fn sleep(duration: Duration) {
+    smol::Timer::after(duration).await;
+}
 
 pub trait GloballySpawnable: Actor {
     /// Spawn the actor using the `async_global_executor`
@@ -128,7 +160,7 @@ pub trait GloballySpawnable: Actor {
 impl<A: Actor> GloballySpawnable for A {}
 
 /// Enables an actor to spawn itself.
-pub trait Spawnable<S: Spawner<Self>>: Actor {
+pub trait Spawnable/*<S: Spawner<Self>>*/: Actor {
     /// Spawns the actor and returns an `Addr` to it.
     fn spawn(self) -> Addr<Self> {
         self.spawn_owning().detach()
@@ -138,41 +170,41 @@ pub trait Spawnable<S: Spawner<Self>>: Actor {
     fn spawn_owning(self) -> OwningAddr<Self> {
         let environment = Environment::unbounded();
         let (event_loop, addr) = environment.create_loop(self);
-        log::trace!(
-            "spawning actor with custom environment {}",
-            std::any::type_name::<S>()
-        );
-        let handle = S::spawn_actor(event_loop);
+        // log::trace!(
+        //     "spawning actor with custom environment {}",
+        //     std::any::type_name::<S>()
+        // );
+        let handle = spawn_actor(event_loop);
         OwningAddr::new(addr, handle)
     }
-    // }
 
     /// Spawns an actor in a specific environment and returns an [`OwningAddr`] to it.
     #[doc(hidden)]
     fn spawn_owning_in(self, environment: Environment<Self>) -> OwningAddr<Self> {
         let (event_loop, addr) = environment.create_loop(self);
-        let handle = S::spawn_actor(event_loop);
+        let handle = spawn_actor(event_loop);
         OwningAddr::new(addr, handle)
     }
 }
+impl<A: GloballySpawnable> Spawnable for A {}
 
 #[cfg(feature = "runtime")]
 /// Enables an actor to spawn futures and sleep.
-pub(crate) trait SpawnFutures<S: Spawner<Self>>: Actor {
+pub(crate) trait SpawnFutures/* <S: Spawner<Self>>*/: Actor {
     fn spawn_future<F>(future: F)
     where
         F: Future<Output = ()> + Send + 'static,
     {
-        S::spawn_future(future);
+        async_global_executor::spawn(future);
     }
 
     fn sleep(duration: Duration) -> impl Future<Output = ()> + Send {
-        S::sleep(duration)
+        sleep(duration)
     }
 }
 
 /// An actor that can handle a stream of messages.
-pub trait StreamSpawnable<S: Spawner<Self>, T>: Actor + StreamHandler<T::Item>
+pub trait StreamSpawnable</*S: Spawner<Self>,*/ T>: Actor + StreamHandler<T::Item>
 where
     T: futures::Stream + Unpin + Send + 'static,
     T::Item: 'static + Send,
@@ -184,19 +216,19 @@ where
 
     fn spawn_owning_on_stream(self, stream: T) -> crate::error::Result<OwningAddr<Self>> {
         let (event_loop, addr) = Environment::unbounded().create_loop_on_stream(self, stream);
-        let handle = S::spawn_actor(event_loop);
+        let handle = spawn_actor(event_loop);
         Ok(OwningAddr::new(addr, handle))
     }
 }
 
-pub trait DefaultSpawnable<S: Spawner<Self>>: Actor + Default {
+pub trait DefaultSpawnable/*<S: Spawner<Self>>*/: Actor + Default {
     fn spawn_default() -> crate::error::Result<Addr<Self>> {
         Ok(Self::spawn_owning()?.detach())
     }
 
     fn spawn_owning() -> crate::error::Result<OwningAddr<Self>> {
         let (event_loop, addr) = Environment::unbounded().create_loop(Self::default());
-        let handle = S::spawn_actor(event_loop);
+        let handle = spawn_actor(event_loop);
         Ok(OwningAddr::new(addr, handle))
     }
 }

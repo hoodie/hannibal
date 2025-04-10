@@ -11,4 +11,4 @@ error[E0599]: no method named `with_stream` found for struct `hannibal::actor::b
    |
    |
    = note: the method was found for
-           - `hannibal::actor::builder::ActorBuilderWithChannel<A, P, hannibal::actor::restart_strategy::NonRestartable>`
+           - `hannibal::actor::builder::ActorBuilderWithChannel<A /*,P*/, hannibal::actor::restart_strategy::NonRestartable>`

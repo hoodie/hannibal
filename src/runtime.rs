@@ -36,7 +36,7 @@ pub use smol::block_on;
 ///
 /// This function is a convenience wrapper around a specific runtime's sleep function.
 /// You do not necessarily need to use this function, it just makes testing and examples easier.
-#[cfg(feature = "smol_runtime")]
+#[cfg(any(feature = "smol_runtime", feature = "global_runtime"))]
 pub async fn sleep(duration: std::time::Duration) {
     smol::Timer::after(duration).await;
 }

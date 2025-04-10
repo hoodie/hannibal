@@ -59,7 +59,7 @@ default = [
     # "async_runtime",
     # "smol_runtime",
 ]
-global_runtime = ["dep:async-global-executor", "runtime"]
+global_runtime = ["dep:async-global-executor", "runtime", "smol", "smol-macros"]
 
 tokio_runtime = ["tokio", "runtime"]
 smol_runtime = ["smol", "smol-macros", "macro_rules_attribute", "runtime"]

@@ -208,7 +208,10 @@ impl<A: Actor> Context<A> {
 
 #[cfg(feature = "runtime")]
 mod task_handling {
-    use crate::actor::spawner::SpawnFutures;
+    use crate::{
+        runtime::{self, sleep},
+        spawner::spawn_future,
+    };
     use futures::FutureExt;
     use std::{future::Future, time::Duration};
 
@@ -220,7 +223,7 @@ mod task_handling {
             let (task, handle) = futures::future::abortable(task);
 
             self.tasks.push(handle);
-            A::spawn_future(task.map(|_| ()))
+            crate::actor::spawner::spawn_future(task.map(|_| ()))
         }
 
         #[cfg(test)]
@@ -241,7 +244,7 @@ mod task_handling {
             let myself = self.weak_sender();
             self.spawn_task(async move {
                 loop {
-                    A::sleep(duration).await;
+                    sleep(duration).await;
                     if myself.try_force_send(message.clone()).is_err() {
                         break;
                     }
@@ -260,7 +263,7 @@ mod task_handling {
             let myself = self.weak_sender();
             self.spawn_task(async move {
                 loop {
-                    A::sleep(duration).await;
+                    runtime::sleep(duration).await;
                     if myself.try_send(message_fn()).await.is_err() {
                         break;
                     }
@@ -278,7 +281,7 @@ mod task_handling {
         {
             let myself = self.weak_sender();
             self.spawn_task(async move {
-                A::sleep(duration).await;
+                runtime::sleep(duration).await;
 
                 if myself.try_send(message_fn()).await.is_err() {
                     log::warn!("Failed to send message");
@@ -292,7 +295,7 @@ mod task_handling {
             duration: Duration,
         ) {
             self.spawn_task(async move {
-                A::sleep(duration).await;
+                runtime::sleep(duration).await;
                 task.await;
             })
         }
@@ -482,6 +485,7 @@ mod interval_cleanup {
 
     mod interval_with {
         use super::*;
+        use crate::actor::spawner::Spawnable;
         use crate::prelude::*;
 
         #[derive(Debug)]
