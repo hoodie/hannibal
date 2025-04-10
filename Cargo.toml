@@ -70,7 +70,7 @@ runtime = []
 [[example]]
 name = "simple"
 path = "examples/simple.rs"
-required-features = ["runtime"]
+required-features = ["global_runtime"]
 
 [[example]]
 name = "ping"

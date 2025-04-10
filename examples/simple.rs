@@ -35,8 +35,12 @@ impl Handler<Add> for MyActor {
     }
 }
 
-#[hannibal::main]
-async fn main() {
+// #[hannibal::main]
+
+fn main() {
+    async_global_executor::block_on(_main());
+}
+async fn _main() {
     color_backtrace::install();
     env_logger::init();
     // let (mut addr, _handle) = MyActor("Caesar").spawn_with::<SmolSpawner>();
