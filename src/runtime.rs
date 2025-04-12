@@ -29,8 +29,8 @@ pub use async_std::task::{block_on, sleep};
 ///
 /// This function is a convenience wrapper around a specific runtime's `block_on` function.
 /// You do not necessarily need to use this function, it just makes testing and examples easier.
-#[cfg(feature = "smol_runtime")]
-pub use smol::block_on;
+#[cfg(any(feature = "smol_runtime", feature = "global_runtime"))]
+pub use async_global_executor::block_on;
 
 /// Sleep for the given duration.
 ///
@@ -39,4 +39,9 @@ pub use smol::block_on;
 #[cfg(any(feature = "smol_runtime", feature = "global_runtime"))]
 pub async fn sleep(duration: std::time::Duration) {
     smol::Timer::after(duration).await;
+}
+
+#[cfg(any(feature = "smol_runtime", feature = "global_runtime"))]
+pub fn spawn_future<F: Future<Output = ()> + Send + 'static>(future: F) {
+    async_global_executor::spawn(future).detach();
 }

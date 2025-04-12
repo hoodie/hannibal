@@ -3,7 +3,7 @@
 
 #[cfg_attr(not(feature = "runtime"), allow(unused_imports))]
 use std::future::Future;
-use std::{sync::Arc, time::Duration};
+use std::sync::Arc;
 
 use crate::{Addr, DynResult, StreamHandler, addr::OwningAddr, environment::Environment};
 
@@ -86,12 +86,13 @@ pub fn spawn_actor<A: Actor, F: Future<Output = DynResult<A>> + Send + 'static>(
         }
     })
 }
-pub fn spawn_future<F: Future<Output = ()> + Send + 'static>(future: F) {
-    smol::spawn(future).detach();
-}
-async fn sleep(duration: Duration) {
-    smol::Timer::after(duration).await;
-}
+
+// pub fn spawn_future<F: Future<Output = ()> + Send + 'static>(future: F) {
+//     smol::spawn(future).detach();
+// }
+// async fn sleep(duration: Duration) {
+//     smol::Timer::after(duration).await;
+// }
 
 pub trait GloballySpawnable: Actor {
     /// Spawn the actor using the `async_global_executor`
@@ -188,20 +189,20 @@ pub trait Spawnable/*<S: Spawner<Self>>*/: Actor {
 }
 impl<A: GloballySpawnable> Spawnable for A {}
 
-#[cfg(feature = "runtime")]
-/// Enables an actor to spawn futures and sleep.
-pub(crate) trait SpawnFutures/* <S: Spawner<Self>>*/: Actor {
-    fn spawn_future<F>(future: F)
-    where
-        F: Future<Output = ()> + Send + 'static,
-    {
-        async_global_executor::spawn(future);
-    }
+// #[cfg(feature = "runtime")]
+// Enables an actor to spawn futures and sleep.
+// pub(crate) trait SpawnFutures/* <S: Spawner<Self>>*/: Actor {
+//     fn spawn_future<F>(future: F)
+//     where
+//         F: Future<Output = ()> + Send + 'static,
+//     {
+//         crate::runtime::spawn_r(future);
+//     }
 
-    fn sleep(duration: Duration) -> impl Future<Output = ()> + Send {
-        sleep(duration)
-    }
-}
+//     fn sleep(duration: Duration) -> impl Future<Output = ()> + Send {
+//        crate::runtime:: sleep(duration)
+//     }
+// }
 
 /// An actor that can handle a stream of messages.
 pub trait StreamSpawnable</*S: Spawner<Self>,*/ T>: Actor + StreamHandler<T::Item>
@@ -221,6 +222,14 @@ where
     }
 }
 
+impl<A, T> StreamSpawnable<T> for A
+where
+    A: Actor + StreamHandler<T::Item>,
+    T: futures::Stream + Unpin + Send + 'static,
+    T::Item: 'static + Send,
+{
+}
+
 pub trait DefaultSpawnable/*<S: Spawner<Self>>*/: Actor + Default {
     fn spawn_default() -> crate::error::Result<Addr<Self>> {
         Ok(Self::spawn_owning()?.detach())
@@ -233,65 +242,65 @@ pub trait DefaultSpawnable/*<S: Spawner<Self>>*/: Actor + Default {
     }
 }
 
-#[macro_export]
-#[doc(hidden)]
-macro_rules! impl_spawn_traits {
-    ($spawner_type:ty) => {
-        impl<A> Spawnable<$spawner_type> for A where A: Actor {}
-        impl<A> SpawnFutures<$spawner_type> for A where A: Actor {}
+// #[macro_export]
+// #[doc(hidden)]
+// macro_rules! impl_spawn_traits {
+//     ($spawner_type:ty) => {
+//         impl<A> Spawnable<$spawner_type> for A where A: Actor {}
+//         impl<A> SpawnFutures<$spawner_type> for A where A: Actor {}
 
-        impl<A, T> StreamSpawnable<$spawner_type, T> for A
-        where
-            A: Actor + StreamHandler<T::Item>,
-            T: futures::Stream + Unpin + Send + 'static,
-            T::Item: 'static + Send,
-        {
-        }
+//         impl<A, T> StreamSpawnable<$spawner_type, T> for A
+//         where
+//             A: Actor + StreamHandler<T::Item>,
+//             T: futures::Stream + Unpin + Send + 'static,
+//             T::Item: 'static + Send,
+//         {
+//         }
 
-        impl<A> DefaultSpawnable<$spawner_type> for A where A: Actor + Default {}
-    };
-}
+//         impl<A> DefaultSpawnable<$spawner_type> for A where A: Actor + Default {}
+//     };
+// }
 
-cfg_if::cfg_if! {
-    if #[cfg(
-        all(feature = "tokio_runtime",
-        all(not(feature = "async_runtime"),not(feature = "smol_runtime"),not(feature = "global_runtime")))
-    )] {
-        impl_spawn_traits!(TokioSpawner);
-        pub type DefaultSpawner = TokioSpawner;
-    } else if #[cfg(
-        all(
-            feature = "async_runtime",
-            all(not(feature = "tokio_runtime"),not(feature = "smol_runtime"),not(feature = "global_runtime"))
-        )
-    )] {
-        impl_spawn_traits!(AsyncStdSpawner);
-        pub type DefaultSpawner = AsyncStdSpawner;
-    } else if #[cfg(
-        all(
-            feature = "smol_runtime",
-            all(not(feature = "tokio_runtime"),not(feature = "async_runtime"),not(feature = "global_runtime"))
-        )
-    )] {
-        impl_spawn_traits!(SmolSpawner);
-        pub type DefaultSpawner = SmolSpawner;
-    } else if #[cfg(
-        all(
-            feature = "global_runtime",
-            all(not(feature = "tokio_runtime"),not(feature = "async_runtime"),not(feature = "smol_runtime"))
-        )
-    )] {
-        // When only global_runtime is enabled, no DefaultSpawner is provided
-        // Users should use the GloballySpawnable trait methods instead
-    } else if #[cfg(
-        all(feature = "tokio_runtime", feature = "global_runtime")
-    )] {
-        impl_spawn_traits!(TokioSpawner);
-        pub type DefaultSpawner = TokioSpawner;
-    } else {
-        // if all runtime features are disabled, we cannot provide a default spawner
-    }
-}
+// cfg_if::cfg_if! {
+//     if #[cfg(
+//         all(feature = "tokio_runtime",
+//         all(not(feature = "async_runtime"),not(feature = "smol_runtime"),not(feature = "global_runtime")))
+//     )] {
+//         impl_spawn_traits!(TokioSpawner);
+//         pub type DefaultSpawner = TokioSpawner;
+//     } else if #[cfg(
+//         all(
+//             feature = "async_runtime",
+//             all(not(feature = "tokio_runtime"),not(feature = "smol_runtime"),not(feature = "global_runtime"))
+//         )
+//     )] {
+//         impl_spawn_traits!(AsyncStdSpawner);
+//         pub type DefaultSpawner = AsyncStdSpawner;
+//     } else if #[cfg(
+//         all(
+//             feature = "smol_runtime",
+//             all(not(feature = "tokio_runtime"),not(feature = "async_runtime"),not(feature = "global_runtime"))
+//         )
+//     )] {
+//         impl_spawn_traits!(SmolSpawner);
+//         pub type DefaultSpawner = SmolSpawner;
+//     } else if #[cfg(
+//         all(
+//             feature = "global_runtime",
+//             all(not(feature = "tokio_runtime"),not(feature = "async_runtime"),not(feature = "smol_runtime"))
+//         )
+//     )] {
+//         // When only global_runtime is enabled, no DefaultSpawner is provided
+//         // Users should use the GloballySpawnable trait methods instead
+//     } else if #[cfg(
+//         all(feature = "tokio_runtime", feature = "global_runtime")
+//     )] {
+//         impl_spawn_traits!(TokioSpawner);
+//         pub type DefaultSpawner = TokioSpawner;
+//     } else {
+//         // if all runtime features are disabled, we cannot provide a default spawner
+//     }
+// }
 
 #[cfg(test)]
 mod tests {

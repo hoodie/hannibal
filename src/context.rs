@@ -208,10 +208,7 @@ impl<A: Actor> Context<A> {
 
 #[cfg(feature = "runtime")]
 mod task_handling {
-    use crate::{
-        runtime::{self, sleep},
-        spawner::spawn_future,
-    };
+    use crate::runtime::{self, sleep};
     use futures::FutureExt;
     use std::{future::Future, time::Duration};
 
@@ -223,7 +220,7 @@ mod task_handling {
             let (task, handle) = futures::future::abortable(task);
 
             self.tasks.push(handle);
-            crate::actor::spawner::spawn_future(task.map(|_| ()))
+            crate::runtime::spawn_future(task.map(|_| ()))
         }
 
         #[cfg(test)]
