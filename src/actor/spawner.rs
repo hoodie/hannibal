@@ -10,20 +10,20 @@ use crate::{Addr, DynResult, StreamHandler, addr::OwningAddr, environment::Envir
 #[cfg_attr(not(feature = "runtime"), allow(unused_imports))]
 use super::Actor;
 
-#[cfg(feature = "tokio_runtime")]
-mod tokio_spawner;
-#[cfg(feature = "tokio_runtime")]
-pub use tokio_spawner::TokioSpawner;
+// #[cfg(feature = "tokio_runtime")]
+// mod tokio_spawner;
+// #[cfg(feature = "tokio_runtime")]
+// pub use tokio_spawner::TokioSpawner;
 
-#[cfg(feature = "async_runtime")]
-mod async_spawner;
-#[cfg(feature = "async_runtime")]
-pub use async_spawner::AsyncStdSpawner;
+// #[cfg(feature = "async_runtime")]
+// mod async_spawner;
+// #[cfg(feature = "async_runtime")]
+// pub use async_spawner::AsyncStdSpawner;
 
-#[cfg(feature = "smol_runtime")]
-mod smol_spawner;
-#[cfg(feature = "smol_runtime")]
-pub use smol_spawner::SmolSpawner;
+// #[cfg(feature = "smol_runtime")]
+// mod smol_spawner;
+// #[cfg(feature = "smol_runtime")]
+// pub use smol_spawner::SmolSpawner;
 
 mod actor_handle;
 
@@ -86,13 +86,6 @@ pub fn spawn_actor<A: Actor, F: Future<Output = DynResult<A>> + Send + 'static>(
         }
     })
 }
-
-// pub fn spawn_future<F: Future<Output = ()> + Send + 'static>(future: F) {
-//     smol::spawn(future).detach();
-// }
-// async fn sleep(duration: Duration) {
-//     smol::Timer::after(duration).await;
-// }
 
 pub trait GloballySpawnable: Actor {
     /// Spawn the actor using the `async_global_executor`

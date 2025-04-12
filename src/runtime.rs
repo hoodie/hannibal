@@ -38,7 +38,7 @@ pub use async_global_executor::block_on;
 /// You do not necessarily need to use this function, it just makes testing and examples easier.
 #[cfg(any(feature = "smol_runtime", feature = "global_runtime"))]
 pub async fn sleep(duration: std::time::Duration) {
-    smol::Timer::after(duration).await;
+    async_io::Timer::after(duration).await;
 }
 
 #[cfg(any(feature = "smol_runtime", feature = "global_runtime"))]
