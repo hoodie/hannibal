@@ -115,16 +115,16 @@ mod tests {
             spawner::{DefaultSpawnable, Spawnable},
         };
 
-        // #[tokio::test]
-        // async fn spawn() {
-        //     let tokio_actor = TokioActor::default();
-        //     let mut addr = tokio_actor.spawn();
-        //     assert!(!addr.stopped());
+        #[tokio::test]
+        async fn spawn() {
+            let tokio_actor = TokioActor::<()>::default();
+            let mut addr = tokio_actor.spawn();
+            assert!(!addr.stopped());
 
-        //     addr.call(Ping).await.unwrap();
-        //     addr.stop().unwrap();
-        //     addr.await.unwrap()
-        // }
+            addr.call(Ping).await.unwrap();
+            addr.stop().unwrap();
+            addr.await.unwrap()
+        }
 
         #[tokio::test]
         async fn spawn_default() {

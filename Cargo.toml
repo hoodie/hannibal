@@ -57,7 +57,7 @@ color-backtrace = "0.7"
 default = ["global_runtime"]
 global_runtime = ["dep:async-global-executor", "runtime", "smol", "smol-macros"]
 
-tokio_runtime = ["tokio", "runtime"]
+tokio_runtime = ["tokio", "runtime", "async-global-executor/tokio"]
 smol_runtime = ["smol", "smol-macros", "macro_rules_attribute", "runtime"]
 async_runtime = ["async-std", "runtime"]
 runtime = []
