@@ -400,7 +400,7 @@ mod tests {
         }
     }
 
-    #[cfg(any(feature = "tokio_runtime", feature = "async_runtime"))]
+    #[cfg(any(feature = "runtime", feature = "async_runtime"))]
     mod timeout {
         use std::time::Duration;
 

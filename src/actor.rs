@@ -86,7 +86,7 @@ pub mod tests {
         }
     }
 
-    #[cfg(feature = "tokio_runtime")]
+    #[cfg(feature = "runtime")]
     pub mod spawned_with_tokio {
         use std::sync::{
             LazyLock,

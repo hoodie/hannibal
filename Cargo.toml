@@ -54,12 +54,7 @@ env_logger = { version = "0.11", features = ["unstable-kv"] }
 color-backtrace = "0.7"
 
 [features]
-default = [
-    "global_runtime",
-    # "tokio_runtime",
-    # "async_runtime",
-    # "smol_runtime",
-]
+default = ["global_runtime"]
 global_runtime = ["dep:async-global-executor", "runtime", "smol", "smol-macros"]
 
 tokio_runtime = ["tokio", "runtime"]

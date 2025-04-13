@@ -1,7 +1,6 @@
 //! Abstractions for spawning and managing actors in an asynchronous environment.
 //! Currently hannibal supports both `tokio` and `async-std`. Custom spawners can be implemented.
 
-#[cfg_attr(not(feature = "runtime"), allow(unused_imports))]
 use std::future::Future;
 use std::sync::Arc;
 
@@ -10,60 +9,16 @@ use crate::{Addr, DynResult, StreamHandler, addr::OwningAddr, environment::Envir
 #[cfg_attr(not(feature = "runtime"), allow(unused_imports))]
 use super::Actor;
 
-// #[cfg(feature = "tokio_runtime")]
-// mod tokio_spawner;
-// #[cfg(feature = "tokio_runtime")]
-// pub use tokio_spawner::TokioSpawner;
-
-// #[cfg(feature = "async_runtime")]
-// mod async_spawner;
-// #[cfg(feature = "async_runtime")]
-// pub use async_spawner::AsyncStdSpawner;
-
-// #[cfg(feature = "smol_runtime")]
-// mod smol_spawner;
-// #[cfg(feature = "smol_runtime")]
-// pub use smol_spawner::SmolSpawner;
-
 mod actor_handle;
 
 pub use actor_handle::{ActorHandle, JoinFuture};
 
-// /// Encapsulates spawning actors and futures, as well as sleeping.
-// ///
-// /// You should implement at this trait if you want to build a custom spawner.
-// pub trait Spawner<A: Actor> {
-//     fn spawn_actor<F: Future<Output = DynResult<A>> + Send + 'static>(future: F) -> ActorHandle<A>;
-//     fn spawn_future<F: Future<Output = ()> + Send + 'static>(future: F);
-//     fn sleep(duration: Duration) -> impl Future<Output = ()> + Send;
-// }
-
-// /// Enables an actor to spawn itself with a specific [`Spawner`].
-// ///
-// /// See the [`custom_spawner`](../example/custom_spawner.rs) example for a demonstration.
-// pub trait SpawnableWith: Actor {
-//     fn spawn_with<S: Spawner<Self>>(self) -> (Addr<Self>, ActorHandle<Self>) {
-//         let (event_loop, addr) = Environment::unbounded().create_loop(self);
-//         let handle = S::spawn_actor(event_loop);
-//         (addr, handle)
-//     }
-
-//     fn spawn_with_in<S: Spawner<Self>>(
-//         self,
-//         environment: Environment<Self>,
-//     ) -> (Addr<Self>, ActorHandle<Self>) {
-//         let (event_loop, addr) = environment.create_loop(self);
-//         let handle = S::spawn_actor(event_loop);
-//         (addr, handle)
-//     }
-// }
-
-// impl<A: Actor> SpawnableWith for A {}
-
-pub fn spawn_actor<A: Actor, F: Future<Output = DynResult<A>> + Send + 'static>(
-    future: F,
-) -> ActorHandle<A> {
-    let task = async_global_executor::spawn(future);
+pub fn spawn_actor<A, F>(event_loop: F) -> ActorHandle<A>
+where
+    A: Actor,
+    F: Future<Output = DynResult<A>> + Send + 'static,
+{
+    let task = async_global_executor::spawn(event_loop);
     let handle = Arc::new(async_lock::Mutex::new(Some(task)));
     let detach_handle = Arc::clone(&handle);
 
@@ -87,74 +42,8 @@ pub fn spawn_actor<A: Actor, F: Future<Output = DynResult<A>> + Send + 'static>(
     })
 }
 
-pub trait GloballySpawnable: Actor {
-    /// Spawn the actor using the `async_global_executor`
-    // #[cfg(feature = "async_global_executor")]
-    fn spawn_global(self) -> (Addr<Self>, ActorHandle<Self>) {
-        let (event_loop, addr) = Environment::unbounded().create_loop(self);
-
-        let task = async_global_executor::spawn(event_loop);
-        let handle = Arc::new(async_lock::Mutex::new(Some(task)));
-        let detach_handle = Arc::clone(&handle);
-
-        let actor_handle = ActorHandle::new(move || -> JoinFuture<Self> {
-            let handle = Arc::clone(&handle);
-            Box::pin(async move {
-                let handle_opt = handle.lock().await.take();
-
-                if let Some(handle) = handle_opt {
-                    handle.await.ok()
-                } else {
-                    None
-                }
-            })
-        })
-        .with_detach_fn(move || {
-            let mut handle = detach_handle.lock_blocking().take();
-            if let Some(handle) = handle.take() {
-                handle.detach();
-            }
-        });
-
-        (addr, actor_handle)
-    }
-
-    /// Spawn the actor using the `async_global_executor` with a custom environment
-    // #[cfg(feature = "async_global_executor")]
-    fn spawn_global_in(self, environment: Environment<Self>) -> (Addr<Self>, ActorHandle<Self>) {
-        let (event_loop, addr) = environment.create_loop(self);
-
-        let task = async_global_executor::spawn(event_loop);
-        let handle = Arc::new(async_lock::Mutex::new(Some(task)));
-        let detach_handle = Arc::clone(&handle);
-
-        let actor_handle = ActorHandle::new(move || -> JoinFuture<Self> {
-            let handle = Arc::clone(&handle);
-            Box::pin(async move {
-                let mut handle_opt = handle.lock().await.take();
-
-                if let Some(handle) = handle_opt.take() {
-                    handle.await.ok()
-                } else {
-                    None
-                }
-            })
-        })
-        .with_detach_fn(move || {
-            let mut handle = detach_handle.lock_blocking().take();
-            if let Some(handle) = handle.take() {
-                handle.detach();
-            }
-        });
-
-        (addr, actor_handle)
-    }
-}
-
-impl<A: Actor> GloballySpawnable for A {}
-
 /// Enables an actor to spawn itself.
-pub trait Spawnable/*<S: Spawner<Self>>*/: Actor {
+pub trait Spawnable: Actor {
     /// Spawns the actor and returns an `Addr` to it.
     fn spawn(self) -> Addr<Self> {
         self.spawn_owning().detach()
@@ -163,13 +52,7 @@ pub trait Spawnable/*<S: Spawner<Self>>*/: Actor {
     /// Spawns the actor and returns an [`OwningAddr`] to it.
     fn spawn_owning(self) -> OwningAddr<Self> {
         let environment = Environment::unbounded();
-        let (event_loop, addr) = environment.create_loop(self);
-        // log::trace!(
-        //     "spawning actor with custom environment {}",
-        //     std::any::type_name::<S>()
-        // );
-        let handle = spawn_actor(event_loop);
-        OwningAddr::new(addr, handle)
+        Self::spawn_owning_in(self, environment)
     }
 
     /// Spawns an actor in a specific environment and returns an [`OwningAddr`] to it.
@@ -180,25 +63,10 @@ pub trait Spawnable/*<S: Spawner<Self>>*/: Actor {
         OwningAddr::new(addr, handle)
     }
 }
-impl<A: GloballySpawnable> Spawnable for A {}
-
-// #[cfg(feature = "runtime")]
-// Enables an actor to spawn futures and sleep.
-// pub(crate) trait SpawnFutures/* <S: Spawner<Self>>*/: Actor {
-//     fn spawn_future<F>(future: F)
-//     where
-//         F: Future<Output = ()> + Send + 'static,
-//     {
-//         crate::runtime::spawn_r(future);
-//     }
-
-//     fn sleep(duration: Duration) -> impl Future<Output = ()> + Send {
-//        crate::runtime:: sleep(duration)
-//     }
-// }
+impl<A: Actor> Spawnable for A {}
 
 /// An actor that can handle a stream of messages.
-pub trait StreamSpawnable</*S: Spawner<Self>,*/ T>: Actor + StreamHandler<T::Item>
+pub trait StreamSpawnable<T>: Actor + StreamHandler<T::Item>
 where
     T: futures::Stream + Unpin + Send + 'static,
     T::Item: 'static + Send,
@@ -223,165 +91,44 @@ where
 {
 }
 
-pub trait DefaultSpawnable/*<S: Spawner<Self>>*/: Actor + Default {
+pub trait DefaultSpawnable: Actor + Default {
     fn spawn_default() -> crate::error::Result<Addr<Self>> {
-        Ok(Self::spawn_owning()?.detach())
+        Ok(Self::spawn_default_owning()?.detach())
     }
 
-    fn spawn_owning() -> crate::error::Result<OwningAddr<Self>> {
+    fn spawn_default_owning() -> crate::error::Result<OwningAddr<Self>> {
         let (event_loop, addr) = Environment::unbounded().create_loop(Self::default());
         let handle = spawn_actor(event_loop);
         Ok(OwningAddr::new(addr, handle))
     }
 }
 
-// #[macro_export]
-// #[doc(hidden)]
-// macro_rules! impl_spawn_traits {
-//     ($spawner_type:ty) => {
-//         impl<A> Spawnable<$spawner_type> for A where A: Actor {}
-//         impl<A> SpawnFutures<$spawner_type> for A where A: Actor {}
-
-//         impl<A, T> StreamSpawnable<$spawner_type, T> for A
-//         where
-//             A: Actor + StreamHandler<T::Item>,
-//             T: futures::Stream + Unpin + Send + 'static,
-//             T::Item: 'static + Send,
-//         {
-//         }
-
-//         impl<A> DefaultSpawnable<$spawner_type> for A where A: Actor + Default {}
-//     };
-// }
-
-// cfg_if::cfg_if! {
-//     if #[cfg(
-//         all(feature = "tokio_runtime",
-//         all(not(feature = "async_runtime"),not(feature = "smol_runtime"),not(feature = "global_runtime")))
-//     )] {
-//         impl_spawn_traits!(TokioSpawner);
-//         pub type DefaultSpawner = TokioSpawner;
-//     } else if #[cfg(
-//         all(
-//             feature = "async_runtime",
-//             all(not(feature = "tokio_runtime"),not(feature = "smol_runtime"),not(feature = "global_runtime"))
-//         )
-//     )] {
-//         impl_spawn_traits!(AsyncStdSpawner);
-//         pub type DefaultSpawner = AsyncStdSpawner;
-//     } else if #[cfg(
-//         all(
-//             feature = "smol_runtime",
-//             all(not(feature = "tokio_runtime"),not(feature = "async_runtime"),not(feature = "global_runtime"))
-//         )
-//     )] {
-//         impl_spawn_traits!(SmolSpawner);
-//         pub type DefaultSpawner = SmolSpawner;
-//     } else if #[cfg(
-//         all(
-//             feature = "global_runtime",
-//             all(not(feature = "tokio_runtime"),not(feature = "async_runtime"),not(feature = "smol_runtime"))
-//         )
-//     )] {
-//         // When only global_runtime is enabled, no DefaultSpawner is provided
-//         // Users should use the GloballySpawnable trait methods instead
-//     } else if #[cfg(
-//         all(feature = "tokio_runtime", feature = "global_runtime")
-//     )] {
-//         impl_spawn_traits!(TokioSpawner);
-//         pub type DefaultSpawner = TokioSpawner;
-//     } else {
-//         // if all runtime features are disabled, we cannot provide a default spawner
-//     }
-// }
+impl<A: Actor + Default> DefaultSpawnable for A {}
 
 #[cfg(test)]
 mod tests {
     #![allow(clippy::unwrap_used)]
-    #[cfg(feature = "tokio_runtime")]
+    #[cfg(feature = "runtime")]
     mod spawned_with_tokio {
         use crate::{
             actor::tests::{Ping, spawned_with_tokio::TokioActor},
-            spawner::{DefaultSpawnable, Spawnable, TokioSpawner},
+            spawner::{DefaultSpawnable, Spawnable},
         };
+
+        // #[tokio::test]
+        // async fn spawn() {
+        //     let tokio_actor = TokioActor::default();
+        //     let mut addr = tokio_actor.spawn();
+        //     assert!(!addr.stopped());
+
+        //     addr.call(Ping).await.unwrap();
+        //     addr.stop().unwrap();
+        //     addr.await.unwrap()
+        // }
 
         #[tokio::test]
-        async fn spawn() {
-            let tokio_actor = TokioActor::default();
-            let mut addr = <TokioActor<()> as Spawnable<TokioSpawner>>::spawn(tokio_actor);
-            assert!(!addr.stopped());
-
-            addr.call(Ping).await.unwrap();
-            addr.stop().unwrap();
-            addr.await.unwrap()
-        }
-
-        #[tokio::test]
         async fn spawn_default() {
-            let mut addr =
-                <TokioActor<()> as DefaultSpawnable<TokioSpawner>>::spawn_default().unwrap();
-            assert!(!addr.stopped());
-
-            addr.call(Ping).await.unwrap();
-            addr.stop().unwrap();
-            addr.await.unwrap()
-        }
-    }
-
-    #[cfg(feature = "async_runtime")]
-    mod spawned_with_asyncstd {
-        use crate::{
-            actor::tests::{Ping, spawned_with_asyncstd::AsyncStdActor},
-            spawner::{AsyncStdSpawner, DefaultSpawnable, Spawnable},
-        };
-
-        #[async_std::test]
-        async fn spawn() {
-            let tokio_actor = AsyncStdActor::default();
-            let mut addr = <AsyncStdActor<()> as Spawnable<AsyncStdSpawner>>::spawn(tokio_actor);
-            assert!(!addr.stopped());
-
-            addr.call(Ping).await.unwrap();
-            addr.stop().unwrap();
-            addr.await.unwrap()
-        }
-
-        #[async_std::test]
-        async fn spawn_default() {
-            let mut addr =
-                <AsyncStdActor<()> as DefaultSpawnable<AsyncStdSpawner>>::spawn_default().unwrap();
-            assert!(!addr.stopped());
-
-            addr.call(Ping).await.unwrap();
-            addr.stop().unwrap();
-            addr.await.unwrap()
-        }
-    }
-
-    #[cfg(feature = "smol_runtime")]
-    mod spawned_with_smol {
-        use crate::{
-            actor::tests::{Ping, spawned_with_smol::SmolActor},
-            spawner::{DefaultSpawnable, SmolSpawner, Spawnable},
-        };
-        use macro_rules_attribute::apply;
-        use smol_macros::test;
-
-        #[apply(test!)]
-        async fn spawn() {
-            let tokio_actor = SmolActor::default();
-            let mut addr = <SmolActor<()> as Spawnable<SmolSpawner>>::spawn(tokio_actor);
-            assert!(!addr.stopped());
-
-            addr.call(Ping).await.unwrap();
-            addr.stop().unwrap();
-            addr.await.unwrap()
-        }
-
-        #[apply(test)]
-        async fn spawn_default() {
-            let mut addr =
-                <SmolActor<()> as DefaultSpawnable<SmolSpawner>>::spawn_default().unwrap();
+            let mut addr = TokioActor::<()>::spawn_default().unwrap();
             assert!(!addr.stopped());
 
             addr.call(Ping).await.unwrap();

@@ -59,8 +59,6 @@ mod handler;
 #[cfg(feature = "runtime")]
 pub mod runtime;
 
-#[cfg(all(feature = "async_runtime", feature = "tokio_runtime"))]
-compile_error!("only one runtime featured allowed");
 
 // TODO: flatten module structure
 pub use self::{

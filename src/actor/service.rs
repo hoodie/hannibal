@@ -13,7 +13,7 @@ use futures::FutureExt as _;
 
 use super::*; //{spawner::Spawner, *};
 
-use crate::{environment::Environment, spawner::spawn_actor, Addr};
+use crate::{Addr, environment::Environment, spawner::spawn_actor};
 
 type AnyBox = Box<dyn Any + Send + Sync>;
 
@@ -207,9 +207,8 @@ pub(crate) trait SpawnableService/*<S: Spawner<Self>>*/: Service {
 
 #[cfg(feature = "runtime")]
 impl<A> SpawnableService for A where
-    A: Service
-    // A: spawner::Spawnable<S>,
-    // S: Spawner<A>,
+    A: Service // A: spawner::Spawnable<S>,
+               // S: Spawner<A>,
 {
 }
 
@@ -217,25 +216,25 @@ impl<A> SpawnableService for A where
 mod tests {
     #![allow(clippy::unwrap_used)]
 
-    #[cfg(feature = "tokio_runtime")]
+    #[cfg(feature = "runtime")]
     mod spawned_with_tokio {
         use crate::{
             Service,
             actor::tests::{Identify, Ping, spawned_with_tokio::TokioActor},
             prelude::Spawnable as _,
-            spawner::{SpawnableWith, TokioSpawner},
+            // spawner::TokioSpawner,
         };
 
-        #[test_log::test(tokio::test)]
-        async fn register_as_service() {
-            type Svc = TokioActor<u32>;
-            let (addr, mut handle) = Svc::new(1337).spawn_with::<TokioSpawner>();
-            let (mut addr, _) = addr.register().await.unwrap();
-            assert_eq!(addr.call(Identify).await.unwrap(), 1337);
-            assert_eq!(addr.call(Identify).await.unwrap(), 1337);
-            addr.stop().unwrap();
-            handle.join().await.unwrap();
-        }
+        // #[test_log::test(tokio::test)]
+        // async fn register_as_service() {
+        //     type Svc = TokioActor<u32>;
+        //     let (addr, mut handle) = Svc::new(1337).spawn_with::<TokioSpawner>();
+        //     let (mut addr, _) = addr.register().await.unwrap();
+        //     assert_eq!(addr.call(Identify).await.unwrap(), 1337);
+        //     assert_eq!(addr.call(Identify).await.unwrap(), 1337);
+        //     addr.stop().unwrap();
+        //     handle.join().await.unwrap();
+        // }
 
         #[test_log::test(tokio::test)]
         async fn get_service_from_registry() {
@@ -292,18 +291,18 @@ mod tests {
             spawner::{AsyncStdSpawner, SpawnableWith},
         };
 
-        #[async_std::test]
-        async fn register_as_service() {
-            type Svc = AsyncStdActor<u32>;
-            let (addr, mut handle) = Svc::new(1337).spawn_with::<AsyncStdSpawner>();
-            addr.register().await.unwrap();
-            let mut svc_addr = Svc::from_registry().await;
-            assert_eq!(svc_addr.call(Identify).await.unwrap(), 1337);
-            assert_eq!(svc_addr.call(Identify).await.unwrap(), 1337);
+        // #[async_std::test]
+        // async fn register_as_service() {
+        //     type Svc = AsyncStdActor<u32>;
+        //     let (addr, mut handle) = Svc::new(1337).spawn_with::<AsyncStdSpawner>();
+        //     addr.register().await.unwrap();
+        //     let mut svc_addr = Svc::from_registry().await;
+        //     assert_eq!(svc_addr.call(Identify).await.unwrap(), 1337);
+        //     assert_eq!(svc_addr.call(Identify).await.unwrap(), 1337);
 
-            svc_addr.stop().unwrap();
-            handle.join().await.unwrap();
-        }
+        //     svc_addr.stop().unwrap();
+        //     handle.join().await.unwrap();
+        // }
 
         #[test_log::test(tokio::test)]
         async fn get_service_from_registry() {
