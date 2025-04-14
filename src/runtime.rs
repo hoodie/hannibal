@@ -22,9 +22,6 @@ where
 #[cfg(feature = "tokio_runtime")]
 pub use tokio::time::sleep;
 
-#[cfg(feature = "async_runtime")]
-pub use async_std::task::{block_on, sleep};
-
 /// Block on the given future.
 ///
 /// This function is a convenience wrapper around a specific runtime's `block_on` function.
@@ -39,9 +36,4 @@ pub use async_global_executor::block_on;
 #[cfg(any(feature = "smol_runtime", feature = "global_runtime"))]
 pub async fn sleep(duration: std::time::Duration) {
     async_io::Timer::after(duration).await;
-}
-
-#[cfg(any(feature = "smol_runtime", feature = "global_runtime"))]
-pub fn spawn_future<F: Future<Output = ()> + Send + 'static>(future: F) {
-    async_global_executor::spawn(future).detach();
 }

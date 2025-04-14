@@ -220,7 +220,7 @@ mod task_handling {
             let (task, handle) = futures::future::abortable(task);
 
             self.tasks.push(handle);
-            crate::runtime::spawn_future(task.map(|_| ()))
+            async_global_executor::spawn(task.map(|_| ())).detach();
         }
 
         #[cfg(test)]
