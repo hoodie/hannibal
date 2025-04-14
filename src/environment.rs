@@ -406,14 +406,6 @@ mod tests {
 
         use crate::{RestartableActor, error::ActorError, prelude::*};
 
-        cfg_if::cfg_if! {
-        if #[cfg(feature = "async_runtime")] {
-            use async_std::task::sleep;
-        } else {
-            use tokio::time::sleep;
-        }
-        }
-
         #[derive(Debug, Default)]
         struct SleepyActor(u8);
 
@@ -437,7 +429,7 @@ mod tests {
         impl Handler<Sleep> for SleepyActor {
             async fn handle(&mut self, _ctx: &mut Context<Self>, msg: Sleep) {
                 println!("[ SleepyActor {} ] is resting for {:?}", self.0, msg.0);
-                sleep(msg.0).await;
+                crate::runtime::sleep(msg.0).await;
                 println!("[ SleepyActor {} ] woke up after {:?}", self.0, msg.0);
             }
         }

@@ -59,7 +59,6 @@ mod handler;
 #[cfg(feature = "runtime")]
 pub mod runtime;
 
-
 // TODO: flatten module structure
 pub use self::{
     actor::{
