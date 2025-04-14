@@ -26,14 +26,20 @@ pub use tokio::time::sleep;
 ///
 /// This function is a convenience wrapper around a specific runtime's `block_on` function.
 /// You do not necessarily need to use this function, it just makes testing and examples easier.
-#[cfg(any(feature = "smol_runtime", feature = "global_runtime"))]
+#[cfg(all(
+    not(feature = "tokio_runtime"),
+    any(feature = "smol_runtime", feature = "global_runtime")
+))]
 pub use async_global_executor::block_on;
 
 /// Sleep for the given duration.
 ///
 /// This function is a convenience wrapper around a specific runtime's sleep function.
 /// You do not necessarily need to use this function, it just makes testing and examples easier.
-#[cfg(any(feature = "smol_runtime", feature = "global_runtime"))]
+#[cfg(all(
+    not(feature = "tokio_runtime"),
+    any(feature = "smol_runtime", feature = "global_runtime")
+))]
 pub async fn sleep(duration: std::time::Duration) {
     async_io::Timer::after(duration).await;
 }

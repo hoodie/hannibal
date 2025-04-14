@@ -13,7 +13,7 @@ use futures::FutureExt as _;
 
 use super::*; //{spawner::Spawner, *};
 
-use crate::{Addr, environment::Environment, spawner::spawn_actor};
+use crate::{Addr, environment::Environment, spawner::ActorHandle};
 
 type AnyBox = Box<dyn Any + Send + Sync>;
 
@@ -195,7 +195,7 @@ pub(crate) trait SpawnableService/*<S: Spawner<Self>>*/: Service {
             } else {
                 log::trace!("spawning new service {}", std::any::type_name::<Self>());
                 let (event_loop, addr) = Environment::unbounded().create_loop(Self::default());
-                let handle = spawn_actor(event_loop);
+                let handle = ActorHandle::spawn(event_loop);
                 handle.detach();
                 registry.insert(key, Box::new(addr.clone()));
                 debug_assert!(addr.ping().await.is_ok(), "service failed ping");

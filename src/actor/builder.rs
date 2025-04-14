@@ -10,10 +10,9 @@ use crate::{
 };
 
 use super::{
-    Actor,
-    RestartableActor, // spawner::Spawner,
+    Actor, RestartableActor,
     restart_strategy::{NonRestartable, RecreateFromDefault, RestartOnly, RestartStrategy},
-    spawner::spawn_actor,
+    spawner::ActorHandle,
 };
 
 #[derive(Default)]
@@ -198,7 +197,7 @@ where
 
         let env = environment::Environment::<A, R>::from_channel(channel).with_config(config);
         let (event_loop, addr) = env.create_loop(actor);
-        let handle = super::spawner::spawn_actor(event_loop);
+        let handle = ActorHandle::spawn(event_loop);
         OwningAddr { addr, handle }
     }
 
@@ -211,7 +210,7 @@ where
 
         let env = environment::Environment::<A, R>::from_channel(channel).with_config(config);
         let (event_loop, addr) = env.create_loop(actor);
-        spawn_actor(event_loop).detach();
+        ActorHandle::spawn(event_loop).detach();
         addr
     }
 }
@@ -251,7 +250,7 @@ where
         let env = environment::Environment::<A, NonRestartable>::from_channel(channel)
             .with_config(config);
         let (event_loop, addr) = env.create_loop_on_stream(actor, stream);
-        let _handle = spawn_actor(event_loop);
+        let _handle = ActorHandle::spawn(event_loop);
         addr
     }
 
@@ -269,7 +268,7 @@ where
         let env = environment::Environment::<A, NonRestartable>::from_channel(channel)
             .with_config(config);
         let (event_loop, addr) = env.create_loop_on_stream(actor, stream);
-        let handle = spawn_actor(event_loop);
+        let handle = ActorHandle::spawn(event_loop);
         OwningAddr { addr, handle }
     }
 }

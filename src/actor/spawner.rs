@@ -1,46 +1,14 @@
 //! Abstractions for spawning and managing actors in an asynchronous environment.
 //! Currently hannibal supports both `tokio` and `async-std`. Custom spawners can be implemented.
 
-use std::future::Future;
-use std::sync::Arc;
+use crate::{Addr, StreamHandler, addr::OwningAddr, environment::Environment};
 
-use crate::{Addr, DynResult, StreamHandler, addr::OwningAddr, environment::Environment};
-
-#[cfg_attr(not(feature = "runtime"), allow(unused_imports))]
+// #[cfg_attr(not(feature = "runtime"), allow(unused_imports))]
 use super::Actor;
 
 mod actor_handle;
 
 pub use actor_handle::{ActorHandle, JoinFuture};
-
-pub fn spawn_actor<A, F>(event_loop: F) -> ActorHandle<A>
-where
-    A: Actor,
-    F: Future<Output = DynResult<A>> + Send + 'static,
-{
-    let task = async_global_executor::spawn(event_loop);
-    let handle = Arc::new(async_lock::Mutex::new(Some(task)));
-    let detach_handle = Arc::clone(&handle);
-
-    ActorHandle::new(move || -> JoinFuture<A> {
-        let handle = Arc::clone(&handle);
-        Box::pin(async move {
-            let handle_opt = handle.lock().await.take();
-
-            if let Some(handle) = handle_opt {
-                handle.await.ok()
-            } else {
-                None
-            }
-        })
-    })
-    .with_detach_fn(move || {
-        let mut handle = detach_handle.lock_blocking().take();
-        if let Some(handle) = handle.take() {
-            handle.detach();
-        }
-    })
-}
 
 /// Enables an actor to spawn itself.
 pub trait Spawnable: Actor {
@@ -59,7 +27,7 @@ pub trait Spawnable: Actor {
     #[doc(hidden)]
     fn spawn_owning_in(self, environment: Environment<Self>) -> OwningAddr<Self> {
         let (event_loop, addr) = environment.create_loop(self);
-        let handle = spawn_actor(event_loop);
+        let handle = ActorHandle::spawn(event_loop);
         OwningAddr::new(addr, handle)
     }
 }
@@ -78,7 +46,7 @@ where
 
     fn spawn_owning_on_stream(self, stream: T) -> crate::error::Result<OwningAddr<Self>> {
         let (event_loop, addr) = Environment::unbounded().create_loop_on_stream(self, stream);
-        let handle = spawn_actor(event_loop);
+        let handle = ActorHandle::spawn(event_loop);
         Ok(OwningAddr::new(addr, handle))
     }
 }
@@ -98,7 +66,7 @@ pub trait DefaultSpawnable: Actor + Default {
 
     fn spawn_default_owning() -> crate::error::Result<OwningAddr<Self>> {
         let (event_loop, addr) = Environment::unbounded().create_loop(Self::default());
-        let handle = spawn_actor(event_loop);
+        let handle = ActorHandle::spawn(event_loop);
         Ok(OwningAddr::new(addr, handle))
     }
 }
