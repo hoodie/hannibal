@@ -23,7 +23,6 @@ static REGISTRY: LazyLock<async_lock::RwLock<HashMap<TypeId, AnyBox>>> =
 /// Service Related
 ///
 /// An actor that implements the [`Service`] trait can be registered, unregistered and replaced via an `Addr` as a service.
-#[cfg(feature = "runtime")]
 impl<A: Service> Addr<A> {
     /// Register an actor as a service.
     ///
@@ -85,7 +84,6 @@ impl<A: Service> Addr<A> {
 /// A service is an actor that does not need to be owned
 ///
 /// Some functionality of the service is available on the [`Addr`](`Addr`#impl-Addr%3CA%3E) of the service.
-#[cfg(feature = "runtime")]
 pub trait Service: Actor + Default {
     /// Setup the service.
     ///
@@ -129,49 +127,48 @@ pub trait Service: Actor + Default {
     }
 }
 
-#[cfg(not(feature = "runtime"))]
-pub trait Service<S: Spawner<Self>>: Actor + Default {
-    fn setup() -> impl Future<Output = ()> {
-        log::trace!("setting up service");
-        Self::from_registry_and_spawn().map(|_| ())
-    }
+// #[cfg(not(feature = "runtime"))]
+// pub trait Service<S: Spawner<Self>>: Actor + Default {
+//     fn setup() -> impl Future<Output = ()> {
+//         log::trace!("setting up service");
+//         Self::from_registry_and_spawn().map(|_| ())
+//     }
 
-    fn from_registry() -> impl Future<Output = Addr<Self>> {
-        Self::from_registry_and_spawn()
-    }
+//     fn from_registry() -> impl Future<Output = Addr<Self>> {
+//         Self::from_registry_and_spawn()
+//     }
 
-    #[allow(clippy::async_yields_async)]
-    fn from_registry_and_spawn() -> impl Future<Output = Addr<Self>> {
-        log::trace!(
-            "spawning new instance of {} service in registry",
-            std::any::type_name::<Self>()
-        );
-        async {
-            let key = TypeId::of::<Self>();
+//     #[allow(clippy::async_yields_async)]
+//     fn from_registry_and_spawn() -> impl Future<Output = Addr<Self>> {
+//         log::trace!(
+//             "spawning new instance of {} service in registry",
+//             std::any::type_name::<Self>()
+//         );
+//         async {
+//             let key = TypeId::of::<Self>();
 
-            let mut registry = REGISTRY.write().await;
+//             let mut registry = REGISTRY.write().await;
 
-            if let Some(addr) = registry
-                .get_mut(&key)
-                .and_then(|addr| addr.downcast_ref::<Addr<Self>>())
-                .map(ToOwned::to_owned)
-                .filter(Addr::running)
-            {
-                addr
-            } else {
-                log::trace!("spawning new service {}", std::any::type_name::<Self>());
-                let (event_loop, addr) = Environment::unbounded().create_loop(Self::default());
-                let handle = S::spawn_actor(event_loop);
-                handle.detach();
-                registry.insert(key, Box::new(addr.clone()));
-                debug_assert!(addr.ping().await.is_ok(), "service failed ping");
-                addr
-            }
-        }
-    }
-}
+//             if let Some(addr) = registry
+//                 .get_mut(&key)
+//                 .and_then(|addr| addr.downcast_ref::<Addr<Self>>())
+//                 .map(ToOwned::to_owned)
+//                 .filter(Addr::running)
+//             {
+//                 addr
+//             } else {
+//                 log::trace!("spawning new service {}", std::any::type_name::<Self>());
+//                 let (event_loop, addr) = Environment::unbounded().create_loop(Self::default());
+//                 let handle = S::spawn_actor(event_loop);
+//                 handle.detach();
+//                 registry.insert(key, Box::new(addr.clone()));
+//                 debug_assert!(addr.ping().await.is_ok(), "service failed ping");
+//                 addr
+//             }
+//         }
+//     }
+// }
 
-#[cfg(feature = "runtime")]
 pub(crate) trait SpawnableService/*<S: Spawner<Self>>*/: Service {
     #[allow(clippy::async_yields_async)]
     fn from_registry_and_spawn() -> impl Future<Output = Addr<Self>> {
@@ -205,7 +202,6 @@ pub(crate) trait SpawnableService/*<S: Spawner<Self>>*/: Service {
     }
 }
 
-#[cfg(feature = "runtime")]
 impl<A> SpawnableService for A where
     A: Service // A: spawner::Spawnable<S>,
                // S: Spawner<A>,
@@ -213,7 +209,6 @@ impl<A> SpawnableService for A where
 }
 
 #[cfg(test)]
-#[cfg(feature = "runtime")]
 mod tests {
     #![allow(clippy::unwrap_used)]
 
@@ -221,7 +216,6 @@ mod tests {
         Service,
         actor::tests::{Identify, Ping, TokioActor},
         prelude::Spawnable as _,
-        // spawner::TokioSpawner,
     };
 
     // #[test_log::test(tokio::test)]

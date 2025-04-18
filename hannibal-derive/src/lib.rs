@@ -24,6 +24,26 @@ pub fn main(_args: TokenStream, input: TokenStream) -> TokenStream {
 }
 
 #[proc_macro_attribute]
+pub fn test(_args: TokenStream, input: TokenStream) -> TokenStream {
+    let mut input: syn::ItemFn = syn::parse_macro_input!(input);
+
+    let original_name = &input.sig.ident.clone();
+    input.sig.ident = Ident::new("inner_test", Span::call_site());
+    let return_type = &input.sig.output;
+
+    let generated = quote! {
+        #input
+
+        #[test]
+        async fn #original_name() #return_type {
+            hannibal::runtime::block_on(inner_test())
+        }
+    };
+
+    generated.into()
+}
+
+#[proc_macro_attribute]
 pub fn message(args: TokenStream, input: TokenStream) -> TokenStream {
     let mut response: Option<syn::Type> = None;
 

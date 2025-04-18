@@ -1,9 +1,10 @@
 //! Abstractions for spawning and managing actors in an asynchronous environment.
 //! Currently hannibal supports both `tokio` and `async-std`. Custom spawners can be implemented.
 
+use std::any::type_name;
+
 use crate::{Addr, StreamHandler, addr::OwningAddr, environment::Environment};
 
-// #[cfg_attr(not(feature = "runtime"), allow(unused_imports))]
 use super::Actor;
 
 mod actor_handle;
@@ -26,6 +27,7 @@ pub trait Spawnable: Actor {
     /// Spawns an actor in a specific environment and returns an [`OwningAddr`] to it.
     #[doc(hidden)]
     fn spawn_owning_in(self, environment: Environment<Self>) -> OwningAddr<Self> {
+        log::trace!("spawn {}", type_name::<Self>());
         let (event_loop, addr) = environment.create_loop(self);
         let handle = ActorHandle::spawn(event_loop);
         OwningAddr::new(addr, handle)
@@ -45,6 +47,7 @@ where
     }
 
     fn spawn_owning_on_stream(self, stream: T) -> crate::error::Result<OwningAddr<Self>> {
+        log::trace!("spawn on stream {}", type_name::<Self>());
         let (event_loop, addr) = Environment::unbounded().create_loop_on_stream(self, stream);
         let handle = ActorHandle::spawn(event_loop);
         Ok(OwningAddr::new(addr, handle))
@@ -65,6 +68,7 @@ pub trait DefaultSpawnable: Actor + Default {
     }
 
     fn spawn_default_owning() -> crate::error::Result<OwningAddr<Self>> {
+        log::trace!("spawn defauwning {}", type_name::<Self>());
         let (event_loop, addr) = Environment::unbounded().create_loop(Self::default());
         let handle = ActorHandle::spawn(event_loop);
         Ok(OwningAddr::new(addr, handle))
@@ -76,7 +80,6 @@ impl<A: Actor + Default> DefaultSpawnable for A {}
 #[cfg(test)]
 mod tests {
     #![allow(clippy::unwrap_used)]
-    #[cfg(feature = "runtime")]
     mod spawned_with_tokio {
         use crate::{
             actor::tests::{Ping, TokioActor},

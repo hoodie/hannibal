@@ -1,4 +1,4 @@
-use std::{pin::Pin, sync::Arc};
+use std::{any::type_name, pin::Pin, sync::Arc};
 
 use crate::{Actor, DynResult};
 
@@ -42,6 +42,8 @@ impl<A: Actor> ActorHandle<A> {
     where
         F: Future<Output = DynResult<A>> + Send + 'static,
     {
+        log::trace!("spawning {}", type_name::<Self>());
+
         let task = async_global_executor::spawn(event_loop);
         let handle = Arc::new(async_lock::Mutex::new(Some(task)));
         let detach_handle = Arc::clone(&handle);

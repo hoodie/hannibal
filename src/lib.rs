@@ -50,13 +50,13 @@ mod context;
 mod environment;
 pub mod error;
 
+// #[cfg(test)]
+pub use hannibal_derive::test;
 pub use hannibal_derive::{main, message};
 
-#[cfg(feature = "runtime")]
 mod broker;
 mod handler;
 
-#[cfg(feature = "runtime")]
 pub mod runtime;
 
 // TODO: flatten module structure
@@ -74,10 +74,8 @@ pub use self::{
     handler::{Handler, StreamHandler},
 };
 
-#[cfg(feature = "runtime")]
 pub use actor::build;
 
-#[cfg(feature = "runtime")]
 pub use broker::Broker;
 
 pub mod prelude {

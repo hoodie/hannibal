@@ -60,7 +60,6 @@ impl<A: Actor, R: RestartStrategy<A>> Environment<A, R> {
             phantom: PhantomData,
         }
     }
-    #[cfg_attr(not(feature = "runtime"), allow(dead_code))]
     pub(crate) const fn with_config(mut self, config: EnvironmentConfig) -> Self {
         self.config = config;
         self
@@ -400,7 +399,6 @@ mod tests {
         }
     }
 
-    #[cfg(feature = "runtime")]
     mod timeout {
         use std::time::Duration;
 
@@ -437,7 +435,8 @@ mod tests {
         // TODO: can we encode the restart strategy in an associated type or as a trait function?
         impl RestartableActor for SleepyActor {}
 
-        #[test_log::test(tokio::test)]
+        // #[test_log::test(tokio::test)]
+        #[tokio::test]
         async fn no_timeout() {
             // normal case, tasks take long
             println!("SleepyActor 0 will take 1 second to complete");
@@ -449,7 +448,8 @@ mod tests {
             assert!(addr.stop().is_ok());
         }
 
-        #[test_log::test(tokio::test)]
+        // #[test_log::test(tokio::test)]
+        #[tokio::test]
         async fn timeout_and_continue() {
             // timeout and continue
             println!("SleepyActor 1 will be canceled after 1 second");
@@ -470,13 +470,14 @@ mod tests {
                 addr.call(Sleep(Duration::from_secs(4))).await.unwrap_err(),
                 ActorError::Canceled(_)
             ));
-            assert!(addr.call(Sleep(Duration::from_secs(0))).await.is_ok());
+            // assert!(addr.call(Sleep(Duration::from_secs(0))).await.is_ok());
+            addr.call(Sleep(Duration::from_secs(0))).await.unwrap();
             eprintln!("SleepyActor 2 is still alive, stopping");
             assert!(addr.to_addr().stop().is_ok());
             assert!(addr.join().await.is_some());
         }
 
-        #[test_log::test(tokio::test)]
+        #[tokio::test]
         async fn timeout_and_fail() {
             // timeout and fail
             println!("SleepyActor 2 will be canceled after 1 second");

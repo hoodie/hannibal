@@ -10,13 +10,14 @@
 ///
 /// # Panics
 /// This jives up if `tokio` runtime is not enabled.
-#[cfg(feature = "tokio_runtime")]
+#[cfg(all(feature = "tokio_runtime", not(feature = "global_runtime")))]
 pub fn block_on<F, M>(future: F) -> M
 where
     F: Future<Output = M>,
 {
     #[allow(clippy::unwrap_used)]
     let rt = tokio::runtime::Runtime::new().unwrap();
+    eprintln!("Starting tokio runtime");
     rt.block_on(future)
 }
 #[cfg(feature = "tokio_runtime")]

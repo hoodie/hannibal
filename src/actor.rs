@@ -2,16 +2,13 @@ use std::future::Future;
 
 use crate::context::Context;
 
-#[cfg(feature = "runtime")]
 mod build;
 
-#[cfg(feature = "runtime")]
 mod builder;
 pub mod service;
 pub mod spawner;
 
 pub(crate) mod restart_strategy;
-#[cfg(feature = "runtime")]
 pub use build::build;
 pub use restart_strategy::RestartableActor;
 
