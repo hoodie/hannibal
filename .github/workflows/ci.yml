@@ -32,7 +32,7 @@ jobs:
     strategy:
       matrix:
         rust: [stable, beta, nightly]
-        # features: [tokio_runtime, async_runtime, smol_runtime]
+        # features: [tokio_runtime]
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable

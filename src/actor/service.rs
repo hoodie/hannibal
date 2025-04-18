@@ -213,119 +213,71 @@ impl<A> SpawnableService for A where
 }
 
 #[cfg(test)]
+#[cfg(feature = "runtime")]
 mod tests {
     #![allow(clippy::unwrap_used)]
 
-    #[cfg(feature = "runtime")]
-    mod spawned_with_tokio {
-        use crate::{
-            Service,
-            actor::tests::{Identify, Ping, spawned_with_tokio::TokioActor},
-            prelude::Spawnable as _,
-            // spawner::TokioSpawner,
-        };
+    use crate::{
+        Service,
+        actor::tests::{Identify, Ping, TokioActor},
+        prelude::Spawnable as _,
+        // spawner::TokioSpawner,
+    };
 
-        // #[test_log::test(tokio::test)]
-        // async fn register_as_service() {
-        //     type Svc = TokioActor<u32>;
-        //     let (addr, mut handle) = Svc::new(1337).spawn_with::<TokioSpawner>();
-        //     let (mut addr, _) = addr.register().await.unwrap();
-        //     assert_eq!(addr.call(Identify).await.unwrap(), 1337);
-        //     assert_eq!(addr.call(Identify).await.unwrap(), 1337);
-        //     addr.stop().unwrap();
-        //     handle.join().await.unwrap();
-        // }
+    // #[test_log::test(tokio::test)]
+    // async fn register_as_service() {
+    //     type Svc = TokioActor<u32>;
+    //     let (addr, mut handle) = Svc::new(1337).spawn_with::<TokioSpawner>();
+    //     let (mut addr, _) = addr.register().await.unwrap();
+    //     assert_eq!(addr.call(Identify).await.unwrap(), 1337);
+    //     assert_eq!(addr.call(Identify).await.unwrap(), 1337);
+    //     addr.stop().unwrap();
+    //     handle.join().await.unwrap();
+    // }
 
-        #[test_log::test(tokio::test)]
-        async fn get_service_from_registry() {
-            type Svc = TokioActor<u64>;
-            let mut svc_addr = Svc::from_registry().await;
-            assert!(!svc_addr.stopped());
+    #[test_log::test(tokio::test)]
+    async fn get_service_from_registry() {
+        type Svc = TokioActor<u64>;
+        let mut svc_addr = Svc::from_registry().await;
+        assert!(!svc_addr.stopped());
 
-            svc_addr.call(Ping).await.unwrap();
+        svc_addr.call(Ping).await.unwrap();
 
-            svc_addr.stop().unwrap();
-            svc_addr.await.unwrap();
-        }
-
-        #[test_log::test(tokio::test)]
-        async fn reregistering_service_only_if_stopped() {
-            // Define the service type as TokioActor with u64
-            type Svc = TokioActor<((), ())>;
-
-            // Spawn a new service instance with TokioSpawner and unwrap the result
-            let (first_svc, replaced) = crate::build(Svc::new(1337))
-                .unbounded()
-                .spawn()
-                .register()
-                .await
-                .unwrap();
-
-            assert!(replaced.is_none());
-            assert_eq!(first_svc.call(Identify).await, Ok(1337));
-
-            // stop the service
-            let mut first_svc_again = Svc::from_registry().await;
-            assert_eq!(first_svc_again.call(Identify).await, Ok(1337));
-
-            first_svc_again.stop().unwrap();
-            assert!(!first_svc_again.stopped());
-            first_svc_again.await.unwrap();
-
-            // register a new service instance
-            let (second_svc, replaced_first) = Svc::new(1338).spawn().register().await.unwrap();
-            assert!(replaced_first.is_some());
-            assert_eq!(second_svc.call(Identify).await, Ok(1338));
-            assert!(replaced_first.unwrap().call(Identify).await.is_err());
-
-            // registering without stopping the service should return None
-            assert!(Svc::new(1338).spawn().register().await.is_err());
-        }
+        svc_addr.stop().unwrap();
+        svc_addr.await.unwrap();
     }
 
-    #[cfg(feature = "async_runtime")]
-    mod spawned_with_asyncstd {
-        use crate::{
-            Service,
-            actor::tests::{Identify, Ping, spawned_with_asyncstd::AsyncStdActor},
-            spawner::{AsyncStdSpawner, SpawnableWith},
-        };
+    #[test_log::test(tokio::test)]
+    async fn reregistering_service_only_if_stopped() {
+        // Define the service type as TokioActor with u64
+        type Svc = TokioActor<((), ())>;
 
-        // #[async_std::test]
-        // async fn register_as_service() {
-        //     type Svc = AsyncStdActor<u32>;
-        //     let (addr, mut handle) = Svc::new(1337).spawn_with::<AsyncStdSpawner>();
-        //     addr.register().await.unwrap();
-        //     let mut svc_addr = Svc::from_registry().await;
-        //     assert_eq!(svc_addr.call(Identify).await.unwrap(), 1337);
-        //     assert_eq!(svc_addr.call(Identify).await.unwrap(), 1337);
+        // Spawn a new service instance with TokioSpawner and unwrap the result
+        let (first_svc, replaced) = crate::build(Svc::new(1337))
+            .unbounded()
+            .spawn()
+            .register()
+            .await
+            .unwrap();
 
-        //     svc_addr.stop().unwrap();
-        //     handle.join().await.unwrap();
-        // }
+        assert!(replaced.is_none());
+        assert_eq!(first_svc.call(Identify).await, Ok(1337));
 
-        #[test_log::test(tokio::test)]
-        async fn get_service_from_registry() {
-            type Svc = AsyncStdActor<u64>;
-            Svc::setup().await.unwrap();
-            let mut svc_addr = Svc::from_registry().await;
-            assert!(!svc_addr.stopped());
+        // stop the service
+        let mut first_svc_again = Svc::from_registry().await;
+        assert_eq!(first_svc_again.call(Identify).await, Ok(1337));
 
-            svc_addr.call(Ping).await.unwrap();
+        first_svc_again.stop().unwrap();
+        assert!(!first_svc_again.stopped());
+        first_svc_again.await.unwrap();
 
-            svc_addr.stop().unwrap();
-            svc_addr.await.unwrap();
-        }
+        // register a new service instance
+        let (second_svc, replaced_first) = Svc::new(1338).spawn().register().await.unwrap();
+        assert!(replaced_first.is_some());
+        assert_eq!(second_svc.call(Identify).await, Ok(1338));
+        assert!(replaced_first.unwrap().call(Identify).await.is_err());
 
-        #[async_std::test]
-        async fn get_service_from_registry_without_set() {
-            type Svc = AsyncStdActor<f64>;
-            let mut svc_addr = Svc::from_registry().await;
-            assert!(!svc_addr.stopped());
-
-            svc_addr.call(Ping).await.unwrap();
-            svc_addr.stop().unwrap();
-            svc_addr.await.unwrap();
-        }
+        // registering without stopping the service should return None
+        assert!(Svc::new(1338).spawn().register().await.is_err());
     }
 }

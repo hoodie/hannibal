@@ -53,14 +53,14 @@ test-log = "0.2"
 env_logger = { version = "0.11", features = ["unstable-kv"] }
 color-backtrace = "0.7"
 
+
 [features]
-default = ["global_runtime", "tokio_runtime"]
+default = ["global_runtime"]
 global_runtime = ["dep:async-global-executor", "runtime", "smol", "smol-macros"]
 
 tokio_runtime = ["tokio", "runtime", "async-global-executor/tokio"]
-smol_runtime = ["smol", "smol-macros", "macro_rules_attribute", "runtime"]
-async_runtime = ["async-std", "runtime"]
 runtime = []
+
 
 [[example]]
 name = "simple"

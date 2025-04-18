@@ -79,7 +79,7 @@ mod tests {
     #[cfg(feature = "runtime")]
     mod spawned_with_tokio {
         use crate::{
-            actor::tests::{Ping, spawned_with_tokio::TokioActor},
+            actor::tests::{Ping, TokioActor},
             spawner::{DefaultSpawnable, Spawnable},
         };
 
