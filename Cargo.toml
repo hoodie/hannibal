@@ -119,6 +119,11 @@ path = "examples/storage-service.rs"
 required-features = ["runtime"]
 
 [[example]]
+name = "time-service"
+path = "examples/time-service.rs"
+required-features = ["runtime"]
+
+[[example]]
 name = "signal-service"
 path = "examples/signal-service.rs"
 required-features = ["runtime"]

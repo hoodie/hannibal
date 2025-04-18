@@ -26,13 +26,14 @@ You can pass around strong and weak Addresses to the concret actor type.
 
 ## Features
 
-- feels like actix
-  - each actor runs in its own task
-  - actors can be stopped or `.await`ed
-- weak and strong addresses (by actor-type)
-- weak and strong senders and callers (by message-type)
-- using futures for asynchronous message handling.
-- typed messages. Generic messages are allowed.
+- typed messages, with responses
+- each actor runs in its own task
+- async message exchange via addresses, senders and callers
+- weak and strong addresses, senders and callers
+- services and brokers
+- intervals and timeouts
+- actor hierarchies with children
+- configurable channels
 
 ## Examples
 ### Addresses
@@ -87,8 +88,8 @@ println!("The Actor Calculated: {:?}", addition);
 ### Senders and Callers
 
 You can also address actors by their message type, not their concrete type.
-This is especially useful when you want to send a message to an actor without knowing its concrete type.
-There might be multiple actors that can handle the same message type.
+This is especially useful when you want to send a message to an actor without knowing its concrete type bacause
+there might be multiple actors that can handle the same message type.
 
 ```rust
 let sender = addr.sender::<Greet>();
@@ -104,9 +105,16 @@ println!("The Actor Calculated: {:?}", addition);
 
 > see [simple.rs](examples/simple.rs)
 
+
+A `Sender` is a kind of `Arc` that allows you to send messages to an actor without knowing its concrete type. A `Caller` allows you to send messages to an actor and receive a response.
+
+Both of them have weak equivalents too.
+
+
 ### Handling Streams
 
 Often you need to handle streams of messages, e.g. from a TCP connections or websockets.
+Actors can be spawned "on a stream". This way their lifecycle is tied to the stream's lifecycle.
 
 ```rust
 #[derive(Default, Actor)]
@@ -131,55 +139,43 @@ async fn main() {
         .on_stream(num_stream)
         .spawn();
 
+    // The actor terminates once the stream is exhausted.
     addr.await.unwrap();
 }
 ```
 > see [stream.rs](examples/stream.rs)
 
 ### Services
-Services are actors that can be accessed globally via a registry. This is useful for shared resources like databases or caches.
+Services are actors that can be accessed globally via a registry.
+This is useful for shared resources like databases or caches.
+You do not need to have an `Addr` to the service,
+you simply access it via the registry.
+Services are started on demand.
 
 ```rust
 #[derive(Debug, Default, Actor, Service)]
-struct StorageService {
-    storage: HashMap<String, String>,
-}
+struct TimerService {}
 
-#[message]
-struct Store(&'static str, &'static str);
+#[message(response = String)]
+struct Retrieve;
 
-#[message(response = Option<String>)]
-struct Retrieve(&'static str);
-
-impl Handler<Store> for StorageService {
-    async fn handle(&mut self, _: &mut Context<Self>, Store(key, value): Store) {
-        self.storage.insert(key.to_string(), value.to_string());
+impl Handler<Retrieve> for TimerService {
+    async fn handle(&mut self, _: &mut Context<Self>, Retrieve: Retrieve) -> String {
+        format!("{:?}", std::time::Instant::now())
     }
 }
 
-impl Handler<Retrieve> for StorageService {
-    async fn handle(&mut self, _: &mut Context<Self>, Retrieve(key): Retrieve) -> Option<String> {
-        self.storage.get(key).cloned()
-    }
-}
-
-// Setup the service
-StorageService::setup().await.unwrap();
-
-// Store a value
-StorageService::from_registry().await
-    .send(Store("password", "hello world")).await
-    .unwrap();
-
-// Retrieve the value
-let result = StorageService::from_registry().await
-    .call(Retrieve("password")) .await
+let result = TimerService::from_registry()
+    .await
+    .call(Retrieve)
+    .await
     .unwrap();
 
 println!("retrieved: {:?}", result);
+
 ```
 
-> see [storage-service.rs](examples/storage-service.rs)
+> see [time-service.rs](examples/time-service.rs) _(or [storage-service.rs](examples/storage-service.rs))_
 
 In this example, `StorageService` is a globally accessible service that stores key-value pairs. You can send messages to store and retrieve values from anywhere in your application.
 
@@ -228,13 +224,58 @@ Ok(())
 
 
 ### Intervals and Timers
+
+In order to do execute actions regularly or after a certain period of time,
+actors can start intervals that send themselves messages.
+
+```rs
+struct MyActor(u8);
+
+#[message]
+struct Stop;
+
+impl Actor for MyActor {
+    async fn started(&mut self, ctx: &mut Context<Self>) -> DynResult<()> {
+        println!("[Actor] started");
+        ctx.interval((), Duration::from_secs(1));
+        ctx.delayed_send(|| Stop, Duration::from_secs(5));
+        Ok(())
+    }
+
+    async fn stopped(&mut self, _ctx: &mut Context<Self>) {
+        println!("[Actor] stopped");
+    }
+}
+
+impl Handler<()> for MyActor {
+    async fn handle(&mut self, _ctx: &mut Context<Self>, _msg: ()) {
+        self.0 += 1;
+        println!("[Actor] received interval message {}", self.0);
+    }
+}
+
+impl Handler<Stop> for MyActor {
+    async fn handle(&mut self, ctx: &mut Context<Self>, _msg: Stop) {
+        println!("[Actor] received stop message");
+        ctx.stop().unwrap();
+    }
+}
+
+#[hannibal::main]
+async fn main() {
+    MyActor(0).spawn().await.unwrap();
+}
+```
+
+> see [intervals.rs](examples/intervals.rs)
+
 ### Builders
 ### Owning Addresses
 
 ## New since 0.12
 
 Hannibal until v0.10 was a fork of [xactor](https://crates.io/crates/xactor).
-Since 0.12 it is a complete, indicated by skipping versions 0.11 entirely.
+Since 0.12 it is a complete rewrite from scratch, indicated by skipping versions 0.11 entirely.
 The rewrite with the following features:
 
 - Modern Rust: no more async-trait, no more once_cell
@@ -256,9 +297,9 @@ The rewrite with the following features:
 
 ## Contribution
 
-Any help in form of descriptive and friendly [issues](https://github.com/hoodie/notify-rust/issues) or comprehensive pull requests are welcome!
+Any help in form of descriptive and friendly [issues](https://github.com/hoodie/hannibal/issues) or comprehensive pull requests are welcome!
 
-Unless you explicitly state otherwise, any contribution intentionally submitted for inclusion in notify-rust by you, as defined in the Apache-2.0 license, shall be dual licensed as above, without any additional terms or conditions.
+Unless you explicitly state otherwise, any contribution intentionally submitted for inclusion in hannibal by you, as defined in the Apache-2.0 license, shall be dual licensed as above, without any additional terms or conditions.
 
 ### Conventions
 
