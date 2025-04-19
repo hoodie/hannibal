@@ -9,7 +9,7 @@ jobs:
     strategy:
       matrix:
         rust: [stable, beta, nightly]
-        features: [default, tokio_runtime, async_runtime, smol_runtime]
+        features: [default, tokio_runtime, async_runtime]
     steps:
       - uses: actions/checkout@v4
       - uses: Swatinem/rust-cache@v2
@@ -21,7 +21,7 @@ jobs:
         run: cargo check
 
       - name: check
-        run: cargo check --all-targets --no-default-features
+        run: cargo check --all-targets --no-default-features --features ${{matrix.features}}
 
       - name: check ${{matrix.features}}
         run: cargo check --all-targets --no-default-features --features ${{matrix.features}}
@@ -32,20 +32,20 @@ jobs:
     strategy:
       matrix:
         rust: [stable, beta, nightly]
-        features: [tokio_runtime, async_runtime, smol_runtime]
+        features: [tokio_runtime, async_runtime]
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
 
       - name: check
-        run: cargo test --workspace --all-targets --no-default-features
+        run: cargo test --workspace --all-targets
 
       - name: test
         run: cargo test --workspace
 
       - name: test (most)
-        run: cargo test --workspace --all-targets --no-default-features
+        run: cargo test --workspace --all-targets --no-default-features --features ${{matrix.features}}
 
       - name: lib test ${{matrix.features}}
         run: cargo test --workspace --lib --no-default-features --features ${{matrix.features}}
@@ -66,7 +66,7 @@ jobs:
     strategy:
       matrix:
         rust: [stable, beta, nightly]
-        features: [default, tokio_runtime, async_runtime, smol_runtime]
+        features: [default, tokio_runtime, async_runtime]
     steps:
       - uses: actions/checkout@v4
       - uses: Swatinem/rust-cache@v2

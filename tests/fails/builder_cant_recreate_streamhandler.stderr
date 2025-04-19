@@ -1,4 +1,4 @@
-error[E0599]: no method named `with_stream` found for struct `hannibal::actor::builder::ActorBuilderWithChannel<MyActor, TokioSpawner, hannibal::actor::restart_strategy::RecreateFromDefault>` in the current scope
+error[E0599]: no method named `with_stream` found for struct `hannibal::actor::builder::ActorBuilderWithChannel<MyActor, hannibal::actor::restart_strategy::RecreateFromDefault>` in the current scope
   --> tests/fails/builder_cant_recreate_streamhandler.rs:21:10
    |
 18 |       let addr = hannibal::build(MyActor("Caesar"))
@@ -6,9 +6,9 @@ error[E0599]: no method named `with_stream` found for struct `hannibal::actor::b
 19 | |         .unbounded()
 20 | |         .recreate_from_default()
 21 | |         .with_stream(stream::iter(vec![17, 19])) // this shouldn't work
-   | |         -^^^^^^^^^^^ method not found in `ActorBuilderWithChannel<MyActor, TokioSpawner, RecreateFromDefault>`
+   | |         -^^^^^^^^^^^ method not found in `ActorBuilderWithChannel<MyActor, RecreateFromDefault>`
    | |_________|
    |
    |
    = note: the method was found for
-           - `hannibal::actor::builder::ActorBuilderWithChannel<A, P, hannibal::actor::restart_strategy::NonRestartable>`
+           - `hannibal::actor::builder::ActorBuilderWithChannel<A, hannibal::actor::restart_strategy::NonRestartable>`

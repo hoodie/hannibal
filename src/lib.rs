@@ -52,22 +52,17 @@ pub mod error;
 
 pub use hannibal_derive::{main, message};
 
-#[cfg(feature = "runtime")]
 mod broker;
 mod handler;
 
-#[cfg(feature = "runtime")]
 pub mod runtime;
-
-#[cfg(all(feature = "async_runtime", feature = "tokio_runtime"))]
-compile_error!("only one runtime featured allowed");
 
 // TODO: flatten module structure
 pub use self::{
     actor::{
         Actor, DynResult, RestartableActor,
         service::{self, Service},
-        spawner,
+        spawnable,
     },
     addr::{
         Addr, Message, OwningAddr, caller::Caller, sender::Sender, weak_addr::WeakAddr,
@@ -77,10 +72,8 @@ pub use self::{
     handler::{Handler, StreamHandler},
 };
 
-#[cfg(feature = "runtime")]
 pub use actor::build;
 
-#[cfg(feature = "runtime")]
 pub use broker::Broker;
 
 pub mod prelude {
@@ -91,7 +84,7 @@ pub mod prelude {
         context::Context,
         handler::{Handler, StreamHandler},
         main, message,
-        spawner::{Spawnable, StreamSpawnable},
+        spawnable::{DefaultSpawnable, Spawnable, StreamSpawnable},
     };
     pub use hannibal_derive::*;
 }

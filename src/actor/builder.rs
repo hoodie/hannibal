@@ -11,57 +11,55 @@ use crate::{
 
 use super::{
     Actor, RestartableActor,
+    handle::ActorHandle,
     restart_strategy::{NonRestartable, RecreateFromDefault, RestartOnly, RestartStrategy},
-    spawner::Spawner,
 };
 
 #[derive(Default)]
-pub struct BaseActorBuilder<A, P>
+pub struct BaseActorBuilder<A>
 where
     A: Actor,
-    P: Spawner<A>,
+    // P: Spawner<A>,
 {
     actor: A,
-    spawner: PhantomData<P>,
+    // spawner: PhantomData<P>,
     config: EnvironmentConfig,
 }
 
-pub struct ActorBuilderWithChannel<A: Actor, P, R: RestartStrategy<A>>
+pub struct ActorBuilderWithChannel<A: Actor, R: RestartStrategy<A>>
 where
     A: Actor,
-    P: Spawner<A>,
 {
-    base: BaseActorBuilder<A, P>,
+    base: BaseActorBuilder<A>,
     channel: Channel<A>,
     restart: PhantomData<R>,
 }
 
-pub struct StreamActorBuilder<A, P, S>
+pub struct StreamActorBuilder<A, S>
 where
     S: futures::Stream + Unpin + Send + 'static,
     S::Item: 'static + Send,
     A: StreamHandler<S::Item>,
-    P: Spawner<A>,
 {
-    with_channel: ActorBuilderWithChannel<A, P, NonRestartable>,
+    with_channel: ActorBuilderWithChannel<A, NonRestartable>,
     stream: S,
 }
 
 /// add channel
-impl<A, P> BaseActorBuilder<A, P>
+impl<A> BaseActorBuilder<A>
 where
     A: Actor,
-    P: Spawner<A>,
+    // P: Spawner<A>,
 {
     pub(crate) fn new(actor: A) -> Self {
         Self {
             actor,
-            spawner: PhantomData,
+            // spawner: PhantomData,
             config: Default::default(),
         }
     }
 
-    const fn with_channel(self, channel: Channel<A>) -> ActorBuilderWithChannel<A, P, RestartOnly> {
+    const fn with_channel(self, channel: Channel<A>) -> ActorBuilderWithChannel<A, RestartOnly> {
         ActorBuilderWithChannel {
             base: self,
             restart: PhantomData,
@@ -78,16 +76,16 @@ where
         self
     }
 
-    pub fn bounded(self, capacity: usize) -> ActorBuilderWithChannel<A, P, RestartOnly> {
+    pub fn bounded(self, capacity: usize) -> ActorBuilderWithChannel<A, RestartOnly> {
         self.with_channel(Channel::bounded(capacity))
     }
 
-    pub fn unbounded(self) -> ActorBuilderWithChannel<A, P, RestartOnly> {
+    pub fn unbounded(self) -> ActorBuilderWithChannel<A, RestartOnly> {
         self.with_channel(Channel::unbounded())
     }
 
     /// Create a non-restartable on that stream
-    pub fn bounded_on_stream<S>(self, capacity: usize, stream: S) -> StreamActorBuilder<A, P, S>
+    pub fn bounded_on_stream<S>(self, capacity: usize, stream: S) -> StreamActorBuilder<A, S>
     where
         S: futures::Stream + Unpin + Send + 'static,
         S::Item: 'static + Send,
@@ -99,7 +97,7 @@ where
     }
 
     /// Create a non-restartable on that stream
-    pub fn on_stream<S>(self, stream: S) -> StreamActorBuilder<A, P, S>
+    pub fn on_stream<S>(self, stream: S) -> StreamActorBuilder<A, S>
     where
         S: futures::Stream + Unpin + Send + 'static,
         S::Item: 'static + Send,
@@ -112,12 +110,12 @@ where
 }
 
 /// add stream
-impl<A, P> ActorBuilderWithChannel<A, P, NonRestartable>
+impl<A> ActorBuilderWithChannel<A, NonRestartable>
 where
     A: Actor,
-    P: Spawner<A>,
+    // P: Spawner<A>,
 {
-    pub fn with_stream<S>(self, stream: S) -> StreamActorBuilder<A, P, S>
+    pub fn with_stream<S>(self, stream: S) -> StreamActorBuilder<A, S>
     where
         S: futures::Stream + Unpin + Send + 'static,
         S::Item: 'static + Send,
@@ -131,16 +129,16 @@ where
 }
 
 /// make non restartable
-impl<A, P, R> ActorBuilderWithChannel<A, P, R>
+impl<A, R> ActorBuilderWithChannel<A, R>
 where
     A: Actor,
-    P: Spawner<A>,
+    // P: Spawner<A>,
     R: RestartStrategy<A> + 'static,
 {
     /// Build a non-restartable Actor.
     ///
     /// Only non-restartable actors can handle streams.
-    pub fn non_restartable(self) -> ActorBuilderWithChannel<A, P, NonRestartable> {
+    pub fn non_restartable(self) -> ActorBuilderWithChannel<A, NonRestartable> {
         ActorBuilderWithChannel {
             base: self.base,
             channel: self.channel,
@@ -163,13 +161,13 @@ where
 }
 
 /// make recreate from `Default` on restart
-impl<A, P, R> ActorBuilderWithChannel<A, P, R>
+impl<A, R> ActorBuilderWithChannel<A, R>
 where
     A: RestartableActor + Default,
-    P: Spawner<A>,
+    // P: Spawner<A>,
     R: RestartStrategy<A> + 'static,
 {
-    pub fn recreate_from_default(self) -> ActorBuilderWithChannel<A, P, RecreateFromDefault> {
+    pub fn recreate_from_default(self) -> ActorBuilderWithChannel<A, RecreateFromDefault> {
         ActorBuilderWithChannel {
             base: self.base,
             channel: self.channel,
@@ -179,10 +177,9 @@ where
 }
 
 /// spawn actor
-impl<A, P, R> ActorBuilderWithChannel<A, P, R>
+impl<A, R> ActorBuilderWithChannel<A, R>
 where
     A: Actor,
-    P: Spawner<A>,
     R: RestartStrategy<A> + 'static,
 {
     pub fn spawn_owning(self) -> OwningAddr<A> {
@@ -194,7 +191,7 @@ where
 
         let env = environment::Environment::<A, R>::from_channel(channel).with_config(config);
         let (event_loop, addr) = env.create_loop(actor);
-        let handle = P::spawn_actor(event_loop);
+        let handle = ActorHandle::spawn(event_loop);
         OwningAddr { addr, handle }
     }
 
@@ -207,16 +204,15 @@ where
 
         let env = environment::Environment::<A, R>::from_channel(channel).with_config(config);
         let (event_loop, addr) = env.create_loop(actor);
-        P::spawn_actor(event_loop).detach();
+        ActorHandle::spawn(event_loop).detach();
         addr
     }
 }
 
 /// register service
-impl<A, P, R> ActorBuilderWithChannel<A, P, R>
+impl<A, R> ActorBuilderWithChannel<A, R>
 where
     A: Actor + Service,
-    P: Spawner<A>,
     R: RestartStrategy<A> + 'static,
 {
     pub async fn register(self) -> crate::error::Result<(Addr<A>, Option<Addr<A>>)> {
@@ -225,13 +221,12 @@ where
 }
 
 /// spawn actor on stream, non restartable
-impl<A, P, S> StreamActorBuilder<A, P, S>
+impl<A, S> StreamActorBuilder<A, S>
 where
     S: futures::Stream + Unpin + Send + 'static,
     S::Item: 'static + Send,
     A: StreamHandler<S::Item>,
     A: Actor,
-    P: Spawner<A>,
 {
     pub fn spawn(self) -> Addr<A> {
         let Self {
@@ -247,7 +242,7 @@ where
         let env = environment::Environment::<A, NonRestartable>::from_channel(channel)
             .with_config(config);
         let (event_loop, addr) = env.create_loop_on_stream(actor, stream);
-        let _handle = P::spawn_actor(event_loop);
+        let _handle = ActorHandle::spawn(event_loop);
         addr
     }
 
@@ -265,7 +260,7 @@ where
         let env = environment::Environment::<A, NonRestartable>::from_channel(channel)
             .with_config(config);
         let (event_loop, addr) = env.create_loop_on_stream(actor, stream);
-        let handle = P::spawn_actor(event_loop);
+        let handle = ActorHandle::spawn(event_loop);
         OwningAddr { addr, handle }
     }
 }
