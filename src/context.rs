@@ -119,11 +119,10 @@ impl<A: Actor> Context<A> {
         let key = TypeId::of::<M>();
 
         if let Some(children) = self.children.get(&key) {
-            for child in children.iter().filter_map(|child| {
-                let sender = child.downcast_ref::<Sender<M>>();
-                // what is this?
-                sender
-            }) {
+            for child in children
+                .iter()
+                .filter_map(|child| child.downcast_ref::<Sender<M>>())
+            {
                 if let Err(error) = child.force_send(message.clone()) {
                     log::error!("Failed to send message to child: {}", error);
                 }
