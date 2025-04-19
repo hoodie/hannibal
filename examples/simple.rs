@@ -68,5 +68,5 @@ async fn main() {
         println!("The Actor Calculated: {:?}", addition);
     }
 
-    println!("{:#?}", addr.stop());
+    addr.stop().unwrap();
 }

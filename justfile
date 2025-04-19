@@ -12,14 +12,14 @@ clippy:
     cargo --quiet clippy --workspace --quiet
     cargo --quiet clippy --workspace --quiet --lib --tests --no-default-features --features tokio_runtime
     cargo --quiet clippy --workspace --quiet --lib --tests --no-default-features --features async_runtime
-    cargo --quiet clippy --workspace --quiet --lib --tests --no-default-features --features smol_runtime
+    cargo --quiet clippy --workspace --quiet --lib --tests --no-default-features --features async_runtime,tokio
 
 
 test $NEXTEST_STATUS_LEVEL="slow":
     cargo nextest run --workspace
-    cargo nextest run --workspace --all-targets --no-default-features
+    cargo nextest run --workspace --all-targets
     cargo nextest run --workspace --lib --no-default-features --features tokio_runtime
     cargo nextest run --workspace --lib --no-default-features --features async_runtime
-    cargo nextest run --workspace --lib --no-default-features --features smol_runtime
+    cargo nextest run --workspace --lib --no-default-features --features async_runtime,tokio
 
 ci: clippy test

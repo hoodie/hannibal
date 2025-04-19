@@ -110,7 +110,6 @@ A `Sender` is a kind of `Arc` that allows you to send messages to an actor witho
 
 Both of them have weak equivalents too.
 
-
 ### Handling Streams
 
 Often you need to handle streams of messages, e.g. from a TCP connections or websockets.
@@ -146,6 +145,7 @@ async fn main() {
 > see [stream.rs](examples/stream.rs)
 
 ### Services
+
 Services are actors that can be accessed globally via a registry.
 This is useful for shared resources like databases or caches.
 You do not need to have an `Addr` to the service,

@@ -158,7 +158,6 @@ impl<A: Actor> Context<A> {
     }
 
     /// Create a weak sender to the actor.
-    #[cfg(feature = "runtime")]
     pub fn weak_sender<M: crate::Message<Response = ()>>(&self) -> crate::WeakSender<M>
     where
         A: Handler<M>,
@@ -170,7 +169,6 @@ impl<A: Actor> Context<A> {
         )
     }
 
-    #[cfg(feature = "runtime")]
     pub fn weak_caller<M: crate::Message<Response = R>, R>(&self) -> crate::WeakCaller<M>
     where
         A: Handler<M>,
@@ -185,7 +183,6 @@ impl<A: Actor> Context<A> {
     ///
     /// Every actor can publish messages to the broker
     /// which will be delivered to all actors that subscribe to the message.
-    #[cfg(any(feature = "tokio_runtime", feature = "async_runtime"))]
     pub async fn publish<M: crate::Message<Response = ()> + Clone>(&self, message: M) -> Result<()>
     where
         A: Handler<M>,
@@ -196,7 +193,6 @@ impl<A: Actor> Context<A> {
     /// Subscribe to a message.
     ///
     /// The actor will receive all messages of this type.
-    #[cfg(feature = "runtime")]
     pub async fn subscribe<M: crate::Message<Response = ()> + Clone>(&mut self) -> Result<()>
     where
         A: Handler<M>,
@@ -205,9 +201,8 @@ impl<A: Actor> Context<A> {
     }
 }
 
-#[cfg(feature = "runtime")]
 mod task_handling {
-    use crate::actor::spawner::SpawnFutures;
+    use crate::runtime::{self, sleep};
     use futures::FutureExt;
     use std::{future::Future, time::Duration};
 
@@ -219,7 +214,7 @@ mod task_handling {
             let (task, handle) = futures::future::abortable(task);
 
             self.tasks.push(handle);
-            A::spawn_future(task.map(|_| ()))
+            async_global_executor::spawn(task.map(|_| ())).detach();
         }
 
         #[cfg(test)]
@@ -240,7 +235,7 @@ mod task_handling {
             let myself = self.weak_sender();
             self.spawn_task(async move {
                 loop {
-                    A::sleep(duration).await;
+                    sleep(duration).await;
                     if myself.try_force_send(message.clone()).is_err() {
                         break;
                     }
@@ -259,7 +254,7 @@ mod task_handling {
             let myself = self.weak_sender();
             self.spawn_task(async move {
                 loop {
-                    A::sleep(duration).await;
+                    runtime::sleep(duration).await;
                     if myself.try_send(message_fn()).await.is_err() {
                         break;
                     }
@@ -277,7 +272,7 @@ mod task_handling {
         {
             let myself = self.weak_sender();
             self.spawn_task(async move {
-                A::sleep(duration).await;
+                runtime::sleep(duration).await;
 
                 if myself.try_send(message_fn()).await.is_err() {
                     log::warn!("Failed to send message");
@@ -291,7 +286,7 @@ mod task_handling {
             duration: Duration,
         ) {
             self.spawn_task(async move {
-                A::sleep(duration).await;
+                runtime::sleep(duration).await;
                 task.await;
             })
         }
@@ -311,7 +306,6 @@ impl<A: RestartableActor> Context<A> {
 }
 
 #[cfg(test)]
-#[cfg(feature = "runtime")]
 mod interval_cleanup {
     #![allow(clippy::unwrap_used)]
 
@@ -481,6 +475,7 @@ mod interval_cleanup {
 
     mod interval_with {
         use super::*;
+        use crate::actor::spawnable::Spawnable;
         use crate::prelude::*;
 
         #[derive(Debug)]
