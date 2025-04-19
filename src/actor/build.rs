@@ -1,4 +1,4 @@
-use super::{Actor, builder, spawner};
+use super::{Actor, builder};
 
 /// Start building and configure you actor.
 ///
@@ -145,6 +145,6 @@ use super::{Actor, builder, spawner};
 /// # };
 /// ```
 /// Instead of spawning the actor, which will return you the actor's address you can also register it as a service.
-pub fn build<A: Actor>(actor: A) -> builder::BaseActorBuilder<A, spawner::DefaultSpawner> {
+pub fn build<A: Actor>(actor: A) -> builder::BaseActorBuilder<A> {
     builder::BaseActorBuilder::new(actor)
 }

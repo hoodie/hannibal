@@ -10,13 +10,12 @@ pub mod weak_sender;
 
 use crate::{
     RestartableActor,
-    actor::Actor,
+    actor::{Actor, ActorHandle, JoinFuture},
     channel::{ChanTx, ForceChanTx},
     context::{ContextID, RunningFuture},
     environment::Payload,
     error::Result,
     handler::Handler,
-    spawner::{ActorHandle, JoinFuture},
 };
 
 /// Anything that you want to send to an actor.
@@ -234,7 +233,6 @@ pub struct OwningAddr<A> {
     pub(crate) handle: ActorHandle<A>,
 }
 
-#[cfg_attr(not(feature = "runtime"), allow(dead_code))]
 impl<A: Actor> OwningAddr<A> {
     pub(crate) const fn new(addr: Addr<A>, handle: ActorHandle<A>) -> Self {
         OwningAddr { addr, handle }
