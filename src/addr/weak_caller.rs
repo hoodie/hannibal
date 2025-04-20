@@ -21,11 +21,17 @@ pub struct WeakCaller<M: Message> {
 }
 
 impl<M: Message> WeakCaller<M> {
+    /// Attempts to upgrade this weak reference to a strong reference.
+    ///
+    /// Returns `Some(Caller<M>)` if the actor is still alive, or `None` if it has been stopped.
     #[must_use]
     pub fn upgrade(&self) -> Option<Caller<M>> {
         self.upgrade.upgrade()
     }
 
+    /// Attempts to send a message to the actor and await its response.
+    ///
+    /// If the actor has been stopped, returns `Err(AlreadyStopped)`.
     pub async fn try_call(&self, msg: M) -> Result<M::Response> {
         if let Some(caller) = self.upgrade.upgrade() {
             caller.call(msg).await

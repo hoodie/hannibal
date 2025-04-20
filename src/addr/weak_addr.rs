@@ -18,6 +18,7 @@ pub struct WeakAddr<A: Actor> {
 }
 
 impl<A: Actor> WeakAddr<A> {
+    /// Upgrades this weak address to a strong [`Addr`] if the actor is still alive.
     #[must_use]
     pub fn upgrade(&self) -> Option<Addr<A>> {
         self.upgrade.upgrade()

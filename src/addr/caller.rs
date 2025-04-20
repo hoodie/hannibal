@@ -21,10 +21,12 @@ pub struct Caller<M: Message> {
 }
 
 impl<M: Message> Caller<M> {
+    /// Sends a message to the actor and awaits the response.
     pub async fn call(&self, msg: M) -> Result<M::Response> {
         self.call_fn.call(msg).await
     }
 
+    /// Downgrades this caller to a [`WeakSender`], which doesn't prevent the actor from being dropped.
     #[must_use]
     pub fn downgrade(&self) -> WeakCaller<M> {
         self.downgrade_fn.downgrade()

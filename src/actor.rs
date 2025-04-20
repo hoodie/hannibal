@@ -34,6 +34,10 @@ pub trait Actor: Sized + Send + 'static {
         async { Ok(()) }
     }
 
+    /// Called when the actor is stopped.
+    ///
+    /// This method is async and will be awaited before the actor is completely terminated.
+    /// It can be used for cleanup operations or to notify other components about the actor's termination.
     #[allow(unused)]
     fn stopped(&mut self, ctx: &mut Context<Self>) -> impl Future<Output = ()> + Send {
         async {}

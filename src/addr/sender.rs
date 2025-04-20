@@ -28,6 +28,7 @@ pub struct Sender<M: Message<Response = ()>> {
 }
 
 impl<M: Message<Response = ()>> Sender<M> {
+    /// Sends a message to the actor without expecting a response.
     pub fn send(&self, msg: M) -> Pin<Box<dyn Future<Output = Result<()>> + Send>> {
         self.send_fn.send(msg)
     }
@@ -36,6 +37,7 @@ impl<M: Message<Response = ()>> Sender<M> {
         self.force_send_fn.send(msg)
     }
 
+    /// Downgrades this sender to a [`WeakSender`], which doesn't prevent the actor from being dropped.
     #[must_use]
     pub fn downgrade(&self) -> WeakSender<M> {
         self.downgrade_fn.downgrade()

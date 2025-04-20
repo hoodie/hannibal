@@ -132,7 +132,7 @@ trivial_numeric_casts = "forbid"
 unused_import_braces = "forbid"
 missing_copy_implementations = "warn"
 # missing_debug_implementations = "warn"
-# missing_docs = "warn"
+missing_docs = "warn"
 trivial_casts = "warn"
 unstable_features = "warn"
 

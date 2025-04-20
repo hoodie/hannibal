@@ -37,10 +37,14 @@ where
     T::Item: 'static + Send,
     Self: StreamHandler<T::Item>,
 {
+    /// Spawns the actor on a stream and returns an `Addr` to it.
+    ///
+    /// This way the actor's lifetime will be bound to the stream's lifetime.
     fn spawn_on_stream(self, stream: T) -> crate::error::Result<Addr<Self>> {
         Ok(self.spawn_owning_on_stream(stream)?.detach())
     }
 
+    /// Spawns the actor on a stream and returns an [`OwningAddr`] to it.
     fn spawn_owning_on_stream(self, stream: T) -> crate::error::Result<OwningAddr<Self>> {
         log::trace!("spawn on stream {}", type_name::<Self>());
         let (event_loop, addr) = Environment::unbounded().create_loop_on_stream(self, stream);
@@ -49,14 +53,16 @@ where
     }
 }
 
+/// A trait for actors that can be spawned with default configuration.
 pub trait DefaultSpawnable: Actor + Default {
     /// Spawns a new actor with default configuration.
     fn spawn_default() -> crate::error::Result<Addr<Self>> {
         Ok(Self::spawn_default_owning()?.detach())
     }
 
+    /// Spawns a new actor with default configuration and returns an [`OwningAddr`] to it.
     fn spawn_default_owning() -> crate::error::Result<OwningAddr<Self>> {
-        log::trace!("spawn defauwning {}", type_name::<Self>());
+        log::trace!("spawn default owning {}", type_name::<Self>());
         let (event_loop, addr) = Environment::unbounded().create_loop(Self::default());
         let handle = ActorHandle::spawn(event_loop);
         Ok(OwningAddr::new(addr, handle))

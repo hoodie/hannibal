@@ -83,28 +83,42 @@ impl<A: Actor> Clone for Addr<A> {
 }
 
 impl<A: Actor> Addr<A> {
+    /// Stops the actor.
+    ///
+    /// This method sends a stop message to the actor, which will cause it to
+    /// shut down. The actor will clean up its resources and terminate.
     pub fn stop(&mut self) -> Result<()> {
         log::trace!("stopping actor");
         self.payload_force_tx.send(Payload::Stop)?;
         Ok(())
     }
 
+    /// Stops the actor and waits for it to finish.
+    ///
+    /// This is a convenience method that combines `stop()` and waiting for the
+    /// actor to complete.
     pub async fn halt(mut self) -> Result<()> {
         log::trace!("halting actor");
         self.stop()?;
         self.await
     }
 
+    /// Checks if the actor is still running.
     #[must_use]
     pub fn running(&self) -> bool {
         self.running.peek().is_none()
     }
 
+    /// Checks if the actor has stopped.
     #[must_use]
     pub fn stopped(&self) -> bool {
         self.running.peek().is_some()
     }
 
+    /// Sends a message to the actor and waits for a response.
+    ///
+    /// This method will wait for the actor to process the message and return a response.
+    /// If the actor has stopped, this will return an error.
     pub async fn call<M: Message>(&self, msg: M) -> Result<M::Response>
     where
         A: Handler<M>,
@@ -157,6 +171,10 @@ impl<A: Actor> Addr<A> {
         Ok(())
     }
 
+    /// Sends a message to the actor without waiting for a response.
+    ///
+    /// This method is used for messages that don't require a response.
+    /// It will return an error if the actor has stopped.
     pub async fn send<M: Message<Response = ()>>(&self, msg: M) -> Result<()>
     where
         A: Handler<M>,
@@ -170,11 +188,18 @@ impl<A: Actor> Addr<A> {
         Ok(())
     }
 
+    /// Creates a weak reference to this actor.
+    ///
+    /// Weak references don't keep the actor alive. If all strong references
+    /// are dropped, the actor will stop regardless of any weak references.
     #[must_use]
     pub fn downgrade(&self) -> WeakAddr<A> {
         WeakAddr::from(self)
     }
 
+    /// Creates a typed sender for this actor.
+    ///
+    /// The sender can be used to send messages of type `M` to the actor.
     #[must_use]
     pub fn sender<M: Message<Response = ()>>(&self) -> sender::Sender<M>
     where
@@ -184,6 +209,10 @@ impl<A: Actor> Addr<A> {
         sender::Sender::from(self.to_owned())
     }
 
+    /// Creates a weak typed sender for this actor.
+    ///
+    /// The weak sender doesn't keep the actor alive and must be upgraded
+    /// before use.
     #[must_use]
     pub fn weak_sender<M: Message<Response = ()>>(&self) -> weak_sender::WeakSender<M>
     where
@@ -192,6 +221,9 @@ impl<A: Actor> Addr<A> {
         weak_sender::WeakSender::from(self.to_owned())
     }
 
+    /// Creates a typed caller for this actor.
+    ///
+    /// The caller can be used to call methods on the actor and receive responses.
     #[must_use]
     pub fn caller<M: Message>(&self) -> caller::Caller<M>
     where
@@ -200,6 +232,10 @@ impl<A: Actor> Addr<A> {
         caller::Caller::from(self.to_owned())
     }
 
+    /// Creates a weak typed caller for this actor.
+    ///
+    /// The weak caller doesn't keep the actor alive and must be upgraded
+    /// before use.
     #[must_use]
     pub fn weak_caller<M: Message>(&self) -> weak_caller::WeakCaller<M>
     where
