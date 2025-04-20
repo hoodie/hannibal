@@ -18,7 +18,7 @@ impl Handler<Topic1> for Subscribing {
         self.0.push(msg.0);
         log::debug!("received {}", msg.0);
         if self.0.len() == 2 {
-            ctx.stop().unwrap()
+            ctx.stop().unwrap();
         }
     }
 }

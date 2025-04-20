@@ -95,10 +95,12 @@ impl<A: Actor> Addr<A> {
         self.await
     }
 
+    #[must_use]
     pub fn running(&self) -> bool {
         self.running.peek().is_none()
     }
 
+    #[must_use]
     pub fn stopped(&self) -> bool {
         self.running.peek().is_some()
     }
@@ -168,10 +170,12 @@ impl<A: Actor> Addr<A> {
         Ok(())
     }
 
+    #[must_use]
     pub fn downgrade(&self) -> WeakAddr<A> {
         WeakAddr::from(self)
     }
 
+    #[must_use]
     pub fn sender<M: Message<Response = ()>>(&self) -> sender::Sender<M>
     where
         A: Handler<M>,
@@ -180,6 +184,7 @@ impl<A: Actor> Addr<A> {
         sender::Sender::from(self.to_owned())
     }
 
+    #[must_use]
     pub fn weak_sender<M: Message<Response = ()>>(&self) -> weak_sender::WeakSender<M>
     where
         A: Handler<M>,
@@ -187,6 +192,7 @@ impl<A: Actor> Addr<A> {
         weak_sender::WeakSender::from(self.to_owned())
     }
 
+    #[must_use]
     pub fn caller<M: Message>(&self) -> caller::Caller<M>
     where
         A: Handler<M>,
@@ -194,6 +200,7 @@ impl<A: Actor> Addr<A> {
         caller::Caller::from(self.to_owned())
     }
 
+    #[must_use]
     pub fn weak_caller<M: Message>(&self) -> weak_caller::WeakCaller<M>
     where
         A: Handler<M>,
@@ -263,6 +270,7 @@ impl<A: Actor> OwningAddr<A> {
         Ok(self.join())
     }
 
+    #[must_use]
     pub const fn as_addr(&self) -> &Addr<A> {
         &self.addr
     }
@@ -288,11 +296,13 @@ impl<A: Actor> OwningAddr<A> {
         self.addr.send(msg).await
     }
 
+    #[must_use]
     pub fn to_addr(&self) -> Addr<A> {
         log::trace!("converting to normal addr");
         self.addr.clone()
     }
 
+    #[must_use]
     pub fn detach(self) -> Addr<A> {
         log::trace!("detaching owning addr");
         self.handle.detach();
@@ -375,7 +385,7 @@ mod tests {
         addr.send(Store("password")).await.unwrap();
         addr.stop().unwrap();
         let actor = task.await.unwrap().unwrap();
-        assert_eq!(actor.0, Some("password"))
+        assert_eq!(actor.0, Some("password"));
     }
 
     #[test_log::test(tokio::test)]

@@ -95,7 +95,7 @@ mod tests {
 
             addr.call(Ping).await.unwrap();
             addr.stop().unwrap();
-            addr.await.unwrap()
+            addr.await.unwrap();
         }
 
         #[tokio::test]
@@ -105,7 +105,7 @@ mod tests {
 
             addr.call(Ping).await.unwrap();
             addr.stop().unwrap();
-            addr.await.unwrap()
+            addr.await.unwrap();
         }
     }
 }

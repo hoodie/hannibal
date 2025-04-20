@@ -90,11 +90,13 @@ pub trait Service: Actor + Default {
     /// Usually the service is spawned when the first actor accesses it.
     /// If you want to ensure that the service is running before any actor
     /// accesses it, you can call this method.
+    #[must_use]
     fn setup() -> impl Future<Output = DynResult<()>> {
         Self::from_registry_and_spawn().map(|_| Ok(()))
     }
 
     /// Check if the service is already running.
+    #[must_use]
     fn already_running() -> impl Future<Output = Option<bool>> {
         async {
             let key = TypeId::of::<Self>();
@@ -106,6 +108,7 @@ pub trait Service: Actor + Default {
     }
 
     /// Get the service from the registry.
+    #[must_use]
     fn from_registry() -> impl Future<Output = Addr<Self>> {
         log::trace!(
             "getting service from registry {}",

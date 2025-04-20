@@ -21,10 +21,10 @@ use super::{Addr, Message, Payload, Result, weak_sender::WeakSender};
 ///
 /// Senders can be downgraded to [`WeakSender`](`crate::WeakSender`) to check if the actor is still alive.
 pub struct Sender<M: Message<Response = ()>> {
+    id: ContextID,
     send_fn: Box<dyn SenderFn<M>>,
     force_send_fn: Box<dyn ForceSenderFn<M>>,
     downgrade_fn: Box<dyn DowngradeFn<M>>,
-    id: ContextID,
 }
 
 impl<M: Message<Response = ()>> Sender<M> {
@@ -36,6 +36,7 @@ impl<M: Message<Response = ()>> Sender<M> {
         self.force_send_fn.send(msg)
     }
 
+    #[must_use]
     pub fn downgrade(&self) -> WeakSender<M> {
         self.downgrade_fn.downgrade()
     }
@@ -114,8 +115,8 @@ where
 {
     fn from(addr: Addr<A>) -> Self {
         Sender::new(
-            addr.payload_tx.to_owned(),
-            addr.payload_force_tx.to_owned(),
+            Arc::clone(&addr.payload_tx),
+            Arc::clone(&addr.payload_force_tx),
             addr.context_id,
         )
     }
@@ -127,8 +128,8 @@ where
 {
     fn from(addr: &Addr<A>) -> Self {
         Sender::new(
-            addr.payload_tx.to_owned(),
-            addr.payload_force_tx.to_owned(),
+            Arc::clone(&addr.payload_tx),
+            Arc::clone(&addr.payload_force_tx),
             addr.context_id,
         )
     }

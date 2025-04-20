@@ -101,7 +101,7 @@ impl<A: Actor, R: RestartStrategy<A>> Environment<A, R> {
                 match event {
                     Payload::Restart => {
                         log::trace!("restarting {}", A::NAME);
-                        actor = R::refresh(actor, &mut self.ctx).await?
+                        actor = R::refresh(actor, &mut self.ctx).await?;
                     }
                     Payload::Task(f) => {
                         log::trace!(name = A::NAME;  "received task");
@@ -109,14 +109,8 @@ impl<A: Actor, R: RestartStrategy<A>> Environment<A, R> {
                             if self.config.fail_on_timeout {
                                 log::warn!("{:?} task took too long: {:?}, exiting", A::NAME, err);
                                 return Err(err);
-                            } else {
-                                log::warn!(
-                                    "{:?} actor task took too long: {:?}, ignoring",
-                                    A::NAME,
-                                    err
-                                );
-                                continue;
                             }
+                            log::warn!("{:?} actor task took too long: {err:?}, ignoring", A::NAME);
                         }
                     }
 

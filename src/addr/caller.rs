@@ -15,9 +15,9 @@ use super::{Addr, Message, Payload, Result, weak_caller::WeakCaller};
 ///
 /// Callers can be downgraded to [`WeakCaller`](`crate::WeakCaller`) to check if the actor is still alive.
 pub struct Caller<M: Message> {
+    id: ContextID,
     call_fn: Box<dyn CallerFn<M>>,
     downgrade_fn: Box<dyn DowngradeFn<M>>,
-    id: ContextID,
 }
 
 impl<M: Message> Caller<M> {
@@ -25,6 +25,7 @@ impl<M: Message> Caller<M> {
         self.call_fn.call(msg).await
     }
 
+    #[must_use]
     pub fn downgrade(&self) -> WeakCaller<M> {
         self.downgrade_fn.downgrade()
     }
@@ -91,7 +92,7 @@ where
     A: Actor + Handler<M>,
 {
     fn from(addr: Addr<A>) -> Self {
-        Caller::new(addr.payload_tx.to_owned(), addr.context_id)
+        Caller::new(addr.payload_tx, addr.context_id)
     }
 }
 

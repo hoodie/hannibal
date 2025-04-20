@@ -18,10 +18,12 @@ pub struct WeakAddr<A: Actor> {
 }
 
 impl<A: Actor> WeakAddr<A> {
+    #[must_use]
     pub fn upgrade(&self) -> Option<Addr<A>> {
         self.upgrade.upgrade()
     }
 
+    #[must_use]
     pub fn stopped(&self) -> bool {
         self.running.peek().is_some()
     }
@@ -58,8 +60,8 @@ impl<A: Actor> From<&Addr<A>> for WeakAddr<A> {
                 .zip(weak_force_tx.upgrade())
                 .map(|(payload_tx, payload_force_tx)| Addr {
                     context_id,
-                    payload_force_tx,
                     payload_tx,
+                    payload_force_tx,
                     running,
                 })
         });
@@ -109,7 +111,7 @@ mod tests {
         tokio::spawn(event_loop);
 
         let weak_addr = WeakAddr::from(&addr);
-        assert_eq!(weak_addr.upgrade().unwrap().call(Add(1, 2)).await, Ok(3))
+        assert_eq!(weak_addr.upgrade().unwrap().call(Add(1, 2)).await, Ok(3));
     }
 
     #[test_log::test(tokio::test)]

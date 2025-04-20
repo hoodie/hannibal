@@ -158,6 +158,7 @@ impl<A: Actor> Context<A> {
     }
 
     /// Create a weak sender to the actor.
+    #[must_use]
     pub fn weak_sender<M: crate::Message<Response = ()>>(&self) -> crate::WeakSender<M>
     where
         A: Handler<M>,
@@ -169,6 +170,7 @@ impl<A: Actor> Context<A> {
         )
     }
 
+    #[must_use]
     pub fn weak_caller<M: crate::Message<Response = R>, R>(&self) -> crate::WeakCaller<M>
     where
         A: Handler<M>,
@@ -240,7 +242,7 @@ mod task_handling {
                         break;
                     }
                 }
-            })
+            });
         }
 
         /// Send yourself a message at a regular interval.
@@ -259,7 +261,7 @@ mod task_handling {
                         break;
                     }
                 }
-            })
+            });
         }
 
         /// Send yourself a message after a delay.
@@ -277,7 +279,7 @@ mod task_handling {
                 if myself.try_send(message_fn()).await.is_err() {
                     log::warn!("Failed to send message");
                 }
-            })
+            });
         }
 
         pub fn delayed_exec<F: Future<Output = ()> + Send + 'static>(
@@ -288,7 +290,7 @@ mod task_handling {
             self.spawn_task(async move {
                 runtime::sleep(duration).await;
                 task.await;
-            })
+            });
         }
     }
 }

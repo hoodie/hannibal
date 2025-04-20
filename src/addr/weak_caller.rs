@@ -21,6 +21,7 @@ pub struct WeakCaller<M: Message> {
 }
 
 impl<M: Message> WeakCaller<M> {
+    #[must_use]
     pub fn upgrade(&self) -> Option<Caller<M>> {
         self.upgrade.upgrade()
     }
@@ -57,7 +58,7 @@ where
     A: Actor + Handler<M>,
 {
     fn from(addr: Addr<A>) -> Self {
-        Self::new(addr.payload_tx.to_owned(), addr.context_id)
+        Self::new(Arc::clone(&addr.payload_tx), addr.context_id)
     }
 }
 
@@ -66,7 +67,7 @@ where
     A: Actor + Handler<M>,
 {
     fn from(addr: &Addr<A>) -> Self {
-        Self::new(addr.payload_tx.to_owned(), addr.context_id)
+        Self::new(Arc::clone(&addr.payload_tx), addr.context_id)
     }
 }
 
@@ -106,7 +107,7 @@ mod tests {
         tokio::spawn(event_loop);
 
         let weak_caller = WeakCaller::from(&addr);
-        assert_eq!(weak_caller.upgrade().unwrap().call(Add(1, 2)).await, Ok(3))
+        assert_eq!(weak_caller.upgrade().unwrap().call(Add(1, 2)).await, Ok(3));
     }
 
     #[test_log::test(tokio::test)]

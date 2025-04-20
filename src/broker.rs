@@ -188,7 +188,7 @@ mod subscribe_publish_unsubscribe {
         async fn handle(&mut self, ctx: &mut Context<Self>, msg: Topic1) {
             self.0.push(msg.0);
             if self.0.len() == 2 {
-                ctx.stop().unwrap()
+                ctx.stop().unwrap();
             }
         }
     }

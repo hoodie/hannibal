@@ -21,6 +21,7 @@ pub struct WeakSender<M> {
 }
 
 impl<M: Message<Response = ()>> WeakSender<M> {
+    #[must_use]
     pub fn upgrade(&self) -> Option<Sender<M>> {
         self.upgrade.upgrade()
     }
@@ -75,8 +76,8 @@ where
 {
     fn from(addr: Addr<A>) -> Self {
         Self::new(
-            addr.payload_tx.to_owned(),
-            addr.payload_force_tx.to_owned(),
+            Arc::clone(&addr.payload_tx),
+            Arc::clone(&addr.payload_force_tx),
             addr.context_id,
         )
     }
@@ -88,8 +89,8 @@ where
 {
     fn from(addr: &Addr<A>) -> Self {
         Self::new(
-            addr.payload_tx.to_owned(),
-            addr.payload_force_tx.to_owned(),
+            Arc::clone(&addr.payload_tx),
+            Arc::clone(&addr.payload_force_tx),
             addr.context_id,
         )
     }
