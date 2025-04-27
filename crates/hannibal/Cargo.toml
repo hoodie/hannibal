@@ -1,0 +1,152 @@
+[package]
+name = "hannibal"
+version.workspace = true
+authors.workspace = true
+license.workspace = true
+homepage.workspace =true
+keywords.workspace = true
+documentation.workspace = true
+
+description = "A small actor library"
+
+readme.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+thiserror = "2.0"
+futures = { version = "0.3" }
+async-lock = "3"
+
+dyn-clone = "1.0"
+
+tokio = { version = "1", features = ["full"], optional = true }
+smol = { version = "2", optional = true }
+async-std = { version = "1.13.0", optional = true }
+
+cfg-if = "1.0.0"
+futures-timer = "3"
+log = { version = "0.4", features = ["kv"] }
+hannibal-derive.workspace = true
+async-io = "2.4.0"
+async-global-executor = { version = "3", optional = true }
+
+[dev-dependencies]
+# TODO: make tokio optional
+tokio = { version = "1", features = ["full"] }
+async-signals = "0.5.0"
+futures-executor = { version = "0.3", features = ["thread-pool"] }
+libc = "0.2"
+trybuild = "1"
+test-log = "0.2"
+env_logger = { version = "0.11", features = ["unstable-kv"] }
+color-backtrace = "0.7"
+
+
+[features]
+default = [
+    # "tokio_runtime",
+    "async_runtime",
+]
+
+tokio_runtime = ["dep:tokio", "runtime", "async-global-executor/tokio"]
+async_runtime = ["dep:async-global-executor", "runtime"]
+
+tokio = ["dep:tokio", "async-global-executor/tokio"]
+runtime = []
+
+
+[[example]]
+name = "simple"
+path = "examples/simple.rs"
+required-features = ["runtime"]
+
+[[example]]
+name = "ping"
+path = "examples/ping.rs"
+required-features = ["runtime"]
+
+[[example]]
+name = "simple-channels-only"
+path = "examples/simple-channels-only.rs"
+required-features = ["tokio"]
+
+[[example]]
+name = "broker"
+path = "examples/broker.rs"
+required-features = ["runtime"]
+
+[[example]]
+name = "builder"
+path = "examples/builder.rs"
+required-features = ["runtime"]
+
+[[example]]
+name = "children"
+path = "examples/children.rs"
+required-features = ["runtime"]
+
+[[example]]
+name = "owning_addr"
+path = "examples/owning_addr.rs"
+required-features = ["runtime"]
+
+[[example]]
+name = "timeout"
+path = "examples/timeout.rs"
+required-features = ["runtime"]
+
+[[example]]
+name = "intervals"
+path = "examples/intervals.rs"
+required-features = ["runtime"]
+
+[[example]]
+name = "streams"
+path = "examples/streams.rs"
+required-features = ["runtime"]
+
+[[example]]
+name = "storage-service"
+path = "examples/storage-service.rs"
+required-features = ["runtime"]
+
+[[example]]
+name = "time-service"
+path = "examples/time-service.rs"
+required-features = ["runtime"]
+
+[[example]]
+name = "signal-service"
+path = "examples/signal-service.rs"
+required-features = ["runtime"]
+
+[lints.rust]
+unsafe_code = "forbid"
+trivial_numeric_casts = "forbid"
+unused_import_braces = "forbid"
+missing_copy_implementations = "warn"
+# missing_docs = "warn"
+trivial_casts = "warn"
+unstable_features = "warn"
+
+[lints.clippy]
+doc_markdown = "warn"
+cast_lossless = "warn"
+cast_possible_truncation = "warn"
+clone_on_ref_ptr = "warn"
+complexity = "warn"
+correctness = "warn"
+dbg_macro = "warn"
+expect_used = "warn"
+indexing_slicing = "warn"
+manual_filter_map = "warn"
+map_clone = "warn"
+missing_const_for_fn = "warn"
+missing_panics_doc = "warn"
+needless_collect = "warn"
+redundant_clone = "warn"
+redundant_closure_for_method_calls = "warn"
+style = "warn"
+too_many_arguments = "warn"
+useless_format = "warn"
