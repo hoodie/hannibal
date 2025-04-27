@@ -470,7 +470,7 @@ mod tests {
             // assert!(addr.call(Sleep(Duration::from_secs(0))).await.is_ok());
             addr.call(Sleep(Duration::from_secs(0))).await.unwrap();
             eprintln!("SleepyActor 2 is still alive, stopping");
-            assert!(addr.to_addr().stop().is_ok());
+            assert!(addr.stop().is_ok());
             assert!(addr.join().await.is_some());
         }
 
@@ -497,7 +497,7 @@ mod tests {
                     .is_err()
             );
             assert!(addr.join().await.is_none());
-            assert!(addr.to_addr().stop().is_err());
+            assert!(addr.stop().is_err());
         }
     }
 }

@@ -1,5 +1,11 @@
 use futures::{FutureExt, channel::oneshot};
-use std::{future::Future, pin::Pin, sync::Arc, task::Poll};
+use std::{
+    future::Future,
+    ops::{Deref, DerefMut},
+    pin::Pin,
+    sync::Arc,
+    task::Poll,
+};
 use weak_addr::WeakAddr;
 
 pub mod caller;
@@ -263,36 +269,6 @@ impl<A: Actor> OwningAddr<A> {
         Ok(self.join())
     }
 
-    pub const fn as_addr(&self) -> &Addr<A> {
-        &self.addr
-    }
-
-    pub async fn ping(&self) -> Result<()> {
-        log::trace!("pinging actor");
-        self.addr.ping().await
-    }
-
-    pub async fn call<M: Message>(&self, msg: M) -> Result<M::Response>
-    where
-        A: Handler<M>,
-    {
-        log::trace!("calling actor {}", std::any::type_name::<M>());
-        self.addr.call(msg).await
-    }
-
-    pub async fn send<M: Message<Response = ()>>(&self, msg: M) -> Result<()>
-    where
-        A: Handler<M>,
-    {
-        log::trace!("sending message to actor {}", std::any::type_name::<M>());
-        self.addr.send(msg).await
-    }
-
-    pub fn to_addr(&self) -> Addr<A> {
-        log::trace!("converting to normal addr");
-        self.addr.clone()
-    }
-
     pub fn detach(self) -> Addr<A> {
         log::trace!("detaching owning addr");
         self.handle.detach();
@@ -303,6 +279,20 @@ impl<A: Actor> OwningAddr<A> {
 impl<A> AsRef<Addr<A>> for OwningAddr<A> {
     fn as_ref(&self) -> &Addr<A> {
         &self.addr
+    }
+}
+
+impl<A> Deref for OwningAddr<A> {
+    type Target = Addr<A>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.addr
+    }
+}
+
+impl<A> DerefMut for OwningAddr<A> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.addr
     }
 }
 
