@@ -40,6 +40,7 @@ impl Handler<Add> for MyActor {
 async fn main() {
     let addr = MyActor("Caesar").spawn_owning();
     addr.send(Greet("Cornelius")).await.unwrap();
+    addr.ping().await.unwrap();
     let addition = addr.call(Add(1, 2)).await;
 
     println!("The Actor Calculated: {:?}", addition);

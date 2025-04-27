@@ -1,5 +1,3 @@
-use std::future::Future;
-
 use crate::{Actor, Context, Message};
 
 /// An actor should implement this trait if it wants to handle messages.
@@ -15,14 +13,21 @@ pub trait Handler<M: Message>: Actor {
     ) -> impl futures::Future<Output = M::Response> + Send;
 }
 
+/// An actor should implement this trait if it wants to handle messages from a stream.
 pub trait StreamHandler<M: 'static>: Actor {
     /// Handle a message from a stream.
+    ///
+    /// Messages received through this do not necessarily need to implement the `Message` trait.
     fn handle(
         &mut self,
         ctx: &mut Context<Self>,
         msg: M,
     ) -> impl futures::Future<Output = ()> + Send;
 
+    /// Handle the end of the stream.
+    ///
+    /// This method is called when the stream is finished.
+    /// You can use this method to perform any cleanup or finalization tasks.
     #[allow(unused)]
     fn finished(&mut self, ctx: &mut Context<Self>) -> impl Future<Output = ()> + Send {
         async {}

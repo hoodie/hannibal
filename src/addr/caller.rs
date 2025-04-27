@@ -21,10 +21,12 @@ pub struct Caller<M: Message> {
 }
 
 impl<M: Message> Caller<M> {
+    /// Sends a message to the actor and awaits its response.
     pub async fn call(&self, msg: M) -> Result<M::Response> {
         self.call_fn.call(msg).await
     }
 
+    /// Downgrades this to a weak callers that does not keep the actor alive.
     pub fn downgrade(&self) -> WeakCaller<M> {
         self.downgrade_fn.downgrade()
     }

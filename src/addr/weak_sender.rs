@@ -21,11 +21,12 @@ pub struct WeakSender<M> {
 }
 
 impl<M: Message<Response = ()>> WeakSender<M> {
+    /// Attempts to upgrade this weak sender to a strong sender.
     pub fn upgrade(&self) -> Option<Sender<M>> {
         self.upgrade.upgrade()
     }
 
-    pub fn try_force_send(&self, msg: M) -> Result<()> {
+    pub(crate) fn try_force_send(&self, msg: M) -> Result<()> {
         if let Some(sender) = self.upgrade.upgrade() {
             sender.force_send(msg)
         } else {
@@ -33,6 +34,9 @@ impl<M: Message<Response = ()>> WeakSender<M> {
         }
     }
 
+    /// Attempts to send a message to the actor.
+    ///
+    /// If the actor is stopped, an error is returned.
     pub async fn try_send(&self, msg: M) -> Result<()> {
         if let Some(sender) = self.upgrade.upgrade() {
             sender.send(msg).await

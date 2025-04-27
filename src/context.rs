@@ -169,6 +169,7 @@ impl<A: Actor> Context<A> {
         )
     }
 
+    /// Create a weak caller to the actor.
     pub fn weak_caller<M: crate::Message<Response = R>, R>(&self) -> crate::WeakCaller<M>
     where
         A: Handler<M>,
@@ -280,6 +281,7 @@ mod task_handling {
             })
         }
 
+        /// Execute a task after a delay.
         pub fn delayed_exec<F: Future<Output = ()> + Send + 'static>(
             &mut self,
             task: F,

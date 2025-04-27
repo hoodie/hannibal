@@ -280,6 +280,11 @@ impl<A: Actor> OwningAddr<A> {
         Ok(self.join())
     }
 
+    /// Give up ownership over the `Addr` and detach the underlying handle.
+    ///
+    /// # Drop behavior
+    /// This is important when using the `async_runtime` feature where we hold on to the underlying [`task`](async_global_executor::Task).
+    /// This `task` cancels itself when being dropped. This behavior is different when using `tokio_runtime`.
     pub fn detach(self) -> Addr<A> {
         log::trace!("detaching owning addr");
         self.handle.detach();

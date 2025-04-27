@@ -1,4 +1,3 @@
-#![warn(missing_docs)]
 use std::{marker::PhantomData, time::Duration};
 
 use crate::{

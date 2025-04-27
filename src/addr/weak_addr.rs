@@ -18,14 +18,19 @@ pub struct WeakAddr<A: Actor> {
 }
 
 impl<A: Actor> WeakAddr<A> {
+    /// Attempts to upgrade this weak address to a strong address.
     pub fn upgrade(&self) -> Option<Addr<A>> {
         self.upgrade.upgrade()
     }
 
+    /// Checks if the actor is stopped.
     pub fn stopped(&self) -> bool {
         self.running.peek().is_some()
     }
 
+    /// Attempts to send a stop signal to the actor.
+    ///
+    /// If the actor is already stopped, an error is returned.
     pub fn try_stop(&mut self) -> Result<()> {
         if let Some(mut addr) = self.upgrade() {
             addr.stop()
@@ -34,6 +39,9 @@ impl<A: Actor> WeakAddr<A> {
         }
     }
 
+    /// Attempts to halt the actor and awaits its termination.
+    ///
+    /// If the actor is already stopped, an error is returned.
     pub async fn try_halt(&mut self) -> Result<()> {
         if let Some(mut addr) = self.upgrade() {
             addr.stop()?;

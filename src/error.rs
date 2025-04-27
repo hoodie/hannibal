@@ -4,10 +4,12 @@
 
 use thiserror::Error;
 
+/// Result type for actor operations.
 pub type Result<T> = std::result::Result<T, ActorError>;
 
 // use crate::Actor;
 
+/// Errors produced from within the actor environment.
 #[derive(Error, Debug, PartialEq)]
 pub enum ActorError {
     /// The sender failed to send a message on an internal channel.
@@ -23,12 +25,11 @@ pub enum ActorError {
     #[error("Actor already stopped")]
     AlreadyStopped,
 
-    #[error("Service not found")]
-    ServiceNotFound,
-
-    #[error("Service still running")]
+    /// Indicates that a services failed to be registered because an instance of the same type is already registered.
+    #[error("Service already registered")]
     ServiceStillRunning,
 
+    /// Indicates that an actor's task took too long to complete.
     #[error("Actor's task took too long to complete")]
     Timeout,
 }

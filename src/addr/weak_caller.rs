@@ -21,10 +21,14 @@ pub struct WeakCaller<M: Message> {
 }
 
 impl<M: Message> WeakCaller<M> {
+    /// Attempts to upgrade this weak caller to a strong caller.
     pub fn upgrade(&self) -> Option<Caller<M>> {
         self.upgrade.upgrade()
     }
 
+    /// Attempts to call the actor and receive a response.
+    ///
+    /// If the actor is stopped, an error is returned.
     pub async fn try_call(&self, msg: M) -> Result<M::Response> {
         if let Some(caller) = self.upgrade.upgrade() {
             caller.call(msg).await
