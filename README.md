@@ -270,7 +270,22 @@ async fn main() {
 > see [intervals.rs](examples/intervals.rs)
 
 ### Builders
+
+You can configure certain aspects of an actor before starting it.
+This includes
+* should use bounded or unbounded channels?
+* should it be restartable?
+* should recreate itself from `Default` when being restarted
+* should it enfore timeouts when handling messages?
+* should it fail or continue if timeouts are exceeded?
+
+> see the documentation of [build()](https://docs.rs/hannibal/latest/hannibal/fn.build.html) for more examples.
+
 ### Owning Addresses
+
+If you should need to retain the ownership to the instance of your actor object you can hold an `OwningAddr`.
+This yields the its content when stopped.
+If you find a good usecase for this outside of testing, feel free to drop me a message to let me know 😜.
 
 ## New since 0.12
 
