@@ -89,26 +89,31 @@ impl<A: Actor> Clone for Addr<A> {
 }
 
 impl<A: Actor> Addr<A> {
+    /// Sends a stop signal to the actor.
     pub fn stop(&mut self) -> Result<()> {
         log::trace!("stopping actor");
         self.payload_force_tx.send(Payload::Stop)?;
         Ok(())
     }
 
+    /// Halts the actor and awaits its termination.
     pub async fn halt(mut self) -> Result<()> {
         log::trace!("halting actor");
         self.stop()?;
         self.await
     }
 
+    /// Returns true if the actor is still running.
     pub fn running(&self) -> bool {
         self.running.peek().is_none()
     }
 
+    /// Returns true if the actor has stopped.
     pub fn stopped(&self) -> bool {
         self.running.peek().is_some()
     }
 
+    /// Sends a message to the actor and awaits its response.
     pub async fn call<M: Message>(&self, msg: M) -> Result<M::Response>
     where
         A: Handler<M>,
@@ -130,7 +135,7 @@ impl<A: Actor> Addr<A> {
         Ok(response)
     }
 
-    /// Ping the actor to check if it is already/still alive.
+    /// Pings the actor to check if it is already/still alive.
     pub async fn ping(&self) -> Result<()> {
         log::trace!("pinging actor");
         let (tx_response, response) = oneshot::channel();
@@ -161,6 +166,7 @@ impl<A: Actor> Addr<A> {
         Ok(())
     }
 
+    /// Sends a fire-and-forget message to the actor.
     pub async fn send<M: Message<Response = ()>>(&self, msg: M) -> Result<()>
     where
         A: Handler<M>,
@@ -174,10 +180,12 @@ impl<A: Actor> Addr<A> {
         Ok(())
     }
 
+    /// Downgrades this address to a weak address that does not keep the actor alive.
     pub fn downgrade(&self) -> WeakAddr<A> {
         WeakAddr::from(self)
     }
 
+    /// Creates a sender for messages to the actor.
     pub fn sender<M: Message<Response = ()>>(&self) -> sender::Sender<M>
     where
         A: Handler<M>,
@@ -186,6 +194,7 @@ impl<A: Actor> Addr<A> {
         sender::Sender::from(self.to_owned())
     }
 
+    /// Creates a weak sender for messages to the actor.
     pub fn weak_sender<M: Message<Response = ()>>(&self) -> weak_sender::WeakSender<M>
     where
         A: Handler<M>,
@@ -193,6 +202,7 @@ impl<A: Actor> Addr<A> {
         weak_sender::WeakSender::from(self.to_owned())
     }
 
+    /// Creates a caller for sending messages that expect a response.
     pub fn caller<M: Message>(&self) -> caller::Caller<M>
     where
         A: Handler<M>,
@@ -200,6 +210,7 @@ impl<A: Actor> Addr<A> {
         caller::Caller::from(self.to_owned())
     }
 
+    /// Creates a weak caller for sending messages that expect a response.
     pub fn weak_caller<M: Message>(&self) -> weak_caller::WeakCaller<M>
     where
         A: Handler<M>,
