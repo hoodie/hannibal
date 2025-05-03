@@ -107,14 +107,10 @@ impl<A: Actor, R: RestartStrategy<A>> Environment<A, R> {
                         log::trace!(name = A::NAME;  "received task");
                         if let Err(err) = timeout_fut(f(&mut actor, &mut self.ctx), timeout).await {
                             if self.config.fail_on_timeout {
-                                log::warn!("{:?} task took too long: {:?}, exiting", A::NAME, err);
+                                log::warn!("{} {}, exiting", A::NAME, err);
                                 return Err(err);
                             } else {
-                                log::warn!(
-                                    "{:?} actor task took too long: {:?}, ignoring",
-                                    A::NAME,
-                                    err
-                                );
+                                log::warn!("{} {}, ignoring", A::NAME, err);
                                 continue;
                             }
                         }
@@ -167,7 +163,6 @@ impl<A: Actor, R: RestartStrategy<A>> Environment<A, R> {
                         StreamHandler::handle(&mut actor, &mut self.ctx, msg).await;
                     },
                     complete => break,
-                    // default => break, // TODO: should this be here?
                 }
             }
 
