@@ -71,6 +71,18 @@ impl<A: Actor> Environment<A> {
     pub fn unbounded() -> Self {
         Self::from_channel(Channel::unbounded())
     }
+
+    pub fn abort_after(mut self, timeout: Duration) -> Self {
+        self.config.timeout = timeout.into();
+        self.config.fail_on_timeout = false;
+        self
+    }
+
+    pub fn fail_after(mut self, timeout: Duration) -> Self {
+        self.config.timeout = timeout.into();
+        self.config.fail_on_timeout = true;
+        self
+    }
 }
 
 // TODO: consider dynamically deciding timeout based on `Task` vs `DeadlineTask
@@ -196,10 +208,13 @@ where
 #[cfg(test)]
 mod tests {
     #![allow(clippy::unwrap_used)]
-    use super::*;
-    use crate::{Actor, DynResult, error::ActorError};
 
-    #[derive(Default)]
+    use assert_matches::assert_matches;
+    use std::time::Duration;
+
+    use crate::{environment::Environment, error::ActorError, prelude::*, runtime};
+
+    #[derive(Default, Debug)]
     struct GoodActor {
         started: bool,
         stopped: bool,
@@ -207,6 +222,7 @@ mod tests {
     }
 
     impl Actor for GoodActor {
+        const NAME: &'static str = "good actor";
         async fn started(&mut self, _ctx: &mut Context<Self>) -> DynResult {
             self.started = true;
             Ok(())
@@ -220,6 +236,29 @@ mod tests {
     impl StreamHandler<i32> for GoodActor {
         async fn handle(&mut self, _ctx: &mut Context<Self>, msg: i32) {
             self.count += msg;
+        }
+    }
+
+    impl StreamHandler<Duration> for GoodActor {
+        async fn handle(&mut self, _ctx: &mut Context<Self>, duration: Duration) {
+            runtime::sleep(duration).await;
+            self.count += i32::try_from(duration.as_millis()).unwrap();
+        }
+    }
+
+    struct DurationMessage(Duration);
+    impl Message for DurationMessage {
+        type Response = ();
+    }
+
+    impl Handler<DurationMessage> for GoodActor {
+        async fn handle(
+            &mut self,
+            _ctx: &mut Context<Self>,
+            DurationMessage(duration): DurationMessage,
+        ) {
+            runtime::sleep(duration).await;
+            self.count += i32::try_from(duration.as_millis()).unwrap();
         }
     }
 
@@ -238,6 +277,7 @@ mod tests {
     }
 
     mod normal_start {
+
         use super::*;
 
         #[test_log::test(tokio::test)]
@@ -269,6 +309,8 @@ mod tests {
     }
 
     mod start_on_stream {
+        use futures::{StreamExt as _, stream};
+
         use super::*;
 
         fn prepare<A>() -> (impl Future<Output = DynResult<A>>, Addr<A>)
@@ -276,7 +318,7 @@ mod tests {
             A: Actor + Default + 'static,
             A: StreamHandler<i32>,
         {
-            let counter = futures::stream::iter(0..100);
+            let counter = stream::iter(0..100);
             Environment::unbounded().create_loop_on_stream(A::default(), counter)
         }
 
@@ -313,13 +355,10 @@ mod tests {
             let addr2 = addr.clone();
 
             let task = tokio::spawn(event_loop);
-            tokio::time::sleep(std::time::Duration::from_millis(400)).await;
+            runtime::sleep(std::time::Duration::from_millis(400)).await;
 
             // TODO: should the stream always stop the actor?
-            assert!(matches!(
-                addr.stop().unwrap_err(),
-                ActorError::AsyncSendError(_)
-            ));
+            assert_matches!(addr.stop().unwrap_err(), ActorError::AsyncSendError(_));
             assert!(
                 addr2.await.is_ok(),
                 "other address should be cleanly awaitable"
@@ -327,6 +366,66 @@ mod tests {
 
             let actor = task.await.unwrap().unwrap();
             assert_eq!(actor.count, 4950);
+        }
+
+        #[test_log::test(tokio::test)]
+        async fn cancelles_handling_messages_after() {
+            let (event_loop, mut addr) = Environment::unbounded()
+                .abort_after(std::time::Duration::from_millis(100))
+                .create_loop_on_stream(GoodActor::default(), stream::pending::<i32>());
+
+            let task = tokio::spawn(event_loop);
+            for d in [0, 1, 22, 33, 444, 55]
+                .into_iter()
+                .map(Duration::from_millis)
+            {
+                addr.send(DurationMessage(d)).await.unwrap();
+            }
+
+            runtime::sleep(std::time::Duration::from_millis(400)).await;
+
+            addr.stop().unwrap();
+            let count = task.await.unwrap().unwrap().count;
+            assert_eq!(count, 1 + 22 + 33 + 55, "should not add 444");
+        }
+
+        #[test_log::test(tokio::test)]
+        async fn cancelles_handling_stream_messages_after() {
+            let counter = stream::iter([0, 1, 22, 33, 444, 55]).map(Duration::from_millis);
+            let (event_loop, mut _addr) = Environment::unbounded()
+                .abort_after(std::time::Duration::from_millis(100))
+                .create_loop_on_stream(GoodActor::default(), counter);
+
+            let task = tokio::spawn(event_loop);
+            runtime::sleep(std::time::Duration::from_millis(400)).await;
+
+            let actor = task.await.unwrap().unwrap();
+            assert_eq!(actor.count, 1 + 22 + 33 + 55, "should not add 444");
+        }
+
+        #[test_log::test(tokio::test)]
+        async fn ends_timeout_exceeded() {
+            let counter = stream::iter([0, 10, 10, 500]).map(Duration::from_millis);
+            let (event_loop, mut addr) = Environment::unbounded()
+                .fail_after(std::time::Duration::from_millis(100))
+                .create_loop_on_stream(GoodActor::default(), counter);
+            let addr2 = addr.clone();
+
+            let task = tokio::spawn(event_loop);
+            runtime::sleep(std::time::Duration::from_millis(200)).await;
+
+            assert_matches!(addr.stop().unwrap_err(), ActorError::AsyncSendError(_));
+            assert!(
+                addr2.await.is_err(),
+                "other should indicated actor was killed"
+            );
+
+            let timeouted = task.await.unwrap();
+            assert!(timeouted.is_err());
+            assert_matches!(
+                timeouted.unwrap_err().downcast_ref::<ActorError>(),
+                Some(ActorError::Timeout)
+            );
         }
     }
 
@@ -392,9 +491,8 @@ mod tests {
     }
 
     mod timeout {
-        use std::time::Duration;
-
-        use crate::{RestartableActor, error::ActorError, prelude::*};
+        use super::*;
+        use crate::RestartableActor;
 
         #[derive(Debug, Default)]
         struct SleepyActor(u8);
@@ -458,10 +556,10 @@ mod tests {
                     .await
                     .is_ok()
             );
-            assert!(matches!(
+            assert_matches!(
                 addr.call(Sleep(Duration::from_secs(4))).await.unwrap_err(),
                 ActorError::Canceled(_)
-            ));
+            );
             // assert!(addr.call(Sleep(Duration::from_secs(0))).await.is_ok());
             addr.call(Sleep(Duration::from_secs(0))).await.unwrap();
             eprintln!("SleepyActor 2 is still alive, stopping");
