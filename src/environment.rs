@@ -182,8 +182,8 @@ impl<A: Actor, R: RestartStrategy<A>> Environment<A, R> {
                     },
                     stream_msg = stream.next().fuse() => {
                         let Some(msg) = stream_msg else {
-                            // stream is done, actor is done
-                            break
+                            actor.finished(&mut self.ctx).await;
+                            break;
                         };
                         log::trace!(name = A::NAME;  "received stream message");
                         if let Err(err) = timeout_fut(
@@ -198,11 +198,9 @@ impl<A: Actor, R: RestartStrategy<A>> Environment<A, R> {
                             }
                         }
                     },
-                    complete => break,
                 }
             }
 
-            actor.finished(&mut self.ctx).await;
             actor.stopped(&mut self.ctx).await;
 
             self.stop.notify();
@@ -242,6 +240,8 @@ mod tests {
     struct GoodActor {
         started: bool,
         stopped: bool,
+        finished: bool,
+        cancelled: bool,
         count: i32,
     }
 
@@ -255,11 +255,18 @@ mod tests {
         async fn stopped(&mut self, _: &mut Context<Self>) {
             self.stopped = true;
         }
+
+        async fn cancelled(&mut self, _: &mut Context<Self>) {
+            self.cancelled = true;
+        }
     }
 
     impl StreamHandler<i32> for GoodActor {
         async fn handle(&mut self, _ctx: &mut Context<Self>, msg: i32) {
             self.count += msg;
+        }
+        async fn finished(&mut self, _ctx: &mut Context<Self>) {
+            self.finished = true;
         }
     }
 
@@ -335,6 +342,8 @@ mod tests {
     mod start_on_stream {
         use futures::{StreamExt as _, stream};
 
+        use crate::build;
+
         use super::*;
 
         fn prepare<A>() -> (impl Future<Output = DynResult<A>>, Addr<A>)
@@ -390,6 +399,26 @@ mod tests {
 
             let actor = task.await.unwrap().unwrap();
             assert_eq!(actor.count, 4950);
+        }
+
+        #[test_log::test(tokio::test)]
+        async fn finished_only_when_stream_finishes() {
+            let stopping = build(GoodActor::default())
+                .on_stream(stream::pending::<i32>())
+                .spawn_owning();
+
+            let mut finishing = build(GoodActor::default())
+                .on_stream(stream::iter([0, 1, 2, 3, 4, 5]))
+                .spawn_owning();
+
+            let stopped_actor = stopping.consume().await.unwrap();
+            let finished_actor = finishing.join().await.unwrap();
+
+            assert!(stopped_actor.stopped, "actor should be stopped");
+            assert!(finished_actor.stopped, "actor should be stopped");
+
+            assert!(!stopped_actor.finished, "actor should not be finished");
+            assert!(finished_actor.finished, "actor should be finished");
         }
 
         #[test_log::test(tokio::test)]
