@@ -36,9 +36,18 @@ pub trait Actor: Sized + Send + 'static {
 
     /// Called when the actor is stopped.
     ///
-    /// This asynchronous method is used for clean-up logic after the actor has finished processing messages.
+    /// This method can be used for clean-up logic after the actor has finished processing messages.
+    /// Addresses are only notified about the actor being stopped after this method has completed.
     #[allow(unused)]
     fn stopped(&mut self, ctx: &mut Context<Self>) -> impl Future<Output = ()> + Send {
+        async {}
+    }
+
+    /// Called when the actor is cancelled.
+    ///
+    /// An actor gets cancelled when it exceeds its timeout.
+    #[allow(unused)]
+    fn cancelled(&mut self, ctx: &mut Context<Self>) -> impl Future<Output = ()> + Send {
         async {}
     }
 }

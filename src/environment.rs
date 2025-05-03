@@ -120,6 +120,7 @@ impl<A: Actor, R: RestartStrategy<A>> Environment<A, R> {
                         if let Err(err) = timeout_fut(f(&mut actor, &mut self.ctx), timeout).await {
                             if self.config.fail_on_timeout {
                                 log::warn!("{} {}, exiting", A::NAME, err);
+                                actor.cancelled(&mut self.ctx).await;
                                 return Err(err);
                             } else {
                                 log::warn!("{} {}, ignoring", A::NAME, err);
@@ -163,6 +164,7 @@ impl<A: Actor, R: RestartStrategy<A>> Environment<A, R> {
                                 if let Err(err) = timeout_fut(f(&mut actor, &mut self.ctx), timeout).await {
                                     if self.config.fail_on_timeout {
                                         log::warn!("{} {}, exiting", A::NAME, err);
+                                        actor.cancelled(&mut self.ctx).await;
                                         return Err(err);
                                     } else {
                                         log::warn!("{} {}, ignoring", A::NAME, err);
@@ -188,7 +190,7 @@ impl<A: Actor, R: RestartStrategy<A>> Environment<A, R> {
                             StreamHandler::handle(&mut actor, &mut self.ctx, msg) , timeout).await {
                             if self.config.fail_on_timeout {
                                 log::warn!("{} {}, exiting", A::NAME, err);
-
+                                actor.cancelled(&mut self.ctx).await;
                                 return Err(err);
                             } else {
                                 log::warn!("{} {}, ignoring", A::NAME, err);
