@@ -151,13 +151,24 @@ impl<A: Actor, R: RestartStrategy<A>> Environment<A, R> {
         S::Item: 'static + Send,
         A: StreamHandler<S::Item>,
     {
+        let timeout = self.config.timeout;
         let actor_loop = async move {
             actor.started(&mut self.ctx).await?;
             loop {
                 futures::select! {
                     event = self.payload_stream.next().fuse() => {
                         match event {
-                            Some(Payload::Task(f)) => f(&mut actor, &mut self.ctx).await,
+                            Some(Payload::Task(f)) => {
+                                log::trace!(name = A::NAME;  "received task");
+                                if let Err(err) = timeout_fut(f(&mut actor, &mut self.ctx), timeout).await {
+                                    if self.config.fail_on_timeout {
+                                        log::warn!("{} {}, exiting", A::NAME, err);
+                                        return Err(err);
+                                    } else {
+                                        log::warn!("{} {}, ignoring", A::NAME, err);
+                                    }
+                                }
+                            }
                             Some(Payload::Stop)  =>  break,
                             Some(Payload::Restart)  =>  {
                                 panic!("restart message in stream-handling actor")
@@ -172,7 +183,18 @@ impl<A: Actor, R: RestartStrategy<A>> Environment<A, R> {
                             // stream is done, actor is done
                             break
                         };
-                        StreamHandler::handle(&mut actor, &mut self.ctx, msg).await;
+                        log::trace!(name = A::NAME;  "received stream message");
+                        if let Err(err) = timeout_fut(
+                            StreamHandler::handle(&mut actor, &mut self.ctx, msg) , timeout).await {
+                            if self.config.fail_on_timeout {
+                                log::warn!("{} {}, exiting", A::NAME, err);
+
+                                return Err(err);
+                            } else {
+                                log::warn!("{} {}, ignoring", A::NAME, err);
+                                continue;
+                            }
+                        }
                     },
                     complete => break,
                 }
