@@ -191,7 +191,8 @@ impl<A: Actor, R: RestartStrategy<A>> Environment<A, R> {
                             if self.config.fail_on_timeout {
                                 log::warn!("{} {}, exiting", A::NAME, err);
                                 actor.cancelled(&mut self.ctx).await;
-                                return Err(err);
+                                // return Err(err);
+                                break;
                             } else {
                                 log::warn!("{} {}, ignoring", A::NAME, err);
                                 continue;
@@ -340,6 +341,8 @@ mod tests {
     }
 
     mod start_on_stream {
+        use std::time::Duration;
+
         use futures::{StreamExt as _, stream};
 
         use crate::build;
@@ -388,7 +391,7 @@ mod tests {
             let addr2 = addr.clone();
 
             let task = tokio::spawn(event_loop);
-            runtime::sleep(std::time::Duration::from_millis(400)).await;
+            runtime::sleep(Duration::from_millis(400)).await;
 
             // TODO: should the stream always stop the actor?
             assert_matches!(addr.stop().unwrap_err(), ActorError::AsyncSendError(_));
@@ -423,11 +426,11 @@ mod tests {
 
         #[test_log::test(tokio::test)]
         async fn cancelles_handling_messages_after() {
-            let (event_loop, mut addr) = Environment::unbounded()
-                .abort_after(std::time::Duration::from_millis(100))
-                .create_loop_on_stream(GoodActor::default(), stream::pending::<i32>());
+            let addr = build(GoodActor::default())
+                .timeout(Duration::from_millis(100))
+                .on_stream(stream::pending::<i32>())
+                .spawn_owning();
 
-            let task = tokio::spawn(event_loop);
             for d in [0, 1, 22, 33, 444, 55]
                 .into_iter()
                 .map(Duration::from_millis)
@@ -435,37 +438,46 @@ mod tests {
                 addr.send(DurationMessage(d)).await.unwrap();
             }
 
-            runtime::sleep(std::time::Duration::from_millis(400)).await;
-
-            addr.stop().unwrap();
-            let count = task.await.unwrap().unwrap().count;
+            let count = addr.consume().await.unwrap().count;
             assert_eq!(count, 1 + 22 + 33 + 55, "should not add 444");
         }
 
         #[test_log::test(tokio::test)]
-        async fn cancelles_handling_stream_messages_after() {
+        async fn cancelles_handling_stream_on_timeout() {
             let counter = stream::iter([0, 1, 22, 33, 444, 55]).map(Duration::from_millis);
             let (event_loop, mut _addr) = Environment::unbounded()
-                .abort_after(std::time::Duration::from_millis(100))
+                .abort_after(Duration::from_millis(100))
                 .create_loop_on_stream(GoodActor::default(), counter);
 
             let task = tokio::spawn(event_loop);
-            runtime::sleep(std::time::Duration::from_millis(400)).await;
+            runtime::sleep(Duration::from_millis(400)).await;
 
             let actor = task.await.unwrap().unwrap();
             assert_eq!(actor.count, 1 + 22 + 33 + 55, "should not add 444");
         }
 
         #[test_log::test(tokio::test)]
-        async fn ends_timeout_exceeded() {
+        async fn cancelles_handling_stream_on_timeout2() {
+            let counter = stream::iter([0, 1, 22, 33, 444, 55]).map(Duration::from_millis);
+            let mut addr = build(GoodActor::default())
+                .timeout(Duration::from_millis(100))
+                .fail_on_timeout(true)
+                .on_stream(counter)
+                .spawn_owning();
+            let actor = addr.join().await.unwrap();
+            assert_eq!(actor.count, 1 + 22 + 33);
+        }
+
+        #[test_log::test(tokio::test)]
+        async fn cancelles_handling_messages_on_timeout() {
             let counter = stream::iter([0, 10, 10, 500]).map(Duration::from_millis);
             let (event_loop, mut addr) = Environment::unbounded()
-                .fail_after(std::time::Duration::from_millis(100))
+                .fail_after(Duration::from_millis(100))
                 .create_loop_on_stream(GoodActor::default(), counter);
             let addr2 = addr.clone();
 
             let task = tokio::spawn(event_loop);
-            runtime::sleep(std::time::Duration::from_millis(200)).await;
+            runtime::sleep(Duration::from_millis(200)).await;
 
             assert_matches!(addr.stop().unwrap_err(), ActorError::AsyncSendError(_));
             assert!(
