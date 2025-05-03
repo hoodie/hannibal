@@ -50,8 +50,8 @@ color-backtrace = "0.7"
 
 [features]
 default = [
-    # "tokio_runtime",
-    "async_runtime",
+    "tokio_runtime",
+    # "async_runtime",
 ]
 
 tokio_runtime = ["dep:tokio", "runtime", "async-global-executor/tokio"]
