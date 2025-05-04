@@ -121,7 +121,7 @@ impl<A: Actor, R: RestartStrategy<A>> Environment<A, R> {
                             if self.config.fail_on_timeout {
                                 log::warn!("{} {}, exiting", A::NAME, err);
                                 actor.cancelled(&mut self.ctx).await;
-                                return Err(err);
+                                break;
                             } else {
                                 log::warn!("{} {}, ignoring", A::NAME, err);
                                 continue;
@@ -135,6 +135,7 @@ impl<A: Actor, R: RestartStrategy<A>> Environment<A, R> {
 
             actor.stopped(&mut self.ctx).await;
 
+            log::info!("{} stopped", A::NAME);
             self.stop.notify();
             Ok(actor)
         };
@@ -569,9 +570,9 @@ mod tests {
 
         impl Handler<Sleep> for SleepyActor {
             async fn handle(&mut self, _ctx: &mut Context<Self>, msg: Sleep) {
-                println!("[ SleepyActor {} ] is resting for {:?}", self.0, msg.0);
+                log::info!("[ SleepyActor {} ] is resting for {:?}", self.0, msg.0);
                 crate::runtime::sleep(msg.0).await;
-                println!("[ SleepyActor {} ] woke up after {:?}", self.0, msg.0);
+                log::info!("[ SleepyActor {} ] woke up after {:?}", self.0, msg.0);
             }
         }
 
@@ -644,6 +645,24 @@ mod tests {
             );
             assert!(addr.join().await.is_none());
             assert!(addr.stop().is_err());
+        }
+
+        #[test_log::test(tokio::test)]
+        async fn stopped_valid_after_terminated() {
+            // timeout and fail
+            println!("SleepyActor 2 will be canceled after 1 second");
+            let mut addr = crate::build(SleepyActor(2))
+                .bounded(1)
+                .timeout(Duration::from_millis(100))
+                .fail_on_timeout(true)
+                .spawn_owning();
+
+            let called_sleep = dbg!(addr.call(Sleep(Duration::from_millis(600))).await);
+
+            assert!(called_sleep.is_err(), "call should have been canceled");
+            addr.join().await;
+            assert!(addr.stopped(), "actor should be stopped");
+            assert!(!addr.running(), "actor should not be running");
         }
     }
 }
