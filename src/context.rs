@@ -124,7 +124,7 @@ impl<A: Actor> Context<A> {
                 .filter_map(|child| child.downcast_ref::<Sender<M>>())
             {
                 if let Err(error) = child.force_send(message.clone()) {
-                    log::error!("Failed to send message to child: {}", error);
+                    log::error!("Failed to send message to child: {error}");
                 }
             }
         }
