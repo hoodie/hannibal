@@ -43,6 +43,6 @@ async fn main() {
     addr.ping().await.unwrap();
     let addition = addr.call(Add(1, 2)).await;
 
-    println!("The Actor Calculated: {:?}", addition);
+    println!("The Actor Calculated: {addition:?}");
     println!("{:#?}", addr.consume_sync().unwrap().await);
 }
