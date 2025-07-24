@@ -124,7 +124,7 @@ impl<A: Actor> Context<A> {
                 .filter_map(|child| child.downcast_ref::<Sender<M>>())
             {
                 if let Err(error) = child.force_send(message.clone()) {
-                    log::error!("Failed to send message to child: {}", error);
+                    log::error!("Failed to send message to child: {error}");
                 }
             }
         }
@@ -445,7 +445,7 @@ mod interval_cleanup {
                 ctx.interval_with(
                     move || {
                         let invocation = invocation_id.fetch_add(1, Ordering::SeqCst);
-                        append_to_log(format!("invoked {}", invocation));
+                        append_to_log(format!("invoked {invocation}"));
                         IntervalSleep(Duration::from_millis(500), invocation)
                     },
                     self.interval,

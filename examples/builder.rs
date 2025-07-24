@@ -39,7 +39,7 @@ impl Handler<Add> for MyActor {
 
 impl StreamHandler<i32> for MyActor {
     async fn handle(&mut self, _ctx: &mut Context<Self>, msg: i32) {
-        println!("[Actor {}] Received: {}", self.0, msg);
+        println!("[Actor {}] Received: {msg}", self.0);
     }
 }
 
@@ -49,7 +49,7 @@ async fn send_greet_and_stop(mut addr: Addr<MyActor>) {
     addr.send(Greet("Cornelius")).await.unwrap();
     let addition = addr.call(Add(1, 2)).await;
 
-    println!("The Actor Calculated: {:?}", addition);
+    println!("The Actor Calculated: {addition:?}");
     println!("{:#?}", addr.stop());
 }
 

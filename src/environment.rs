@@ -506,13 +506,13 @@ mod tests {
         impl Actor for RestartCounter {
             async fn started(&mut self, _: &mut Context<Self>) -> DynResult {
                 self.started_count += 1;
-                eprintln!("started: {:?}", self);
+                eprintln!("started: {self:?}");
                 Ok(())
             }
 
             async fn stopped(&mut self, _: &mut Context<Self>) {
                 self.stopped_count += 1;
-                eprintln!("stopped: {:?}", self);
+                eprintln!("stopped: {self:?}");
             }
         }
 

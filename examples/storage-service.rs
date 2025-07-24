@@ -39,5 +39,5 @@ async fn main() {
         .await
         .unwrap();
 
-    println!("retrieved: {:?}", result);
+    println!("retrieved: {result:?}");
 }

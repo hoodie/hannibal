@@ -52,7 +52,7 @@ async fn main() {
         // expecting a response
         let addition = addr.call(Add(1, 2)).await;
 
-        println!("The Actor Calculated: {:?}", addition);
+        println!("The Actor Calculated: {addition:?}");
     }
 
     // addressing by the type of the message only
@@ -65,7 +65,7 @@ async fn main() {
 
         // expecting a response
         let addition = caller.call(Add(1, 2)).await;
-        println!("The Actor Calculated: {:?}", addition);
+        println!("The Actor Calculated: {addition:?}");
     }
 
     addr.stop().unwrap();

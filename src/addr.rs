@@ -342,8 +342,8 @@ mod tests {
 
     impl Handler<Stop> for MyActor {
         async fn handle(&mut self, ctx: &mut Context<Self>, _: Stop) {
-            if let Err(e) = ctx.stop() {
-                eprintln!("{}", e);
+            if let Err(error) = ctx.stop() {
+                eprintln!("{error}");
             }
         }
     }
