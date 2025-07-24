@@ -83,8 +83,11 @@ pub fn derive_actor(input: TokenStream) -> TokenStream {
     let ast = syn::parse::<DeriveInput>(input).unwrap();
 
     let name = &ast.ident;
+    let generics = &ast.generics;
+    let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
     let generated = quote! {
-        impl ::hannibal::Actor for #name {
+        impl #impl_generics ::hannibal::Actor for #name #ty_generics #where_clause {
+            // impl ::hannibal::Actor for #name {
         }
     };
     generated.into()
