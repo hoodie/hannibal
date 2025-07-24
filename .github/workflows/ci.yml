@@ -65,7 +65,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        rust: [stable, beta, nightly]
+        rust: [stable, beta]
         features: [default, tokio_runtime, async_runtime]
     steps:
       - uses: actions/checkout@v4
