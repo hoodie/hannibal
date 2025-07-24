@@ -26,7 +26,7 @@ impl StreamHandler<i32> for FizzBuzzer {
 #[hannibal::main]
 async fn main() {
     let num_stream = futures::stream::iter(1..30);
-    let addr = hannibal::build(FizzBuzzer("Caesar"))
+    let addr = hannibal::build(FizzBuzzer::default())
         .on_stream(num_stream)
         .spawn();
 
