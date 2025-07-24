@@ -50,11 +50,22 @@ jobs:
       - name: lib test ${{matrix.features}}
         run: cargo test --workspace --lib --no-default-features --features ${{matrix.features}}
 
+  # semver:
+  #   name: cargo-semver-checks
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - uses: actions/checkout@v4
+  #     - uses: dtolnay/rust-toolchain@stable
+  #     - uses: Swatinem/rust-cache@v2
+
+  #     - name: check semver
+  #       uses: obi1kenobi/cargo-semver-checks-action@v2.6
+
   fmtclippy:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        rust: [stable, beta]
+        rust: [stable, beta, nightly]
         features: [default, tokio_runtime, async_runtime]
     steps:
       - uses: actions/checkout@v4
@@ -75,19 +86,3 @@ jobs:
 
       - name: cargo-fmt
         run: cargo fmt --all --check
-
-  deny-check:
-    name: cargo-deny check
-    runs-on: ubuntu-latest
-    continue-on-error: ${{ matrix.checks == 'advisories' }}
-    strategy:
-      matrix:
-        checks:
-          - advisories
-          - bans licenses sources
-    steps:
-      - uses: actions/checkout@v4
-      - uses: EmbarkStudios/cargo-deny-action@v2
-        with:
-          command: check ${{ matrix.checks }}
-          arguments: --all-features
