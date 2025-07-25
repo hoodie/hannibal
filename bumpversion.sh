@@ -5,7 +5,6 @@ set -xe
 current_branch=`git rev-parse --abbrev-ref HEAD`
 release_branch="main"
 
-
 if [ "${current_branch}" != "${release_branch}" ]; then
 echo can only bump version on $release_branch
 exit 1
@@ -17,6 +16,9 @@ which cargo-set-version
 NEXT_VERSION=`convco version --bump HEAD`
 
 cargo set-version $NEXT_VERSION
+cargo set-version $NEXT_VERSION --manifest-path hannibal-derive/Cargo.toml
+echo "now update the version of hannibal_derive in Cargo.toml"
+read
 git add Cargo.toml
 git add Cargo.lock
 git add hannibal-derive/Cargo.toml
