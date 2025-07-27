@@ -3,6 +3,48 @@
 //! A service is a special type of actor that can be registered, replaced, or unregistered
 //! in a global registry. Services are typically used for actors that need to be accessed
 //! globally and do not require ownership by other actors.
+//!
+//! ```
+//! # use hannibal::prelude::*;
+//! # use std::collections::HashMap;
+//! #[derive(Debug, Default, Actor, Service)]
+//! struct StorageService {
+//!     storage: HashMap<String, String>,
+//! }
+//!
+//! #[message]
+//! struct Store(&'static str, &'static str);
+//!
+//! #[message(response = Option<String>)]
+//! struct Retrieve(&'static str);
+//!
+//! impl Handler<Store> for StorageService {
+//!     async fn handle(&mut self, _: &mut Context<Self>, Store(key, value): Store) {
+//!         self.storage.insert(key.to_string(), value.to_string());
+//!     }
+//! }
+//!
+//! impl Handler<Retrieve> for StorageService {
+//!     async fn handle(&mut self, _: &mut Context<Self>, Retrieve(key): Retrieve) -> Option<String> {
+//!         self.storage.get(key).cloned()
+//!     }
+//! }
+//!
+//! # #[hannibal::main]
+//! # async fn main() {
+//! StorageService::from_registry().await
+//!     .send(Store("password", "hello world")).await
+//!     .unwrap();
+//!
+//! // now anywhere else get a reference to the same instance of `StorageService`
+//! let result = StorageService::from_registry().await
+//!     .call(Retrieve("password")).await
+//!     .unwrap();
+//!
+//! println!("retrieved: {result:?}");
+//! # }
+//! ```
+//!
 use std::{
     any::{Any, TypeId},
     collections::HashMap,
