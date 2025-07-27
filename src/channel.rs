@@ -49,7 +49,7 @@ where
     }
 }
 
-// TODO: consider getting rid of this and just using `Sink` and `
+// TODO: consider getting rid of this and just using `Sink` and `Send`
 pub(crate) struct Channel<A> {
     tx_fn: ChanTx<A>,
     force_tx_fn: ForceChanTx<A>,

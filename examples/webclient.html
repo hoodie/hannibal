@@ -1,0 +1,53 @@
+<head>
+    <title>WebSocket Client</title>
+
+    <meta name="color-scheme" content="dark light" />
+    <style>
+        @media (prefers-color-scheme: dark) {
+            body {
+                background-color: #1a1a1a;
+                color: #e0e0e0;
+            }
+        }
+        @media (prefers-color-scheme: light) {
+            body {
+                background-color: #ffffff;
+                color: #000000;
+            }
+        }
+    </style>
+</head>
+
+<script>
+    const websocket = new WebSocket("ws://localhost:3000/ws");
+
+    websocket.onopen = () => {
+        console.log("WebSocket connection established");
+    };
+
+    websocket.onmessage = (event) => {
+        console.log("Received message:", event.data);
+        const ul = document.querySelector("ul#messages");
+        const li = document.createElement("li");
+        li.appendChild(document.createTextNode(event.data));
+        ul.appendChild(li);
+        return;
+        document.body.appendChild(
+            document
+                .createElement("li")
+                .appendChild(document.createTextNode(event.data)),
+        );
+    };
+
+    websocket.onerror = (error) => {
+        console.error("WebSocket error:", error);
+    };
+
+    websocket.onclose = () => {
+        console.log("WebSocket connection closed");
+    };
+
+    window["client_socket"] = websocket;
+</script>
+
+<ul id="messages"></ul>

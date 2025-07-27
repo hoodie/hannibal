@@ -45,6 +45,7 @@ test-log = "0.2"
 env_logger = { version = "0.11", features = ["unstable-kv"] }
 color-backtrace = "0.7"
 assert_matches = "1.5"
+axum = { version = "0.8.4", features = ["ws"] }
 
 
 [features]
