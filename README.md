@@ -39,7 +39,8 @@ You can pass around strong and weak Addresses to the concret actor type.
 ### Addresses
 
 Create a struct that becomes your actor and holds its state.
-It can receive `Greet` and `Add` messages.
+
+You can send messages to an actor without expecting a response.
 
 ```rust
 /// MyActor is a struct that will be turned into an actor
@@ -47,9 +48,6 @@ struct MyActor(&'static str);
 
 #[message]
 struct Greet(&'static str);
-
-#[message(response = i32)]
-struct Add(i32, i32);
 
 impl Actor for MyActor {}
 
@@ -64,6 +62,24 @@ impl Handler<Greet> for MyActor {
     }
 }
 
+// spawn the actor and get its address
+let mut addr = MyActor("Caesar").spawn();
+
+// send a message without a response
+addr.send(Greet("Hannibal")).await.unwrap();
+```
+
+You can also call the actor and get a response.
+
+```rust
+/// MyActor is a struct that will be turned into an actor
+struct MyActor(&'static str);
+
+#[message(response = i32)]
+struct Add(i32, i32);
+
+impl Actor for MyActor {}
+
 /// handle the addition of two numbers and return the result
 impl Handler<Add> for MyActor {
     async fn handle(&mut self, _ctx: &mut Context<Self>, msg: Add) -> i32 {
@@ -73,9 +89,6 @@ impl Handler<Add> for MyActor {
 
 // spawn the actor and get its address
 let mut addr = MyActor("Caesar").spawn();
-
-// send a message without a response
-addr.send(Greet("Hannibal")).await.unwrap();
 
 // expecting a response
 let addition = addr.call(Add(1, 2)).await;
