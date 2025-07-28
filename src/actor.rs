@@ -69,9 +69,8 @@ pub mod tests {
         actor::{Actor, Context},
     };
 
-
     #[derive(Debug)]
-    pub struct TokioActor<T: Send + Sync >(pub usize, pub std::marker::PhantomData<T>);
+    pub struct TokioActor<T: Send + Sync>(pub usize, pub std::marker::PhantomData<T>);
 
     impl<T: Send + Sync + Default> TokioActor<T> {
         pub fn new(value: usize) -> Self {
