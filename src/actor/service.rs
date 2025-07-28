@@ -112,7 +112,7 @@ impl<A: Service> Addr<A> {
     }
 
     /// Unregister a service.
-    pub async fn unregister() -> Option<Addr<A>> {
+    pub async fn unregister(self) -> Option<Addr<A>> {
         let key = TypeId::of::<A>();
         log::trace!("unregistering service {}", std::any::type_name::<A>());
         let mut registry = REGISTRY.write().await;
@@ -166,6 +166,19 @@ pub trait Service: Actor + Default {
             .and_then(|addr| addr.downcast_ref::<Addr<Self>>())
             .filter(|addr| addr.running())
             .cloned()
+    }
+
+    /// Unregister a service.
+    fn unregister() -> impl Future<Output = Option<Addr<Self>>> {
+        async {
+            let key = TypeId::of::<Self>();
+            log::trace!("unregistering service {}", std::any::type_name::<Self>());
+            let mut registry = REGISTRY.write().await;
+            registry
+                .remove(&key)
+                .and_then(|addr| addr.downcast::<Addr<Self>>().ok())
+                .map(|addr| *addr)
+        }
     }
 }
 
