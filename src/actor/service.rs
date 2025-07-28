@@ -229,7 +229,9 @@ mod tests {
 
     #[test_log::test(tokio::test)]
     async fn get_service_from_registry() {
-        type Svc = TokioActor<u64>;
+        #[derive(Default)]
+        struct Me;
+        type Svc = TokioActor<Me>;
         let mut svc_addr = Svc::from_registry().await;
         assert!(!svc_addr.stopped());
 
@@ -241,8 +243,9 @@ mod tests {
 
     #[test_log::test(tokio::test)]
     async fn reregistering_service_only_if_stopped() {
-        // Define the service type as TokioActor with u64
-        type Svc = TokioActor<((), ())>;
+        #[derive(Default)]
+        struct Me;
+        type Svc = TokioActor<Me>;
 
         // Spawn a new service instance with TokioSpawner and unwrap the result
         let (first_svc, replaced) = crate::build(Svc::new(1337))
@@ -271,5 +274,115 @@ mod tests {
 
         // registering without stopping the service should return None
         assert!(Svc::new(1338).spawn().register().await.is_err());
+    }
+
+    #[test_log::test(tokio::test)]
+    async fn replace_service() {
+        #[derive(Default)]
+        struct Me;
+        type Svc = TokioActor<Me>;
+
+        // Register initial service
+        let (first_svc, _) = Svc::new(1000).spawn().register().await.unwrap();
+        assert_eq!(first_svc.call(Identify).await, Ok(1000));
+
+        // Replace with new service
+        let second_svc = Svc::new(2000).spawn();
+        let replaced = second_svc.replace().await;
+
+        // Verify the replaced service is the old one
+        assert!(replaced.is_some());
+        let old_svc = replaced.unwrap();
+        assert_eq!(old_svc.call(Identify).await, Ok(1000));
+
+        // Verify the new service is now in the registry
+        let from_registry = Svc::from_registry().await;
+        assert_eq!(from_registry.call(Identify).await, Ok(2000));
+
+        // Clean up
+        let mut current_svc = Svc::from_registry().await;
+        current_svc.stop().unwrap();
+        current_svc.await.unwrap();
+    }
+
+    #[test_log::test(tokio::test)]
+    async fn replace_service_when_none_exists() {
+        #[derive(Default)]
+        struct Me;
+        type Svc = TokioActor<Me>;
+
+        // Replace when no service exists should return None
+        let new_svc = Svc::new(3000).spawn();
+        let replaced = new_svc.replace().await;
+        assert!(replaced.is_none());
+
+        // Verify the new service is now in the registry
+        let from_registry = Svc::from_registry().await;
+        assert_eq!(from_registry.call(Identify).await, Ok(3000));
+
+        // Clean up
+        let mut current_svc = Svc::from_registry().await;
+        current_svc.stop().unwrap();
+        current_svc.await.unwrap();
+    }
+
+    #[test_log::test(tokio::test)]
+    async fn unregister_service() {
+        #[derive(Default)]
+        struct Me;
+        type Svc = TokioActor<Me>;
+
+        // Register a service
+        let (svc, _) = Svc::new(42).spawn().register().await.unwrap();
+        assert_eq!(svc.call(Identify).await, Ok(42));
+
+        // Unregister the service
+        let unregistered = svc.unregister().await;
+        assert!(unregistered.is_some());
+
+        let unregistered2 = Svc::unregister().await;
+        assert!(unregistered2.is_none());
+
+        let unregistered_svc = unregistered.unwrap();
+        assert_eq!(unregistered_svc.call(Identify).await, Ok(42));
+
+        // Verify the service is no longer in the registry
+        // from_registry should spawn a new default instance
+        let new_from_registry = Svc::from_registry().await;
+        assert_eq!(new_from_registry.call(Identify).await, Ok(0)); // Default value
+    }
+
+    #[test_log::test(tokio::test)]
+    async fn already_running_service() {
+        #[derive(Default)]
+        struct Me;
+        type Svc = TokioActor<Me>;
+
+        // Initially no service should be running
+        let running_status = Svc::already_running().await;
+        assert!(running_status.is_none());
+
+        // Register a service
+        let (svc, _) = Svc::new(0).spawn().register().await.unwrap();
+
+        // Service should be running
+        let running_status = Svc::already_running().await;
+        assert_eq!(running_status, Some(false)); // false means NOT stopped, so it's running
+
+        // Stop the service
+        let mut svc = svc;
+        svc.stop().unwrap();
+        svc.await.unwrap();
+
+        // Service should now be stopped
+        let running_status = Svc::already_running().await;
+        assert_eq!(running_status, Some(true)); // true means stopped
+
+        // Unregister the stopped service
+        Svc::unregister().await;
+
+        // No service should be in registry
+        let running_status = Svc::already_running().await;
+        assert!(running_status.is_none());
     }
 }

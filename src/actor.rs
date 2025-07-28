@@ -64,18 +64,14 @@ pub mod tests {
         type Response = usize;
     }
 
-    use std::sync::{
-        LazyLock,
-        atomic::{AtomicUsize, Ordering},
-    };
-
     use crate::{
         Handler, Service,
         actor::{Actor, Context},
     };
 
+
     #[derive(Debug)]
-    pub struct TokioActor<T: Send + Sync + Default>(pub usize, pub std::marker::PhantomData<T>);
+    pub struct TokioActor<T: Send + Sync >(pub usize, pub std::marker::PhantomData<T>);
 
     impl<T: Send + Sync + Default> TokioActor<T> {
         pub fn new(value: usize) -> Self {
@@ -83,10 +79,19 @@ pub mod tests {
         }
     }
 
+    thread_local! {
+        static COUNTER: std::cell::RefCell<usize> = const { std::cell::RefCell::new(0) };
+    }
     impl<T: Send + Sync + Default> Default for TokioActor<T> {
         fn default() -> Self {
-            static COUNTER: LazyLock<AtomicUsize> = LazyLock::new(Default::default);
-            Self(COUNTER.fetch_add(1, Ordering::Relaxed), Default::default())
+            let id = COUNTER.with(|c| {
+                let mut counter = c.borrow_mut();
+                let id = *counter;
+                *counter += 1;
+                id
+            });
+            log::info!("new default {} {id}", std::any::type_name::<Self>());
+            Self(id, Default::default())
         }
     }
 
