@@ -44,12 +44,11 @@ You can send messages to an actor without expecting a response.
 
 ```rust
 /// MyActor is a struct that will be turned into an actor
+#[derive(Actor)]
 struct MyActor(&'static str);
 
 #[message]
 struct Greet(&'static str);
-
-impl Actor for MyActor {}
 
 /// just print a greeting
 impl Handler<Greet> for MyActor {
@@ -143,17 +142,16 @@ impl StreamHandler<i32> for FizzBuzzer {
     }
 }
 
-#[tokio::main]
-async fn main() {
-    // just imagine this is a websocket stream
-    let num_stream = futures::stream::iter(1..30);
-    let addr = hannibal::build(FizzBuzzer("Caesar"))
-        .on_stream(num_stream)
-        .spawn();
 
-    // The actor terminates once the stream is exhausted.
-    addr.await.unwrap();
-}
+// just imagine this is a websocket stream
+let num_stream = futures::stream::iter(1..30);
+let addr = hannibal::build(FizzBuzzer::default())
+    .on_stream(num_stream)
+    .spawn();
+
+// The actor terminates once the stream is exhausted.
+addr.await.unwrap();
+
 ```
 > see [stream.rs](examples/stream.rs)
 
@@ -230,7 +228,6 @@ let value1 = subscriber1.stop_and_join().unwrap().await.unwrap();
 let value2 = subscriber2.stop_and_join().unwrap().await.unwrap();
 println!("Subscriber 1 received: {:?}", value1);
 println!("Subscriber 2 received: {:?}", value2);
-Ok(())
 ```
 
 > see [broker.rs](examples/broker.rs)
@@ -247,6 +244,7 @@ struct MyActor(u8);
 #[message]
 struct Stop;
 
+/// implement the `Actor` trait by hand
 impl Actor for MyActor {
     async fn started(&mut self, ctx: &mut Context<Self>) -> DynResult<()> {
         println!("[Actor] started");
@@ -274,10 +272,7 @@ impl Handler<Stop> for MyActor {
     }
 }
 
-#[hannibal::main]
-async fn main() {
-    MyActor(0).spawn().await.unwrap();
-}
+MyActor(0).spawn().await.unwrap();
 ```
 
 > see [intervals.rs](examples/intervals.rs)
