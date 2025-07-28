@@ -1,5 +1,12 @@
 # Changelog
 
+### [v0.12.4](https://github.com/hoodie/hannibal/compare/v0.12.3...v0.12.4) (2025-07-28)
+
+#### Fixes
+
+* correct unristering api
+([9ea847f](https://github.com/hoodie/hannibal/commit/9ea847fe7cd88ce8857201fc425303a37bac8846))
+
 ### [v0.12.3](https://github.com/hoodie/hannibal/compare/v0.12.2...v0.12.3) (2025-07-25)
 
 #### Fixes
