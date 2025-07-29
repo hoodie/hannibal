@@ -1,6 +1,6 @@
 use hannibal::prelude::*;
 
-#[derive(Default, Actor)]
+#[derive(Actor, Debug, Default)]
 struct FizzBuzzer(&'static str);
 
 impl StreamHandler<i32> for FizzBuzzer {
@@ -25,10 +25,18 @@ impl StreamHandler<i32> for FizzBuzzer {
 
 #[hannibal::main]
 async fn main() {
-    let num_stream = futures::stream::iter(1..30);
-    let addr = hannibal::build(FizzBuzzer::default())
-        .on_stream(num_stream)
-        .spawn();
+    let mut addr = hannibal::build(FizzBuzzer::default())
+        .on_stream(futures::stream::iter(1..30))
+        .spawn_owning();
 
-    addr.await.unwrap();
+    {
+        let new = dbg!(addr.await.unwrap());
+
+        dbg!(
+            hannibal::build(new)
+                .on_stream(futures::stream::iter(1..30))
+                .spawn_owning()
+                .await
+        );
+    }
 }
