@@ -1,10 +1,11 @@
 use hannibal::prelude::*;
 
 #[derive(Actor, Debug, Default)]
-struct FizzBuzzer(&'static str);
+struct FizzBuzzer(&'static str, usize);
 
 impl StreamHandler<i32> for FizzBuzzer {
     async fn handle(&mut self, _ctx: &mut Context<Self>, msg: i32) {
+        self.1 += 1;
         match (msg % 3 == 0, msg % 5 == 0) {
             (true, true) => {
                 self.0 = "fizzbuzz";
@@ -24,19 +25,22 @@ impl StreamHandler<i32> for FizzBuzzer {
 }
 
 #[hannibal::main]
-async fn main() {
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    // create a new `FizzBuzzer` and start it on a stream
     let mut addr = hannibal::build(FizzBuzzer::default())
         .on_stream(futures::stream::iter(1..30))
         .spawn_owning();
 
-    {
-        let new = dbg!(addr.await.unwrap());
+    // get the actor back after the stream is finished
+    let fizzbuzz = addr.join().await.unwrap();
+    println!("fizz buzz done {fizzbuzz:?}");
 
-        dbg!(
-            hannibal::build(new)
-                .on_stream(futures::stream::iter(1..30))
-                .spawn_owning()
-                .await
-        );
-    }
+    // spawn the actor with the same address
+    let fizzbuzz = hannibal::build(fizzbuzz)
+        .on_stream(futures::stream::iter(1..30))
+        .spawn_owning()
+        .await?;
+    println!("fizz buzz done {fizzbuzz:?}");
+
+    Ok(())
 }
