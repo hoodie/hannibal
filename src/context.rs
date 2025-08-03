@@ -92,7 +92,7 @@ impl<A: Actor> Context<A> {
 impl<A: Actor> Context<A> {
     /// Add a child actor.
     ///
-    /// This actor will be held until this actor is stopped.
+    /// This child actor is held until this context is stopped.
     pub fn add_child(&mut self, child: impl Into<Sender<()>>) {
         self.children
             .entry(TypeId::of::<()>())
@@ -100,9 +100,10 @@ impl<A: Actor> Context<A> {
             .push(Box::new(child.into()));
     }
 
-    /// Register a child actor.
+    /// Register a child actor by `Message` type.
     ///
-    /// This actor will be held until this actor is stopped.
+    /// This actor will be held until this actor is stopped via a `Sender`.
+    ///
     pub fn register_child<M: Message<Response = ()>>(&mut self, child: impl Into<Sender<M>>) {
         self.children
             .entry(TypeId::of::<M>())
@@ -211,7 +212,10 @@ mod task_handling {
 
     /// Task Handling
     impl<A: Actor> Context<A> {
-        fn spawn_task(&mut self, task: impl Future<Output = ()> + Send + 'static) {
+        /// Spawn a task that will be executed in the background.
+        ///
+        /// The task will be aborted when the actor is stopped.
+        pub fn spawn_task(&mut self, task: impl Future<Output = ()> + Send + 'static) {
             let (task, handle) = futures::future::abortable(task);
 
             self.tasks.push(handle);
