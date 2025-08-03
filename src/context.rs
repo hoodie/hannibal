@@ -211,7 +211,10 @@ mod task_handling {
 
     /// Task Handling
     impl<A: Actor> Context<A> {
-        fn spawn_task(&mut self, task: impl Future<Output = ()> + Send + 'static) {
+        /// Spawn a task that will be executed in the background.
+        ///
+        /// The task will be aborted when the actor is stopped.
+        pub fn spawn_task(&mut self, task: impl Future<Output = ()> + Send + 'static) {
             let (task, handle) = futures::future::abortable(task);
 
             self.tasks.push(handle);
