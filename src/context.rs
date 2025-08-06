@@ -9,10 +9,12 @@ use crate::{
     Addr, Handler, Message, RestartableActor, Sender, WeakAddr,
     actor::Actor,
     channel::{WeakChanTx, WeakForceChanTx},
+    context::task_id::TaskID,
     environment::Payload,
     error::{ActorError::AlreadyStopped, Result},
 };
-pub use id::ContextID;
+pub use context_id::ContextID;
+pub use task_handling::TaskHandle;
 
 pub type RunningFuture = futures::future::Shared<oneshot::Receiver<()>>;
 pub struct StopNotifier(pub(crate) oneshot::Sender<()>);
@@ -22,8 +24,9 @@ impl StopNotifier {
     }
 }
 
-mod id {
+mod context_id {
     use std::sync::{LazyLock, atomic::AtomicU64};
+
     static CONTEXT_ID: LazyLock<AtomicU64> = LazyLock::new(|| AtomicU64::new(0));
 
     #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -51,6 +54,30 @@ mod id {
     }
 }
 
+mod task_id {
+    use std::sync::{LazyLock, atomic::AtomicU64};
+
+    static TASK_ID: LazyLock<AtomicU64> = LazyLock::new(|| AtomicU64::new(0));
+
+    #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+    pub struct TaskID(u64);
+
+    impl Default for TaskID {
+        fn default() -> Self {
+            Self(TASK_ID.fetch_add(1, std::sync::atomic::Ordering::Relaxed))
+        }
+    }
+
+    #[test]
+    fn ids_go_up() {
+        let id1 = TaskID::default();
+        let id2 = TaskID::default();
+        let id3 = TaskID::default();
+        assert!(id1 < id2);
+        assert!(id2 < id3);
+    }
+}
+
 type AnyBox = Box<dyn Any + Send + Sync>;
 
 /// Available to the actor in every execution call.
@@ -65,12 +92,13 @@ pub struct Context<A> {
     pub(crate) weak_force_tx: WeakForceChanTx<A>,
     pub(crate) running: RunningFuture,
     pub(crate) children: HashMap<TypeId, Vec<AnyBox>>,
-    pub(crate) tasks: Vec<futures::future::AbortHandle>,
+    // TODO: make this a slab and use unique ids to address handles so that users can actually stop intervals again
+    pub(crate) tasks: HashMap<TaskID, futures::future::AbortHandle>,
 }
 
 impl<A> Drop for Context<A> {
     fn drop(&mut self) {
-        for task in self.tasks.drain(..) {
+        for (_, task) in self.tasks.drain() {
             task.abort();
         }
     }
@@ -204,27 +232,47 @@ impl<A: Actor> Context<A> {
 }
 
 mod task_handling {
-    use crate::runtime::{self, sleep};
+    use crate::{
+        context::task_id::TaskID,
+        runtime::{self, sleep},
+    };
     use futures::FutureExt;
     use std::{future::Future, time::Duration};
 
     use crate::{Context, Handler, Message, actor::Actor};
+
+    /// Task Handle
+    ///
+    /// Represents a handle to a task that can be used to abort the task.
+    #[derive(Copy, Clone)]
+    pub struct TaskHandle(TaskID);
+
+    impl std::fmt::Debug for TaskHandle {
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            f.debug_tuple("TaskHandle").finish()
+        }
+    }
 
     /// Task Handling
     impl<A: Actor> Context<A> {
         /// Spawn a task that will be executed in the background.
         ///
         /// The task will be aborted when the actor is stopped.
-        pub fn spawn_task(&mut self, task: impl Future<Output = ()> + Send + 'static) {
+        pub fn spawn_task(
+            &mut self,
+            task: impl Future<Output = ()> + Send + 'static,
+        ) -> TaskHandle {
             let (task, handle) = futures::future::abortable(task);
 
-            self.tasks.push(handle);
+            let task_id = TaskHandle(TaskID::default());
+            self.tasks.insert(task_id.0, handle);
             async_global_executor::spawn(task.map(|_| ())).detach();
+            task_id
         }
 
         #[cfg(test)]
         pub(crate) fn stop_tasks(&mut self) {
-            for handle in self.tasks.drain(..) {
+            for (_, handle) in self.tasks.drain() {
                 handle.abort();
             }
         }
@@ -234,7 +282,8 @@ mod task_handling {
             &mut self,
             message: M,
             duration: Duration,
-        ) where
+        ) -> TaskHandle
+        where
             A: Handler<M> + Send + 'static,
         {
             let myself = self.weak_sender();
@@ -253,7 +302,8 @@ mod task_handling {
             &mut self,
             message_fn: impl Fn() -> M + Send + Sync + 'static,
             duration: Duration,
-        ) where
+        ) -> TaskHandle
+        where
             A: Handler<M>,
         {
             let myself = self.weak_sender();
@@ -272,7 +322,8 @@ mod task_handling {
             &mut self,
             message_fn: impl Fn() -> M + Send + Sync + 'static,
             duration: Duration,
-        ) where
+        ) -> TaskHandle
+        where
             A: Handler<M>,
         {
             let myself = self.weak_sender();
@@ -290,11 +341,18 @@ mod task_handling {
             &mut self,
             task: F,
             duration: Duration,
-        ) {
+        ) -> TaskHandle {
             self.spawn_task(async move {
                 runtime::sleep(duration).await;
                 task.await;
             })
+        }
+
+        /// Stop a very specific task.
+        pub fn stop_task(&mut self, handle: TaskHandle) {
+            if let Some((_, task)) = self.tasks.remove_entry(&handle.0) {
+                task.abort();
+            }
         }
     }
 }
@@ -481,17 +539,18 @@ mod interval_cleanup {
 
     mod interval_with {
         use super::*;
-        use crate::actor::spawnable::Spawnable;
-        use crate::prelude::*;
+        use crate::{actor::spawnable::Spawnable, context::task_handling::TaskHandle, prelude::*};
 
         #[derive(Debug)]
         struct IntervalWithActor {
             running: Arc<AtomicBool>,
+            interval: Option<TaskHandle>,
         }
 
         impl Actor for IntervalWithActor {
             async fn started(&mut self, ctx: &mut Context<Self>) -> DynResult<()> {
-                ctx.interval_with(|| (), Duration::from_millis(100));
+                self.interval
+                    .replace(ctx.interval_with(|| (), Duration::from_millis(100)));
                 Ok(())
             }
             async fn stopped(&mut self, _: &mut Context<Self>) {
@@ -504,12 +563,48 @@ mod interval_cleanup {
                 self.running.store(true, Ordering::SeqCst);
             }
         }
+        #[tokio::test]
+        async fn stopped_by_task_handle() {
+            let running = Arc::new(AtomicBool::new(false));
+            let addr = IntervalWithActor {
+                running: Arc::clone(&running),
+                interval: None,
+            }
+            .spawn();
+            sleep(Duration::from_millis(300)).await;
+
+            // #[derive(hannibal_derive::Message)]
+            struct StopInterval;
+            impl Message for StopInterval {
+                type Response = ();
+            }
+            impl Handler<StopInterval> for IntervalWithActor {
+                async fn handle(
+                    &mut self,
+                    ctx: &mut Context<Self>,
+                    _msg: StopInterval,
+                ) -> <StopInterval as Message>::Response {
+                    self.running.store(false, Ordering::SeqCst);
+                    if let Some(interval) = self.interval {
+                        ctx.stop_task(interval)
+                    }
+                }
+            }
+
+            addr.send(StopInterval).await.unwrap();
+            sleep(Duration::from_millis(300)).await;
+            assert!(
+                !running.load(Ordering::SeqCst),
+                "Handler should not be called after actor is stopped"
+            );
+        }
 
         #[tokio::test]
         async fn stopped_when_actor_stopped() {
             let running = Arc::new(AtomicBool::new(false));
             let addr = IntervalWithActor {
                 running: Arc::clone(&running),
+                interval: None,
             }
             .spawn();
             sleep(Duration::from_millis(300)).await;
