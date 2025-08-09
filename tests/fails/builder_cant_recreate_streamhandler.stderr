@@ -6,7 +6,7 @@ error[E0599]: no method named `with_stream` found for struct `hannibal::actor::b
 19 | |         .unbounded()
 20 | |         .recreate_from_default()
 21 | |         .with_stream(stream::iter(vec![17, 19])) // this shouldn't work
-   | |         -^^^^^^^^^^^ method not found in `ActorBuilderWithChannel<MyActor, RecreateFromDefault>`
+   | |         -^^^^^^^^^^^ method not found in `hannibal::actor::builder::ActorBuilderWithChannel<MyActor, hannibal::actor::restart_strategy::RecreateFromDefault>`
    | |_________|
    |
    |
