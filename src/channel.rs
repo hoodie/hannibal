@@ -110,8 +110,6 @@ where
                 let tx = tx2.clone();
                 Box::pin(async move {
                     let mut tx = tx.clone();
-                    // THIS IS A BUG!
-                    // Just calling this without checking for readiness will just queue this and ignore the bound
                     futures::SinkExt::send(&mut tx, event).await?;
                     Ok(())
                 })
