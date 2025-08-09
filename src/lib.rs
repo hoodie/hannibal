@@ -95,7 +95,7 @@ pub use self::{
         Addr, Message, OwningAddr, caller::Caller, sender::Sender, weak_addr::WeakAddr,
         weak_caller::WeakCaller, weak_sender::WeakSender,
     },
-    context::Context,
+    context::{Context, TaskHandle},
     handler::{Handler, StreamHandler},
 };
 
