@@ -273,6 +273,7 @@ mod task_handling {
         /// Spawn a task that will be executed in the background.
         ///
         /// The task will be aborted when the actor is stopped.
+        #[cfg(not(runtime_tokio))]
         pub fn spawn_task_local(
             &mut self,
             task: impl Future<Output = ()> + 'static,
@@ -281,8 +282,8 @@ mod task_handling {
 
             let task_id = TaskHandle(TaskID::default());
             self.tasks.insert(task_id.0, handle);
-            // async_global_executor::spawn_local(task.map(|_| ())).detach();
-            tokio::task::spawn_local(task.map(|_| ()));
+            async_global_executor::spawn_local(task.map(|_| ())).detach();
+            // tokio::task::spawn_local(task.map(|_| ()));
             task_id
         }
 
