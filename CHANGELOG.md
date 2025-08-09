@@ -1,5 +1,14 @@
 # Changelog
 
+### [v0.12.5](https://github.com/hoodie/hannibal/compare/v0.12.4...v0.12.5) (2025-08-09)
+
+#### Features
+
+* add stop_task function to be able to stop intervals etc
+([c9a591d](https://github.com/hoodie/hannibal/commit/c9a591d11e4690dfec93dd1a5931ecea4e71044c))
+* add task spawning capability to Actor context
+([bb509e0](https://github.com/hoodie/hannibal/commit/bb509e0e14b01f3969f42775ea3f036743eb9afd))
+
 ### [v0.12.4](https://github.com/hoodie/hannibal/compare/v0.12.3...v0.12.4) (2025-07-28)
 
 #### Fixes
