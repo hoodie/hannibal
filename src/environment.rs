@@ -1,6 +1,6 @@
 use std::{future::Future, marker::PhantomData, time::Duration};
 
-use futures::{FutureExt as _, Stream, StreamExt as _, channel::oneshot};
+use futures::{FutureExt, Stream, StreamExt as _, channel::oneshot};
 
 use crate::{
     Actor, Addr, Context,
@@ -8,6 +8,7 @@ use crate::{
     channel::{Channel, PayloadStream},
     context::StopNotifier,
     handler::StreamHandler,
+    runtime::sleep,
 };
 
 mod payload;
@@ -86,14 +87,14 @@ impl<A: Actor> Environment<A> {
 }
 
 // TODO: consider dynamically deciding timeout based on `Task` vs `DeadlineTask
-async fn timeout_fut(
+pub async fn timeout_fut(
     fut: impl Future<Output = ()>,
     timeout: Option<Duration>,
 ) -> crate::DynResult<()> {
     if let Some(timeout) = timeout {
         futures::select! {
             res = fut.map(Ok).fuse() => res,
-            _ = futures_timer::Delay::new(timeout).fuse() => Err(crate::error::ActorError::Timeout.into())
+            _ = FutureExt::fuse(sleep(timeout)) => Err(crate::error::ActorError::Timeout.into())
         }
     } else {
         fut.map(Ok).await
