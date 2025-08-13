@@ -1,5 +1,5 @@
 //! Abstractions for spawning and managing actors in an asynchronous environment.
-//! Currently hannibal supports both `tokio` and `async-std`. Custom spawners can be implemented.
+//! Currently hannibal supports both `tokio` and `smol` `async-global-executore`. Custom spawners can be implemented.
 
 use std::any::type_name;
 
