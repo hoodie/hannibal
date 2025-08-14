@@ -14,6 +14,9 @@ impl<A: Actor> RestartStrategy<A> for NonRestartable {
     }
 }
 
+/// Use the the actors start and stop methods to reset.
+///
+/// If you call [`Context::restart()`] on an [`Actor`] that implements `RestartOnly` this will call the actor's  [`Actor::stopped()`] and [`Actor::started()`] methods in order.
 #[derive(Clone, Copy, Debug)]
 pub struct RestartOnly;
 impl<A: Actor> RestartStrategy<A> for RestartOnly {
@@ -24,6 +27,10 @@ impl<A: Actor> RestartStrategy<A> for RestartOnly {
     }
 }
 
+/// Recreate a new instance before restart.
+///
+/// If you call [`Context::restart()`] on an [`Actor`] that implements `RecreateFromDefault` this will call the actor's [`Actor::stopped()`] method,
+/// create a new instance of the actor using [`Default::default()`], and then call the actor's [`Actor::started()`] method.
 #[derive(Clone, Copy, Debug)]
 pub struct RecreateFromDefault;
 impl<A: Actor + Default> RestartStrategy<A> for RecreateFromDefault {
