@@ -1,5 +1,12 @@
 # Changelog
 
+## [v0.13.0](https://github.com/hoodie/hannibal/compare/v0.12.5...v0.13.0) (2025-08-14)
+
+### Fixes
+
+* remove unused async-std and smol dependency
+([32f90dc](https://github.com/hoodie/hannibal/commit/32f90dc75705d37d91c0f44b867a2cdf41c130a8))
+
 ### [v0.12.5](https://github.com/hoodie/hannibal/compare/v0.12.4...v0.12.5) (2025-08-09)
 
 #### Features
