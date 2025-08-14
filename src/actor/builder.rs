@@ -15,6 +15,7 @@ use super::{
 };
 
 #[derive(Default)]
+/// Builder for creating a base actor with configuration options.
 pub struct BaseActorBuilder<A>
 where
     A: Actor,
@@ -66,24 +67,29 @@ where
         }
     }
 
+    /// Set a maximum time that a handler can take to process a message before being canceled.
     pub const fn timeout(mut self, timeout: Duration) -> Self {
         self.config.timeout = Some(timeout);
         self
     }
+
+    /// Specify whether the actor should be terminated if a handler exceeds the timeout.
     pub const fn fail_on_timeout(mut self, fail: bool) -> Self {
         self.config.fail_on_timeout = fail;
         self
     }
 
+    /// Create an actor with a bounded channel of the given capacity.
     pub fn bounded(self, capacity: usize) -> ActorBuilderWithChannel<A, RestartOnly> {
         self.with_channel(Channel::bounded(capacity))
     }
 
+    /// Create an actor with an unbounded channel.
     pub fn unbounded(self) -> ActorBuilderWithChannel<A, RestartOnly> {
         self.with_channel(Channel::unbounded())
     }
 
-    /// Create a non-restartable on that stream
+    /// Create a non-restartable actor on the given stream with a bounded channel.
     pub fn bounded_on_stream<S>(self, capacity: usize, stream: S) -> StreamActorBuilder<A, S>
     where
         S: futures::Stream + Unpin + Send + 'static,
@@ -95,7 +101,7 @@ where
             .with_stream(stream)
     }
 
-    /// Create a non-restartable on that stream
+    /// Create a non-restartable actor on the given stream with an unbounded channel.
     pub fn on_stream<S>(self, stream: S) -> StreamActorBuilder<A, S>
     where
         S: futures::Stream + Unpin + Send + 'static,

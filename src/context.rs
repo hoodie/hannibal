@@ -12,6 +12,7 @@ use crate::{
     context::task_id::TaskID,
     environment::Payload,
     error::{ActorError::AlreadyStopped, Result},
+    runtime::sleep,
 };
 pub use context_id::ContextID;
 
@@ -297,7 +298,7 @@ impl<A: Actor> Context<A> {
         let myself = self.weak_sender();
         self.spawn_task(async move {
             loop {
-                runtime::sleep(duration).await;
+                sleep(duration).await;
                 if myself.try_send(message_fn()).await.is_err() {
                     break;
                 }
@@ -316,7 +317,7 @@ impl<A: Actor> Context<A> {
     {
         let myself = self.weak_sender();
         self.spawn_task(async move {
-            runtime::sleep(duration).await;
+            sleep(duration).await;
 
             if myself.try_send(message_fn()).await.is_err() {
                 log::warn!("Failed to send message");
@@ -331,7 +332,7 @@ impl<A: Actor> Context<A> {
         duration: Duration,
     ) -> TaskHandle {
         self.spawn_task(async move {
-            runtime::sleep(duration).await;
+            sleep(duration).await;
             task.await;
         })
     }
@@ -347,6 +348,12 @@ impl<A: Actor> Context<A> {
 /// Life-cycle
 impl<A: RestartableActor> Context<A> {
     /// Restart the actor.
+    ///
+    /// Depending on the `RestartStrategy` of the particular [`Actor`] this will do either of two things:
+    ///
+    /// *RestartOnly*: call the [`Actor::stopped()`] and [`Actor::started()`] methods in order
+    /// *RecreateFromDefault*: create a new instance of the actor and start it.
+    ///
     pub fn restart(&self) -> Result<()> {
         if let Some(tx) = self.weak_force_tx.upgrade() {
             Ok(tx.send(Payload::Restart)?)
@@ -526,7 +533,7 @@ mod interval_cleanup {
 
     mod interval_with {
         use super::*;
-        use crate::{actor::spawnable::Spawnable, context::task_handling::TaskHandle, prelude::*};
+        use crate::{actor::spawnable::Spawnable, context::TaskHandle, prelude::*};
 
         #[derive(Debug)]
         struct IntervalWithActor {
