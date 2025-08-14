@@ -351,8 +351,8 @@ impl<A: RestartableActor> Context<A> {
     ///
     /// Depending on the `RestartStrategy` of the particular [`Actor`] this will do either of two things:
     ///
-    /// *RestartOnly*: call the [`Actor::stopped()`] and [`Actor::started()`] methods in order
-    /// *RecreateFromDefault*: create a new instance of the actor and start it.
+    /// *`.restart_only()`*: call the [`Actor::stopped()`] and [`Actor::started()`] methods in order
+    /// *`.recreate_from_default()`*: create a new instance of the actor and start it.
     ///
     pub fn restart(&self) -> Result<()> {
         if let Some(tx) = self.weak_force_tx.upgrade() {

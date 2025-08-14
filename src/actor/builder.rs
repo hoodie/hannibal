@@ -16,6 +16,7 @@ use super::{
 
 #[derive(Default)]
 /// Builder for creating a base actor with configuration options.
+/// See [build module](`mod@crate::build`) module documentation for more information.
 pub struct BaseActorBuilder<A>
 where
     A: Actor,
