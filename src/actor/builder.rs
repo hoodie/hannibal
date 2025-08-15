@@ -18,10 +18,8 @@ use super::{
 pub struct BaseActorBuilder<A>
 where
     A: Actor,
-    // P: Spawner<A>,
 {
     actor: A,
-    // spawner: PhantomData<P>,
     config: EnvironmentConfig,
 }
 
@@ -48,12 +46,10 @@ where
 impl<A> BaseActorBuilder<A>
 where
     A: Actor,
-    // P: Spawner<A>,
 {
     pub(crate) fn new(actor: A) -> Self {
         Self {
             actor,
-            // spawner: PhantomData,
             config: Default::default(),
         }
     }
@@ -112,7 +108,6 @@ where
 impl<A> ActorBuilderWithChannel<A, NonRestartable>
 where
     A: Actor,
-    // P: Spawner<A>,
 {
     pub fn with_stream<S>(self, stream: S) -> StreamActorBuilder<A, S>
     where
@@ -131,7 +126,6 @@ where
 impl<A, R> ActorBuilderWithChannel<A, R>
 where
     A: Actor,
-    // P: Spawner<A>,
     R: RestartStrategy<A> + 'static,
 {
     /// Build a non-restartable Actor.
@@ -163,7 +157,6 @@ where
 impl<A, R> ActorBuilderWithChannel<A, R>
 where
     A: RestartableActor + Default,
-    // P: Spawner<A>,
     R: RestartStrategy<A> + 'static,
 {
     pub fn recreate_from_default(self) -> ActorBuilderWithChannel<A, RecreateFromDefault> {

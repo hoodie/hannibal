@@ -39,7 +39,6 @@ impl Handler<Add> for MyActor {
 async fn main() {
     color_backtrace::install();
     env_logger::init();
-    // let (mut addr, _handle) = MyActor("Caesar").spawn_with::<SmolSpawner>();
     let mut addr = MyActor("Caesar").spawn();
 
     addr.ping().await.unwrap();

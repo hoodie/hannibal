@@ -247,7 +247,6 @@ mod tests {
         struct Me;
         type Svc = TokioActor<Me>;
 
-        // Spawn a new service instance with TokioSpawner and unwrap the result
         let (first_svc, replaced) = crate::build(Svc::new(1337))
             .unbounded()
             .spawn()

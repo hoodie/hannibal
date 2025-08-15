@@ -25,7 +25,6 @@ impl Handler<Add> for MyActor {
 #[hannibal::main]
 async fn main() {
     env_logger::init();
-    // let (mut addr, _) = MyActor.spawn_with::<SmolSpawner>();
     // let addr = MyActor.spawn_owning();
     let mut addr = MyActor.spawn();
 
