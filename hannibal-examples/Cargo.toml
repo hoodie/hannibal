@@ -1,0 +1,16 @@
+[package]
+name = "hannibal-examples"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+axum = { version = "0.8.4", features = ["ws"] }
+futures = "0.3"
+tokio = { version = "1", features = ["full"] }
+env_logger = "0.11"
+log = "0.4"
+hannibal = { path = "../" }
+
+[[bin]]
+name = "axum-ws-actor"
+path = "src/axum-ws-actor.rs"
