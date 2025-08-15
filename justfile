@@ -1,6 +1,12 @@
 default:
     just --list
 
+build-examples:
+    cargo build --manifest-path hannibal-examples/Cargo.toml --no-default-features
+    cargo build --manifest-path hannibal-examples/Cargo.toml --features tokio-runtime
+    cargo build --manifest-path hannibal-examples/Cargo.toml --features async-runtime
+    cargo build --manifest-path hannibal-examples/Cargo.toml --all-features
+
 coverage:
     # cargo llvm-cov test --lib --no-default-features --features async_runtime
     # cargo llvm-cov test --lib --no-default-features --features tokio_runtime

@@ -78,7 +78,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             get(async || format!("please use dev-tools to connect to ws://{ADDR}/ws")),
         );
 
+    #[cfg(feature = "tokio_runtime")]
     let listener = tokio::net::TcpListener::bind(ADDR).await?;
+
+    #[cfg(feature = "async_runtime")]
+    let listener = async_net::TcpListener::bind(ADDR).await?;
     log::debug!("listening on {}", listener.local_addr()?);
 
     axum::serve(
