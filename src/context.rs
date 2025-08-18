@@ -404,7 +404,7 @@ mod interval_cleanup {
             }
         }
 
-        #[tokio::test]
+        #[crate::test]
         async fn stopped_when_actor_stopped() {
             let flag = Arc::new(AtomicBool::new(false));
             let addr = IntervalActor {
@@ -519,7 +519,7 @@ mod interval_cleanup {
             }
         }
 
-        #[tokio::test]
+        #[crate::test]
         async fn dont_overlap_when_tasks_take_too_long() {
             let addr = crate::build(IntervalActor {
                 started: Instant::now(),
@@ -563,7 +563,7 @@ mod interval_cleanup {
                 self.running.store(true, Ordering::SeqCst);
             }
         }
-        #[tokio::test]
+        #[crate::test]
         async fn stopped_by_task_handle() {
             let running = Arc::new(AtomicBool::new(false));
             let addr = IntervalWithActor {
@@ -599,7 +599,7 @@ mod interval_cleanup {
             );
         }
 
-        #[tokio::test]
+        #[crate::test]
         async fn stopped_when_actor_stopped() {
             let running = Arc::new(AtomicBool::new(false));
             let addr = IntervalWithActor {
@@ -642,7 +642,7 @@ mod interval_cleanup {
             }
         }
 
-        #[tokio::test]
+        #[crate::test]
         async fn stopped_when_actor_stopped() {
             let running = Arc::new(AtomicBool::new(false));
             let addr = DelayedSendActor {
