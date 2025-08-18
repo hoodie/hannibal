@@ -489,7 +489,6 @@ dependencies = [
  "async-io",
  "async-lock",
  "async-signals",
- "cfg-if",
  "color-backtrace",
  "dyn-clone",
  "env_logger",

@@ -22,7 +22,6 @@ exclude = ["hannibal-examples"]
 [dependencies]
 hannibal-derive = { path = "hannibal-derive", version = "0.13.0" }
 thiserror = "2.0"
-cfg-if = "1.0"
 log = { version = "0.4", features = ["kv"] }
 futures = { version = "0.3" }
 dyn-clone = "1.0"
