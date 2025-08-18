@@ -77,6 +77,12 @@ mod context;
 mod environment;
 pub mod error;
 
+#[cfg(all(test, feature = "tokio_runtime"))]
+pub use tokio::test;
+
+#[cfg(all(test, feature = "async_runtime"))]
+pub use futures_test::test;
+
 pub use hannibal_derive::{main, message};
 
 mod broker;

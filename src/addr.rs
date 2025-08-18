@@ -315,7 +315,7 @@ impl<A> DerefMut for OwningAddr<A> {
 #[cfg(test)]
 mod tests {
     #![allow(clippy::unwrap_used)]
-    use crate::{Context, DynResult, Message, environment::Environment};
+    use crate::{Context, DynResult, Message, environment::Environment, runtime};
 
     use super::*;
     use std::future::Future;
@@ -368,7 +368,7 @@ mod tests {
     #[test_log::test(tokio::test)]
     async fn addr_call() {
         let (event_loop, addr) = start(MyActor::default());
-        tokio::spawn(event_loop);
+        runtime::spawn(event_loop);
 
         let addition = addr.call(Add(1, 2)).await.unwrap();
         assert_eq!(addition, 3);
@@ -377,7 +377,7 @@ mod tests {
     #[test_log::test(tokio::test)]
     async fn addr_send() {
         let (event_loop, mut addr) = start(MyActor::default());
-        let task = tokio::spawn(event_loop);
+        let task = runtime::spawn(event_loop);
         addr.send(Store("password")).await.unwrap();
         addr.stop().unwrap();
         let actor = task.await.unwrap().unwrap();
@@ -387,7 +387,7 @@ mod tests {
     #[test_log::test(tokio::test)]
     async fn addr_send_err() {
         let (event_loop, mut addr) = start(MyActor::default());
-        tokio::spawn(event_loop);
+        runtime::spawn(event_loop);
         let addr2 = addr.clone();
         addr.stop().unwrap();
         addr.await.unwrap();
@@ -397,7 +397,7 @@ mod tests {
     #[test_log::test(tokio::test)]
     async fn addr_stop() {
         let (event_loop, mut addr) = start(MyActor::default());
-        tokio::spawn(event_loop);
+        runtime::spawn(event_loop);
 
         let addr2 = addr.clone();
         addr.stop().unwrap();
@@ -409,7 +409,7 @@ mod tests {
     #[test_log::test(tokio::test)]
     async fn ctx_stop() {
         let (event_loop, addr) = start(MyActor::default());
-        tokio::spawn(event_loop);
+        runtime::spawn(event_loop);
 
         let addr2 = addr.clone();
         addr.send(Stop).await.unwrap();
@@ -421,7 +421,7 @@ mod tests {
     #[test_log::test(tokio::test)]
     async fn addr_stopped_after_stop() {
         let (event_loop, addr) = start(MyActor::default());
-        tokio::spawn(event_loop);
+        runtime::spawn(event_loop);
 
         let addr2 = addr.clone();
         assert!(!addr2.stopped(), "addr2 should not be stopped");
@@ -435,7 +435,7 @@ mod tests {
     #[test_log::test(tokio::test)]
     async fn weak_addr_does_not_prolong_life() {
         let (event_loop, addr) = start(MyActor::default());
-        let actor = tokio::spawn(event_loop);
+        let actor = runtime::spawn(event_loop);
 
         let weak_addr = WeakAddr::from(&addr);
         let weak_addr2 = addr.downgrade();
@@ -452,7 +452,7 @@ mod tests {
     #[test_log::test(tokio::test)]
     async fn weak_caller_does_not_prolong_life() {
         let (event_loop, addr) = start(MyActor::default());
-        let actor = tokio::spawn(event_loop);
+        let actor = runtime::spawn(event_loop);
 
         let weak_caller = addr.weak_caller::<Stop>();
         weak_caller.upgrade().unwrap();
@@ -469,7 +469,7 @@ mod tests {
     #[test_log::test(tokio::test)]
     async fn weak_sender_does_not_prolong_life() {
         let (event_loop, addr) = start(MyActor::default());
-        let actor = tokio::spawn(event_loop);
+        let actor = runtime::spawn(event_loop);
 
         let weak_sender = addr.weak_sender::<Stop>();
         weak_sender.upgrade().unwrap();

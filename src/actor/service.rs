@@ -227,7 +227,7 @@ mod tests {
         prelude::Spawnable as _,
     };
 
-    #[test_log::test(tokio::test)]
+    #[test_log::test(crate::test)]
     async fn get_service_from_registry() {
         #[derive(Default)]
         struct Me;
@@ -241,7 +241,7 @@ mod tests {
         svc_addr.await.unwrap();
     }
 
-    #[test_log::test(tokio::test)]
+    #[test_log::test(crate::test)]
     async fn reregistering_service_only_if_stopped() {
         #[derive(Default)]
         struct Me;
@@ -275,7 +275,7 @@ mod tests {
         assert!(Svc::new(1338).spawn().register().await.is_err());
     }
 
-    #[test_log::test(tokio::test)]
+    #[test_log::test(crate::test)]
     async fn replace_service() {
         #[derive(Default)]
         struct Me;
@@ -304,7 +304,7 @@ mod tests {
         current_svc.await.unwrap();
     }
 
-    #[test_log::test(tokio::test)]
+    #[test_log::test(crate::test)]
     async fn replace_service_when_none_exists() {
         #[derive(Default)]
         struct Me;
@@ -325,7 +325,7 @@ mod tests {
         current_svc.await.unwrap();
     }
 
-    #[test_log::test(tokio::test)]
+    #[test_log::test(crate::test)]
     async fn unregister_service() {
         #[derive(Default)]
         struct Me;
@@ -351,7 +351,7 @@ mod tests {
         assert_eq!(new_from_registry.call(Identify).await, Ok(0)); // Default value
     }
 
-    #[test_log::test(tokio::test)]
+    #[test_log::test(crate::test)]
     async fn already_running_service() {
         #[derive(Default)]
         struct Me;

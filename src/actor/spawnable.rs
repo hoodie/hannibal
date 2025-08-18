@@ -91,7 +91,7 @@ mod tests {
             spawnable::{DefaultSpawnable, Spawnable},
         };
 
-        #[tokio::test]
+        #[crate::test]
         async fn spawn() {
             let tokio_actor = TokioActor::<()>::default();
             let mut addr = tokio_actor.spawn();
@@ -102,7 +102,7 @@ mod tests {
             addr.await.unwrap()
         }
 
-        #[tokio::test]
+        #[crate::test]
         async fn spawn_default() {
             let mut addr = TokioActor::<()>::spawn_default().unwrap();
             assert!(!addr.stopped());

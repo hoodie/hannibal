@@ -554,6 +554,7 @@ name = "hannibal"
 version = "0.13.0"
 dependencies = [
  "async-global-executor",
+ "async-io",
  "async-lock",
  "dyn-clone",
  "futures",

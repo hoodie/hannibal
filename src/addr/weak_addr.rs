@@ -109,18 +109,18 @@ where
 mod tests {
     #![allow(clippy::unwrap_used)]
     use super::*;
-    use crate::addr::tests::*;
+    use crate::{addr::tests::*, runtime};
 
-    #[test_log::test(tokio::test)]
+    #[test_log::test(crate::test)]
     async fn upgrade() {
         let (event_loop, addr) = start(MyActor::default());
-        tokio::spawn(event_loop);
+        runtime::spawn(event_loop);
 
         let weak_addr = WeakAddr::from(&addr);
         assert_eq!(weak_addr.upgrade().unwrap().call(Add(1, 2)).await, Ok(3))
     }
 
-    #[test_log::test(tokio::test)]
+    #[test_log::test(crate::test)]
     async fn does_not_prolong_life() {
         let (event_loop, addr) = start(MyActor::default());
         let actor = tokio::spawn(event_loop);
@@ -134,7 +134,7 @@ mod tests {
         assert!(weak_addr.upgrade().is_none());
     }
 
-    #[test_log::test(tokio::test)]
+    #[test_log::test(crate::test)]
     async fn send_fails_after_drop() {
         let (event_loop, addr) = start(MyActor::default());
         let actor = tokio::spawn(event_loop);

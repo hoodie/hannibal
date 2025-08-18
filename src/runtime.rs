@@ -19,6 +19,8 @@ where
     let rt = tokio::runtime::Runtime::new().unwrap();
     rt.block_on(future)
 }
+#[cfg(all(test, feature = "tokio_runtime"))]
+pub use tokio::spawn;
 #[cfg(feature = "tokio_runtime")]
 pub use tokio::time::sleep;
 
@@ -28,6 +30,9 @@ pub use tokio::time::sleep;
 /// You do not necessarily need to use this function, it just makes testing and examples easier.
 #[cfg(all(not(feature = "tokio_runtime"), feature = "async_runtime"))]
 pub use async_global_executor::block_on;
+#[cfg(all(test, not(feature = "tokio_runtime"), feature = "async_runtime"))]
+
+pub use async_global_executor::spawn;
 
 /// Sleep for the given duration.
 ///
