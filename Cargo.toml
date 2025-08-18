@@ -17,11 +17,12 @@ rust-version = "1.89"
 
 [workspace]
 members = ["hannibal-derive"]
+exclude = ["hannibal-examples"]
 
 [dependencies]
 hannibal-derive = { path = "hannibal-derive", version = "0.13.0" }
 thiserror = "2.0"
-cfg-if = "1.0.0"
+cfg-if = "1.0"
 log = { version = "0.4", features = ["kv"] }
 futures = { version = "0.3" }
 dyn-clone = "1.0"
@@ -29,7 +30,7 @@ async-lock = "3"
 
 tokio = { version = "1", features = ["full"], optional = true }
 
-async-io = { version = "2.4.0", optional = true }
+async-io = { version = "2.5.0", optional = true }
 async-global-executor = { version = "3", optional = true }
 
 [features]
@@ -53,7 +54,6 @@ test-log = "0.2"
 env_logger = { version = "0.11", features = ["unstable-kv"] }
 color-backtrace = "0.7"
 assert_matches = "1.5"
-axum = { version = "0.8.4", features = ["ws"] }
 
 
 [[example]]
