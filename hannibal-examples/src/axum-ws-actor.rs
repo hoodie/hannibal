@@ -66,7 +66,7 @@ pub async fn peer_connected(ws: WebSocketUpgrade) -> Response {
     })
 }
 
-#[hannibal::main]
+#[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     const ADDR: &str = "127.0.0.1:3000";
     env_logger::init();
@@ -79,6 +79,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         );
 
     let listener = tokio::net::TcpListener::bind(ADDR).await?;
+
     log::debug!("listening on {}", listener.local_addr()?);
 
     axum::serve(

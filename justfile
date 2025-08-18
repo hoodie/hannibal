@@ -22,4 +22,7 @@ test $NEXTEST_STATUS_LEVEL="slow":
     cargo nextest run --workspace --lib --no-default-features --features async_runtime
     cargo nextest run --workspace --lib --no-default-features --features async_runtime,tokio
 
-ci: clippy test
+build-examples:
+    cargo build --manifest-path hannibal-examples/Cargo.toml --features tokio_runtime
+
+ci: clippy test build-examples
