@@ -19,7 +19,7 @@ where
     let rt = tokio::runtime::Runtime::new().unwrap();
     rt.block_on(future)
 }
-#[cfg(feature = "tokio_runtime")]
+#[cfg(all(feature = "tokio_runtime", not(feature = "async_runtime")))]
 pub use tokio::time::sleep;
 
 /// Block on the given future.
