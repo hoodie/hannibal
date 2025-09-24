@@ -266,7 +266,8 @@ mod task_handling {
 
             let task_id = TaskHandle(TaskID::default());
             self.tasks.insert(task_id.0, handle);
-            async_global_executor::spawn(task.map(|_| ())).detach();
+
+            crate::runtime::spawn(task.map(|_| ()));
             task_id
         }
 

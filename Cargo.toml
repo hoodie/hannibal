@@ -31,18 +31,26 @@ tokio = { version = "1", features = ["full"], optional = true }
 
 async-io = { version = "2.5.0", optional = true }
 async-global-executor = { version = "3", optional = true }
+async-task = { version = "4.7", optional = true }
+cfg-if = "1.0.3"
 
 [features]
 default = [
-    "tokio_runtime",
-    # "async_runtime",
+    # "tokio_runtime",
+    "async_runtime",
 ]
 
-tokio_runtime = ["runtime", "dep:tokio", "async-global-executor/tokio"]
+tokio_runtime = ["runtime", "dep:tokio"]
 async_runtime = ["runtime", "dep:async-io", "dep:async-global-executor"]
+async_runtime_on_tokio = [
+    "runtime",
+    "dep:async-io",
+    "dep:async-global-executor",
+    "async-global-executor/tokio",
+]
 
-tokio = ["dep:tokio", "async-global-executor/tokio"]
 runtime = []
+async-task = ["dep:async-task"]
 
 [dev-dependencies]
 tokio = { version = "1", features = ["full"] }
