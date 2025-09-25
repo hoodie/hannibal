@@ -1,5 +1,12 @@
 # Changelog
 
+### [v0.13.1](https://github.com/hoodie/hannibal/compare/v0.13.0...v0.13.1) (2025-09-25)
+
+#### Fixes
+
+* update metadata
+([442954f](https://github.com/hoodie/hannibal/commit/442954ffbdd59daee6cc0ae9e3e84193aed4032e))
+
 ## [v0.13.0](https://github.com/hoodie/hannibal/compare/v0.12.5...v0.13.0) (2025-08-14)
 
 ### Fixes
