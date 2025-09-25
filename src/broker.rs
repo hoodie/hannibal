@@ -193,7 +193,7 @@ mod subscribe_publish_unsubscribe {
         }
     }
 
-    #[test_log::test(tokio::test)]
+    #[test_log::test(crate::test)]
     async fn publish_different_ways() -> DynResult<()> {
         let mut subscriber1 = Subscribing::default().spawn_owning();
         subscriber1.ping().await.unwrap();

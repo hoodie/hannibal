@@ -19,7 +19,10 @@ where
     let rt = tokio::runtime::Runtime::new().unwrap();
     rt.block_on(future)
 }
-#[cfg(feature = "tokio_runtime")]
+
+// #[cfg(all(feature = "tokio_runtime", not(feature = "async_runtime")))]
+// pub use tokio::spawn;
+#[cfg(all(feature = "tokio_runtime", not(feature = "async_runtime")))]
 pub use tokio::time::sleep;
 
 /// Block on the given future.
@@ -28,6 +31,21 @@ pub use tokio::time::sleep;
 /// You do not necessarily need to use this function, it just makes testing and examples easier.
 #[cfg(all(not(feature = "tokio_runtime"), feature = "async_runtime"))]
 pub use async_global_executor::block_on;
+
+/// Spawns a task onto the multi-threaded global executor.
+pub async fn spawn<F: Future<Output = T> + Send + 'static, T: Send + 'static>(
+    future: F,
+) -> Result<T, Box<dyn std::error::Error>> {
+    cfg_if::cfg_if! {
+        if #[cfg(all(feature = "tokio_runtime", not(feature = "async_runtime")))] {
+            Ok(tokio::spawn(future).await?)
+        } else if #[cfg(all(not(feature = "tokio_runtime"), feature = "async_runtime"))] {
+            Ok(async_global_executor::spawn(future).fallible().await.ok_or("err")?)
+        } else {
+            compile_error!("Unsupported runtime configuration");
+        }
+    }
+}
 
 /// Sleep for the given duration.
 ///

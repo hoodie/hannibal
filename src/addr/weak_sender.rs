@@ -129,12 +129,12 @@ where
 mod tests {
     #![allow(clippy::unwrap_used)]
     use super::*;
-    use crate::addr::tests::*;
+    use crate::{addr::tests::*, runtime};
 
-    #[test_log::test(tokio::test)]
+    #[test_log::test(crate::test)]
     async fn upgrade() {
         let (event_loop, mut addr) = start(MyActor::default());
-        let actor = tokio::spawn(event_loop);
+        let actor = runtime::spawn(event_loop);
 
         let weak_sender = WeakSender::from(&addr);
         weak_sender
@@ -148,10 +148,10 @@ mod tests {
         assert_eq!(actor.0, Some("password"));
     }
 
-    #[test_log::test(tokio::test)]
+    #[test_log::test(crate::test)]
     async fn does_not_prolong_life() {
         let (event_loop, addr) = start(MyActor::default());
-        let actor = tokio::spawn(event_loop);
+        let actor = runtime::spawn(event_loop);
 
         let weak_sender: WeakSender<Store> = WeakSender::from(&addr);
         weak_sender.upgrade().unwrap();
@@ -162,10 +162,10 @@ mod tests {
         assert!(weak_sender.upgrade().is_none());
     }
 
-    #[test_log::test(tokio::test)]
+    #[test_log::test(crate::test)]
     async fn try_call_fails() {
         let (event_loop, mut addr) = start(MyActor::default());
-        let actor = tokio::spawn(event_loop);
+        let actor = runtime::spawn(event_loop);
 
         let weak_sender: WeakSender<Store> = WeakSender::from(&addr);
         addr.stop().unwrap();

@@ -312,28 +312,28 @@ mod tests {
 
         use super::*;
 
-        #[test_log::test(tokio::test)]
+        #[test_log::test(crate::test)]
         async fn calls_actor_started() {
             let (event_loop, mut addr) = Environment::unbounded().create_loop(GoodActor::default());
-            let task = tokio::spawn(event_loop);
+            let task = runtime::spawn(event_loop);
             addr.stop().unwrap();
             let actor = task.await.unwrap().unwrap();
             assert!(actor.started);
         }
 
-        #[test_log::test(tokio::test)]
+        #[test_log::test(crate::test)]
         async fn calls_actor_stopped() {
             let (event_loop, mut addr) = Environment::unbounded().create_loop(GoodActor::default());
-            let task = tokio::spawn(event_loop);
+            let task = runtime::spawn(event_loop);
             addr.stop().unwrap();
             let actor = task.await.unwrap().unwrap();
             assert!(actor.stopped);
         }
 
-        #[test_log::test(tokio::test)]
+        #[test_log::test(crate::test)]
         async fn start_can_fail() {
             let (event_loop, mut addr) = Environment::unbounded().create_loop(BadActor);
-            let task = tokio::spawn(event_loop);
+            let task = runtime::spawn(event_loop);
             addr.stop().unwrap();
             let error = task.await.unwrap().map(|_| ()).map_err(|e| e.to_string());
             assert_eq!(error, Err(String::from("failed")), "start should fail");
@@ -356,39 +356,39 @@ mod tests {
             Environment::unbounded().create_loop_on_stream(A::default(), counter)
         }
 
-        #[test_log::test(tokio::test)]
+        #[test_log::test(crate::test)]
         async fn calls_actor_started() {
             let (event_loop, mut addr) = prepare::<GoodActor>();
-            let task = tokio::spawn(event_loop);
+            let task = runtime::spawn(event_loop);
             addr.stop().unwrap();
             let actor = task.await.unwrap().unwrap();
             assert!(actor.started);
         }
 
-        #[test_log::test(tokio::test)]
+        #[test_log::test(crate::test)]
         async fn calls_actor_stopped() {
             let (event_loop, mut addr) = prepare::<GoodActor>();
-            let task = tokio::spawn(event_loop);
+            let task = runtime::spawn(event_loop);
             addr.stop().unwrap();
             let actor = task.await.unwrap().unwrap();
             assert!(actor.stopped);
         }
 
-        #[test_log::test(tokio::test)]
+        #[test_log::test(crate::test)]
         async fn start_can_fail() {
             let (event_loop, mut addr) = prepare::<BadActor>();
-            let task = tokio::spawn(event_loop);
+            let task = runtime::spawn(event_loop);
             addr.stop().unwrap();
             let error = task.await.unwrap().map(|_| ()).map_err(|e| e.to_string());
             assert_eq!(error, Err(String::from("failed")), "start should fail");
         }
 
-        #[test_log::test(tokio::test)]
+        #[test_log::test(crate::test)]
         async fn ends_on_stream_finish() {
             let (event_loop, mut addr) = prepare::<GoodActor>();
             let addr2 = addr.clone();
 
-            let task = tokio::spawn(event_loop);
+            let task = runtime::spawn(event_loop);
             runtime::sleep(std::time::Duration::from_millis(400)).await;
 
             // TODO: should the stream always stop the actor?
@@ -402,7 +402,7 @@ mod tests {
             assert_eq!(actor.count, 4950);
         }
 
-        #[test_log::test(tokio::test)]
+        #[test_log::test(crate::test)]
         async fn finished_only_when_stream_finishes() {
             let stopping = build(GoodActor::default())
                 .on_stream(stream::pending::<i32>())
@@ -422,13 +422,13 @@ mod tests {
             assert!(finished_actor.finished, "actor should be finished");
         }
 
-        #[test_log::test(tokio::test)]
+        #[test_log::test(crate::test)]
         async fn cancelles_handling_messages_after() {
             let (event_loop, mut addr) = Environment::unbounded()
                 .abort_after(std::time::Duration::from_millis(100))
                 .create_loop_on_stream(GoodActor::default(), stream::pending::<i32>());
 
-            let task = tokio::spawn(event_loop);
+            let task = runtime::spawn(event_loop);
             for d in [0, 1, 22, 33, 444, 55]
                 .into_iter()
                 .map(Duration::from_millis)
@@ -443,21 +443,21 @@ mod tests {
             assert_eq!(count, 1 + 22 + 33 + 55, "should not add 444");
         }
 
-        #[test_log::test(tokio::test)]
+        #[test_log::test(crate::test)]
         async fn cancelles_handling_stream_messages_after() {
             let counter = stream::iter([0, 1, 22, 33, 444, 55]).map(Duration::from_millis);
             let (event_loop, mut _addr) = Environment::unbounded()
                 .abort_after(std::time::Duration::from_millis(100))
                 .create_loop_on_stream(GoodActor::default(), counter);
 
-            let task = tokio::spawn(event_loop);
+            let task = runtime::spawn(event_loop);
             runtime::sleep(std::time::Duration::from_millis(400)).await;
 
             let actor = task.await.unwrap().unwrap();
             assert_eq!(actor.count, 1 + 22 + 33 + 55, "should not add 444");
         }
 
-        #[test_log::test(tokio::test)]
+        #[test_log::test(crate::test)]
         async fn ends_timeout_exceeded() {
             let counter = stream::iter([0, 10, 10, 500]).map(Duration::from_millis);
             let (event_loop, mut addr) = Environment::unbounded()
@@ -465,7 +465,7 @@ mod tests {
                 .create_loop_on_stream(GoodActor::default(), counter);
             let addr2 = addr.clone();
 
-            let task = tokio::spawn(event_loop);
+            let task = runtime::spawn(event_loop);
             runtime::sleep(std::time::Duration::from_millis(200)).await;
 
             assert_matches!(addr.stop().unwrap_err(), ActorError::AsyncSendError(_));
@@ -517,11 +517,11 @@ mod tests {
             }
         }
 
-        #[test_log::test(tokio::test)]
+        #[test_log::test(crate::test)]
         async fn restarts_actor() {
             let counter = RestartCounter::new();
             let (event_loop, mut addr) = Environment::unbounded().create_loop(counter);
-            let task = tokio::spawn(event_loop);
+            let task = runtime::spawn(event_loop);
             addr.restart().unwrap();
             addr.restart().unwrap();
             addr.stop().unwrap();
@@ -530,11 +530,11 @@ mod tests {
             assert_eq!(actor.stopped_count, 3);
         }
 
-        #[test_log::test(tokio::test)]
+        #[test_log::test(crate::test)]
         async fn recreates_actor() {
             let counter = RestartCounter::new();
             let (event_loop, mut addr) = Environment::unbounded().recreating().create_loop(counter);
-            let task = tokio::spawn(event_loop);
+            let task = runtime::spawn(event_loop);
             addr.restart().unwrap();
             addr.restart().unwrap();
             addr.stop().unwrap();
@@ -579,8 +579,8 @@ mod tests {
         // TODO: can we encode the restart strategy in an associated type or as a trait function?
         impl RestartableActor for SleepyActor {}
 
-        // #[test_log::test(tokio::test)]
-        #[tokio::test]
+        // #[test_log::test(crate::test)]
+        #[crate::test]
         async fn no_timeout() {
             // normal case, tasks take long
             println!("SleepyActor 0 will take 1 second to complete");
@@ -592,8 +592,8 @@ mod tests {
             assert!(addr.stop().is_ok());
         }
 
-        // #[test_log::test(tokio::test)]
-        #[tokio::test]
+        // #[test_log::test(crate::test)]
+        #[crate::test]
         async fn timeout_and_continue() {
             // timeout and continue
             println!("SleepyActor 1 will be canceled after 1 second");
@@ -621,7 +621,7 @@ mod tests {
             assert!(addr.join().await.is_some());
         }
 
-        #[tokio::test]
+        #[crate::test]
         async fn timeout_and_fail() {
             // timeout and fail
             println!("SleepyActor 2 will be canceled after 1 second");
