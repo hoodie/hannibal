@@ -270,6 +270,23 @@ mod task_handling {
             task_id
         }
 
+        /// Spawn a task that will be executed in the background.
+        ///
+        /// The task will be aborted when the actor is stopped.
+        #[cfg(not(runtime_tokio))]
+        pub fn spawn_task_local(
+            &mut self,
+            task: impl Future<Output = ()> + 'static,
+        ) -> TaskHandle {
+            let (task, handle) = futures::future::abortable(task);
+
+            let task_id = TaskHandle(TaskID::default());
+            self.tasks.insert(task_id.0, handle);
+            async_global_executor::spawn_local(task.map(|_| ())).detach();
+            // tokio::task::spawn_local(task.map(|_| ()));
+            task_id
+        }
+
         #[cfg(test)]
         pub(crate) fn stop_tasks(&mut self) {
             for (_, handle) in self.tasks.drain() {
