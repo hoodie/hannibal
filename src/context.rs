@@ -12,9 +12,9 @@ use crate::{
     context::task_id::TaskID,
     environment::Payload,
     error::{ActorError::AlreadyStopped, Result},
+    runtime,
 };
 pub use context_id::ContextID;
-pub use task_handling::TaskHandle;
 
 pub type RunningFuture = futures::future::Shared<oneshot::Receiver<()>>;
 pub struct StopNotifier(pub(crate) oneshot::Sender<()>);
@@ -104,7 +104,7 @@ impl<A> Drop for Context<A> {
     }
 }
 
-/// Life-cycle
+/// ## Life-cycle
 impl<A: Actor> Context<A> {
     /// Stop the actor.
     pub fn stop(&self) -> Result<()> {
@@ -116,7 +116,7 @@ impl<A: Actor> Context<A> {
     }
 }
 
-/// Child Actors
+/// ## Child Actors
 impl<A: Actor> Context<A> {
     /// Add a child actor.
     ///
@@ -160,6 +160,7 @@ impl<A: Actor> Context<A> {
     }
 }
 
+/// ## Creating `Addr`s, `Caller`s and `Sender`s to yoursef
 impl<A: Actor> Context<A> {
     /// Create an strong address to the actor.
     ///
@@ -207,7 +208,7 @@ impl<A: Actor> Context<A> {
     }
 }
 
-/// Broker Interaction
+/// ## Broker Interaction
 impl<A: Actor> Context<A> {
     /// Publish to the broker.
     ///
@@ -231,128 +232,115 @@ impl<A: Actor> Context<A> {
     }
 }
 
-mod task_handling {
-    use crate::{
-        context::task_id::TaskID,
-        runtime::{self, sleep},
-    };
-    use futures::FutureExt;
-    use std::{future::Future, time::Duration};
+use futures::FutureExt;
+use std::{future::Future, time::Duration};
 
-    use crate::{Context, Handler, Message, actor::Actor};
+/// Represents a handle to a task that can be used to abort the task.
+#[derive(Copy, Clone)]
+pub struct TaskHandle(TaskID);
 
-    /// Task Handle
+impl std::fmt::Debug for TaskHandle {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_tuple("TaskHandle").finish()
+    }
+}
+
+/// ## Task Handling
+impl<A: Actor> Context<A> {
+    /// Spawn a task that will be executed in the background.
     ///
-    /// Represents a handle to a task that can be used to abort the task.
-    #[derive(Copy, Clone)]
-    pub struct TaskHandle(TaskID);
+    /// The task will be aborted when the actor is stopped.
+    pub fn spawn_task(&mut self, task: impl Future<Output = ()> + Send + 'static) -> TaskHandle {
+        let (task, handle) = futures::future::abortable(task);
 
-    impl std::fmt::Debug for TaskHandle {
-        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-            f.debug_tuple("TaskHandle").finish()
+        let task_id = TaskHandle(TaskID::default());
+        self.tasks.insert(task_id.0, handle);
+        async_global_executor::spawn(task.map(|_| ())).detach();
+        task_id
+    }
+
+    #[cfg(test)]
+    pub(crate) fn stop_tasks(&mut self) {
+        for (_, handle) in self.tasks.drain() {
+            handle.abort();
         }
     }
 
-    /// Task Handling
-    impl<A: Actor> Context<A> {
-        /// Spawn a task that will be executed in the background.
-        ///
-        /// The task will be aborted when the actor is stopped.
-        pub fn spawn_task(
-            &mut self,
-            task: impl Future<Output = ()> + Send + 'static,
-        ) -> TaskHandle {
-            let (task, handle) = futures::future::abortable(task);
-
-            let task_id = TaskHandle(TaskID::default());
-            self.tasks.insert(task_id.0, handle);
-            async_global_executor::spawn(task.map(|_| ())).detach();
-            task_id
-        }
-
-        #[cfg(test)]
-        pub(crate) fn stop_tasks(&mut self) {
-            for (_, handle) in self.tasks.drain() {
-                handle.abort();
-            }
-        }
-
-        /// Send yourself a message at a regular interval.
-        pub fn interval<M: Message<Response = ()> + Clone + Send + 'static>(
-            &mut self,
-            message: M,
-            duration: Duration,
-        ) -> TaskHandle
-        where
-            A: Handler<M> + Send + 'static,
-        {
-            let myself = self.weak_sender();
-            self.spawn_task(async move {
-                loop {
-                    sleep(duration).await;
-                    if myself.try_force_send(message.clone()).is_err() {
-                        break;
-                    }
-                }
-            })
-        }
-
-        /// Send yourself a message at a regular interval.
-        pub fn interval_with<M: Message<Response = ()>>(
-            &mut self,
-            message_fn: impl Fn() -> M + Send + Sync + 'static,
-            duration: Duration,
-        ) -> TaskHandle
-        where
-            A: Handler<M>,
-        {
-            let myself = self.weak_sender();
-            self.spawn_task(async move {
-                loop {
-                    runtime::sleep(duration).await;
-                    if myself.try_send(message_fn()).await.is_err() {
-                        break;
-                    }
-                }
-            })
-        }
-
-        /// Send yourself a message after a delay.
-        pub fn delayed_send<M: Message<Response = ()>>(
-            &mut self,
-            message_fn: impl Fn() -> M + Send + Sync + 'static,
-            duration: Duration,
-        ) -> TaskHandle
-        where
-            A: Handler<M>,
-        {
-            let myself = self.weak_sender();
-            self.spawn_task(async move {
+    /// Send yourself a message at a regular interval.
+    pub fn interval<M: Message<Response = ()> + Clone + Send + 'static>(
+        &mut self,
+        message: M,
+        duration: Duration,
+    ) -> TaskHandle
+    where
+        A: Handler<M> + Send + 'static,
+    {
+        let myself = self.weak_sender();
+        self.spawn_task(async move {
+            loop {
                 runtime::sleep(duration).await;
+                if myself.try_force_send(message.clone()).is_err() {
+                    break;
+                }
+            }
+        })
+    }
 
+    /// Send yourself a message at a regular interval.
+    pub fn interval_with<M: Message<Response = ()>>(
+        &mut self,
+        message_fn: impl Fn() -> M + Send + Sync + 'static,
+        duration: Duration,
+    ) -> TaskHandle
+    where
+        A: Handler<M>,
+    {
+        let myself = self.weak_sender();
+        self.spawn_task(async move {
+            loop {
+                runtime::sleep(duration).await;
                 if myself.try_send(message_fn()).await.is_err() {
-                    log::warn!("Failed to send message");
+                    break;
                 }
-            })
-        }
-
-        /// Execute a task after a delay.
-        pub fn delayed_exec<F: Future<Output = ()> + Send + 'static>(
-            &mut self,
-            task: F,
-            duration: Duration,
-        ) -> TaskHandle {
-            self.spawn_task(async move {
-                runtime::sleep(duration).await;
-                task.await;
-            })
-        }
-
-        /// Stop a very specific task.
-        pub fn stop_task(&mut self, handle: TaskHandle) {
-            if let Some((_, task)) = self.tasks.remove_entry(&handle.0) {
-                task.abort();
             }
+        })
+    }
+
+    /// Send yourself a message after a delay.
+    pub fn delayed_send<M: Message<Response = ()>>(
+        &mut self,
+        message_fn: impl Fn() -> M + Send + Sync + 'static,
+        duration: Duration,
+    ) -> TaskHandle
+    where
+        A: Handler<M>,
+    {
+        let myself = self.weak_sender();
+        self.spawn_task(async move {
+            runtime::sleep(duration).await;
+
+            if myself.try_send(message_fn()).await.is_err() {
+                log::warn!("Failed to send message");
+            }
+        })
+    }
+
+    /// Execute a task after a delay.
+    pub fn delayed_exec<F: Future<Output = ()> + Send + 'static>(
+        &mut self,
+        task: F,
+        duration: Duration,
+    ) -> TaskHandle {
+        self.spawn_task(async move {
+            runtime::sleep(duration).await;
+            task.await;
+        })
+    }
+
+    /// Stop a very specific task.
+    pub fn stop_task(&mut self, handle: TaskHandle) {
+        if let Some((_, task)) = self.tasks.remove_entry(&handle.0) {
+            task.abort();
         }
     }
 }
@@ -360,6 +348,12 @@ mod task_handling {
 /// Life-cycle
 impl<A: RestartableActor> Context<A> {
     /// Restart the actor.
+    ///
+    /// Depending on the `RestartStrategy` of the particular [`Actor`] this will do either of two things:
+    ///
+    /// *`RestartOnly`*: call the [`Actor::stopped()`] and [`Actor::started()`] methods in order
+    /// *`RecreateFromDefault`*: create a new instance of the actor and start it.
+    ///
     pub fn restart(&self) -> Result<()> {
         if let Some(tx) = self.weak_force_tx.upgrade() {
             Ok(tx.send(Payload::Restart)?)
@@ -539,7 +533,7 @@ mod interval_cleanup {
 
     mod interval_with {
         use super::*;
-        use crate::{actor::spawnable::Spawnable, context::task_handling::TaskHandle, prelude::*};
+        use crate::{TaskHandle, actor::spawnable::Spawnable, prelude::*};
 
         #[derive(Debug)]
         struct IntervalWithActor {
