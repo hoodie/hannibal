@@ -24,7 +24,7 @@ pub trait Spawnable: Actor {
     #[doc(hidden)]
     fn spawn_owning_in(self, environment: EventLoop<Self>) -> OwningAddr<Self> {
         log::trace!("spawn {}", type_name::<Self>());
-        let (event_loop, addr) = environment.create_loop(self);
+        let (event_loop, addr) = environment.create(self);
         let handle = ActorHandle::spawn(event_loop);
         OwningAddr::new(addr, handle)
     }
@@ -45,7 +45,7 @@ where
     /// Spawns the actor on the provided stream and returns an `OwningAddr` handle.
     fn spawn_owning_on_stream(self, stream: T) -> crate::error::Result<OwningAddr<Self>> {
         log::trace!("spawn on stream {}", type_name::<Self>());
-        let (event_loop, addr) = EventLoop::unbounded().create_loop_on_stream(self, stream);
+        let (event_loop, addr) = EventLoop::unbounded().create_on_stream(self, stream);
         let handle = ActorHandle::spawn(event_loop);
         Ok(OwningAddr::new(addr, handle))
     }
@@ -61,7 +61,7 @@ pub trait DefaultSpawnable: Actor + Default {
     /// Spawns a new actor with default configuration.
     fn spawn_default_owning() -> crate::error::Result<OwningAddr<Self>> {
         log::trace!("spawn defauwning {}", type_name::<Self>());
-        let (event_loop, addr) = EventLoop::unbounded().create_loop(Self::default());
+        let (event_loop, addr) = EventLoop::unbounded().create(Self::default());
         let handle = ActorHandle::spawn(event_loop);
         Ok(OwningAddr::new(addr, handle))
     }

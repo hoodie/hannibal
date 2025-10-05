@@ -102,10 +102,7 @@ pub async fn timeout_fut(
 }
 
 impl<A: Actor, R: RestartStrategy<A>> EventLoop<A, R> {
-    pub fn create_loop(
-        mut self,
-        mut actor: A,
-    ) -> (impl Future<Output = crate::DynResult<A>>, Addr<A>) {
+    pub fn create(mut self, mut actor: A) -> (impl Future<Output = crate::DynResult<A>>, Addr<A>) {
         let actor_loop = async move {
             actor.started(&mut self.ctx).await?;
 
@@ -143,7 +140,7 @@ impl<A: Actor, R: RestartStrategy<A>> EventLoop<A, R> {
         (actor_loop, self.addr)
     }
 
-    pub fn create_loop_on_stream<S>(
+    pub fn create_on_stream<S>(
         mut self,
         mut actor: A,
         mut stream: S,
