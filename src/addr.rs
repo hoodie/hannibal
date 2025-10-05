@@ -19,8 +19,8 @@ use crate::{
     actor::{Actor, ActorHandle, JoinFuture},
     channel::{ChanTx, ForceChanTx},
     context::{ContextID, RunningFuture},
-    environment::Payload,
     error::Result,
+    event_loop::Payload,
     handler::Handler,
 };
 
@@ -315,7 +315,7 @@ impl<A> DerefMut for OwningAddr<A> {
 #[cfg(test)]
 mod tests {
     #![allow(clippy::unwrap_used)]
-    use crate::{Context, DynResult, Message, environment::Environment};
+    use crate::{Context, DynResult, Message, event_loop::EventLoop};
 
     use super::*;
     use std::future::Future;
@@ -361,7 +361,7 @@ mod tests {
     }
 
     pub fn start<A: Actor>(actor: A) -> (impl Future<Output = DynResult<A>>, Addr<A>) {
-        let (event_loop, addr) = Environment::unbounded().create_loop(actor);
+        let (event_loop, addr) = EventLoop::unbounded().create_loop(actor);
         (event_loop, addr)
     }
 

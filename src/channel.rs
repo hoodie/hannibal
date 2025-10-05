@@ -10,7 +10,7 @@ use std::{
     sync::{Arc, Weak},
 };
 
-use crate::{environment::Payload, error::Result};
+use crate::{error::Result, event_loop::Payload};
 
 pub type WeakChanTx<A> = Weak<dyn TxFn<A>>;
 pub type ChanTx<A> = Arc<dyn TxFn<A>>;

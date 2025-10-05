@@ -152,7 +152,7 @@ use crate::{
     actor::service::Service,
     addr::OwningAddr,
     channel::Channel,
-    environment::{self, EnvironmentConfig},
+    event_loop::{self, EnvironmentConfig},
 };
 
 use super::{
@@ -351,7 +351,7 @@ where
             ..
         } = self;
 
-        let env = environment::Environment::<A, R>::from_channel(channel).with_config(config);
+        let env = event_loop::EventLoop::<A, R>::from_channel(channel).with_config(config);
         let (event_loop, addr) = env.create_loop(actor);
         let handle = ActorHandle::spawn(event_loop);
         OwningAddr { addr, handle }
@@ -365,7 +365,7 @@ where
             ..
         } = self;
 
-        let env = environment::Environment::<A, R>::from_channel(channel).with_config(config);
+        let env = event_loop::EventLoop::<A, R>::from_channel(channel).with_config(config);
         let (event_loop, addr) = env.create_loop(actor);
         ActorHandle::spawn(event_loop).detach();
         addr
@@ -406,8 +406,8 @@ where
             stream,
         } = self;
 
-        let env = environment::Environment::<A, NonRestartable>::from_channel(channel)
-            .with_config(config);
+        let env =
+            event_loop::EventLoop::<A, NonRestartable>::from_channel(channel).with_config(config);
         let (event_loop, addr) = env.create_loop_on_stream(actor, stream);
         let _handle = ActorHandle::spawn(event_loop);
         addr
@@ -425,8 +425,8 @@ where
             stream,
         } = self;
 
-        let env = environment::Environment::<A, NonRestartable>::from_channel(channel)
-            .with_config(config);
+        let env =
+            event_loop::EventLoop::<A, NonRestartable>::from_channel(channel).with_config(config);
         let (event_loop, addr) = env.create_loop_on_stream(actor, stream);
         let handle = ActorHandle::spawn(event_loop);
         OwningAddr { addr, handle }

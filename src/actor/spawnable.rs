@@ -3,7 +3,7 @@
 
 use std::any::type_name;
 
-use crate::{Addr, StreamHandler, addr::OwningAddr, environment::Environment};
+use crate::{Addr, StreamHandler, addr::OwningAddr, event_loop::EventLoop};
 
 use super::{Actor, ActorHandle};
 
@@ -16,13 +16,13 @@ pub trait Spawnable: Actor {
 
     /// Spawns the actor and returns an [`OwningAddr`] to it.
     fn spawn_owning(self) -> OwningAddr<Self> {
-        let environment = Environment::unbounded();
+        let environment = EventLoop::unbounded();
         Self::spawn_owning_in(self, environment)
     }
 
     /// Spawns an actor in a specific environment and returns an [`OwningAddr`] to it.
     #[doc(hidden)]
-    fn spawn_owning_in(self, environment: Environment<Self>) -> OwningAddr<Self> {
+    fn spawn_owning_in(self, environment: EventLoop<Self>) -> OwningAddr<Self> {
         log::trace!("spawn {}", type_name::<Self>());
         let (event_loop, addr) = environment.create_loop(self);
         let handle = ActorHandle::spawn(event_loop);
@@ -45,7 +45,7 @@ where
     /// Spawns the actor on the provided stream and returns an `OwningAddr` handle.
     fn spawn_owning_on_stream(self, stream: T) -> crate::error::Result<OwningAddr<Self>> {
         log::trace!("spawn on stream {}", type_name::<Self>());
-        let (event_loop, addr) = Environment::unbounded().create_loop_on_stream(self, stream);
+        let (event_loop, addr) = EventLoop::unbounded().create_loop_on_stream(self, stream);
         let handle = ActorHandle::spawn(event_loop);
         Ok(OwningAddr::new(addr, handle))
     }
@@ -61,7 +61,7 @@ pub trait DefaultSpawnable: Actor + Default {
     /// Spawns a new actor with default configuration.
     fn spawn_default_owning() -> crate::error::Result<OwningAddr<Self>> {
         log::trace!("spawn defauwning {}", type_name::<Self>());
-        let (event_loop, addr) = Environment::unbounded().create_loop(Self::default());
+        let (event_loop, addr) = EventLoop::unbounded().create_loop(Self::default());
         let handle = ActorHandle::spawn(event_loop);
         Ok(OwningAddr::new(addr, handle))
     }

@@ -10,8 +10,8 @@ use crate::{
     actor::Actor,
     channel::{WeakChanTx, WeakForceChanTx},
     context::task_id::TaskID,
-    environment::Payload,
     error::{ActorError::AlreadyStopped, Result},
+    event_loop::Payload,
     runtime,
 };
 pub use context_id::ContextID;
@@ -87,7 +87,6 @@ type AnyBox = Box<dyn Any + Send + Sync>;
 ///
 pub struct Context<A> {
     pub(crate) id: ContextID,
-    #[allow(dead_code)]
     pub(crate) weak_tx: WeakChanTx<A>,
     pub(crate) weak_force_tx: WeakForceChanTx<A>,
     pub(crate) running: RunningFuture,
