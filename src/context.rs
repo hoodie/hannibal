@@ -12,6 +12,7 @@ use crate::{
     context::task_id::TaskID,
     environment::Payload,
     error::{ActorError::AlreadyStopped, Result},
+    runtime,
 };
 pub use context_id::ContextID;
 
@@ -277,7 +278,7 @@ impl<A: Actor> Context<A> {
         let myself = self.weak_sender();
         self.spawn_task(async move {
             loop {
-                sleep(duration).await;
+                runtime::sleep(duration).await;
                 if myself.try_force_send(message.clone()).is_err() {
                     break;
                 }
@@ -347,6 +348,12 @@ impl<A: Actor> Context<A> {
 /// Life-cycle
 impl<A: RestartableActor> Context<A> {
     /// Restart the actor.
+    ///
+    /// Depending on the `RestartStrategy` of the particular [`Actor`] this will do either of two things:
+    ///
+    /// *`RestartOnly`*: call the [`Actor::stopped()`] and [`Actor::started()`] methods in order
+    /// *`RecreateFromDefault`*: create a new instance of the actor and start it.
+    ///
     pub fn restart(&self) -> Result<()> {
         if let Some(tx) = self.weak_force_tx.upgrade() {
             Ok(tx.send(Payload::Restart)?)
@@ -526,7 +533,7 @@ mod interval_cleanup {
 
     mod interval_with {
         use super::*;
-        use crate::{actor::spawnable::Spawnable, context::task_handling::TaskHandle, prelude::*};
+        use crate::{TaskHandle, actor::spawnable::Spawnable, prelude::*};
 
         #[derive(Debug)]
         struct IntervalWithActor {

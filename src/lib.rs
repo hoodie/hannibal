@@ -64,7 +64,7 @@
 //! ## Runtime behavior
 //! Actors can also be used to handle [Streams](`futures::Stream`) by implementing [`StreamHandler`],
 //! they can be configured to enforce timeouts and use bounded or unbounded channels under the hood.
-//! Take a look at [`hannibal::build()`](`build`)
+//! Take a look at [`hannibal::builder`](`builder`)
 //! to see how to configure an actor's runtime behavior and how to launch them on streams.
 
 #![warn(rustdoc::broken_intra_doc_links, missing_docs)]
@@ -99,7 +99,7 @@ pub use self::{
     handler::{Handler, StreamHandler},
 };
 
-pub use actor::build;
+pub use actor::{builder, builder::build};
 
 pub use broker::Broker;
 

@@ -2,15 +2,13 @@ use std::future::Future;
 
 use crate::context::Context;
 
-mod build;
-
-mod builder;
 mod handle;
+
+pub mod builder;
 pub mod service;
 pub mod spawnable;
 
 pub(crate) mod restart_strategy;
-pub use build::build;
 pub(crate) use handle::{ActorHandle, JoinFuture};
 pub use restart_strategy::RestartableActor;
 
