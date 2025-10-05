@@ -152,7 +152,7 @@ use crate::{
     actor::service::Service,
     addr::OwningAddr,
     channel::Channel,
-    event_loop::{EnvironmentConfig, EventLoop},
+    event_loop::{EventLoop, EventLoopConfig},
 };
 
 use super::{
@@ -174,7 +174,7 @@ where
     A: Actor,
 {
     actor: A,
-    config: EnvironmentConfig,
+    config: EventLoopConfig,
 }
 
 /// Builder stage to configure the channel used in the runtime of this actor instance.

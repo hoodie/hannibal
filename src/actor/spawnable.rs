@@ -16,15 +16,15 @@ pub trait Spawnable: Actor {
 
     /// Spawns the actor and returns an [`OwningAddr`] to it.
     fn spawn_owning(self) -> OwningAddr<Self> {
-        let environment = EventLoop::unbounded();
-        Self::spawn_owning_in(self, environment)
+        let event_loop = EventLoop::unbounded();
+        Self::spawn_owning_in(self, event_loop)
     }
 
-    /// Spawns an actor in a specific environment and returns an [`OwningAddr`] to it.
+    /// Spawns an actor in a specific event-loop and returns an [`OwningAddr`] to it.
     #[doc(hidden)]
-    fn spawn_owning_in(self, environment: EventLoop<Self>) -> OwningAddr<Self> {
+    fn spawn_owning_in(self, event_loop: EventLoop<Self>) -> OwningAddr<Self> {
         log::trace!("spawn {}", type_name::<Self>());
-        let (event_loop, addr) = environment.create(self);
+        let (event_loop, addr) = event_loop.create(self);
         let handle = ActorHandle::spawn(event_loop);
         OwningAddr::new(addr, handle)
     }
