@@ -1,5 +1,12 @@
 # Changelog
 
+### [v0.13.2](https://github.com/hoodie/hannibal/compare/v0.13.1...v0.13.2) (2025-10-05)
+
+#### Features
+
+* restructure the builder module and improve documentation
+([76d7d07](https://github.com/hoodie/hannibal/commit/76d7d0747dc572799d20026329ca4224afc24566))
+
 ### [v0.13.1](https://github.com/hoodie/hannibal/compare/v0.13.0...v0.13.1) (2025-09-25)
 
 #### Fixes
