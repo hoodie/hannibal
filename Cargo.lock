@@ -482,7 +482,7 @@ checksum = "0cc23270f6e1808e30a928bdc84dea0b9b4136a8bc82338574f23baf47bbd280"
 
 [[package]]
 name = "hannibal"
-version = "0.13.1"
+version = "0.13.2"
 dependencies = [
  "assert_matches",
  "async-global-executor",
@@ -504,7 +504,7 @@ dependencies = [
 
 [[package]]
 name = "hannibal-derive"
-version = "0.13.1"
+version = "0.13.2"
 dependencies = [
  "proc-macro2",
  "quote",
