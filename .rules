@@ -1,0 +1,22 @@
+# Hannibal-Threads
+
+## Premise
+Hannibal is an async actor framework that starts async tasks for each actor.
+This crate is supposed to be a thread-based version of hannibal, using threads instead of tasks.
+Hannibal-threads is based on a much older version of hannibal.
+
+## The Goal:
+
+* Emulate the hannibal api closely but sticking with a thread based runtime.
+* provide own traits: `Actor`, `Handler`
+* provide own types: `Context`, `EventLoop`, `Task`
+* use `std::mpsc::channel()
+* reuse the `hannibal::Message` type and the `hannibal_derive` macros
+
+## Progress
+
+Restore early prototype of hannibal when it was still thread based.
+
+## Next
+
+Analyze hannibal-threads api and adapt it to resemble a subset of hannibal's api.

@@ -16,7 +16,7 @@ edition = "2024"
 rust-version = "1.89"
 
 [workspace]
-members = ["hannibal-derive"]
+members = ["hannibal-derive", "hannibal-threads"]
 exclude = ["hannibal-examples"]
 
 [dependencies]
