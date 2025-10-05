@@ -9,7 +9,7 @@ pub type Result<T> = std::result::Result<T, ActorError>;
 
 // use crate::Actor;
 
-/// Errors produced from within the actor environment.
+/// Errors produced from within the actor event-loop.
 #[derive(Error, Debug, PartialEq)]
 pub enum ActorError {
     /// The sender failed to send a message on an internal channel.

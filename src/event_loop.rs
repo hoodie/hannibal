@@ -15,7 +15,7 @@ mod payload;
 pub(crate) use payload::Payload;
 
 #[derive(Debug, Default)]
-pub struct EnvironmentConfig {
+pub struct EventLoopConfig {
     pub timeout: Option<Duration>,
     pub fail_on_timeout: bool,
 }
@@ -24,7 +24,7 @@ pub struct EventLoop<A: Actor, R: RestartStrategy<A> = RestartOnly> {
     ctx: Context<A>,
     addr: Addr<A>,
     stop: StopNotifier,
-    config: EnvironmentConfig,
+    config: EventLoopConfig,
     payload_stream: PayloadStream<A>,
     phantom: PhantomData<R>,
 }
@@ -58,7 +58,7 @@ impl<A: Actor, R: RestartStrategy<A>> EventLoop<A, R> {
             phantom: PhantomData,
         }
     }
-    pub(crate) const fn with_config(mut self, config: EnvironmentConfig) -> Self {
+    pub(crate) const fn with_config(mut self, config: EventLoopConfig) -> Self {
         self.config = config;
         self
     }
