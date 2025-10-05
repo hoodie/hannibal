@@ -55,7 +55,7 @@ use futures::FutureExt as _;
 
 use super::*;
 
-use crate::{Addr, environment::Environment};
+use crate::{Addr, event_loop::EventLoop};
 
 type AnyBox = Box<dyn Any + Send + Sync>;
 
@@ -204,7 +204,7 @@ pub(crate) trait SpawnableService: Service {
                 addr
             } else {
                 log::trace!("spawning new service {}", std::any::type_name::<Self>());
-                let (event_loop, addr) = Environment::unbounded().create_loop(Self::default());
+                let (event_loop, addr) = EventLoop::unbounded().create(Self::default());
                 let handle = ActorHandle::spawn(event_loop);
                 handle.detach();
                 registry.insert(key, Box::new(addr.clone()));

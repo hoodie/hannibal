@@ -152,7 +152,7 @@ use crate::{
     actor::service::Service,
     addr::OwningAddr,
     channel::Channel,
-    environment::{self, EnvironmentConfig},
+    event_loop::{EnvironmentConfig, EventLoop},
 };
 
 use super::{
@@ -351,8 +351,9 @@ where
             ..
         } = self;
 
-        let env = environment::Environment::<A, R>::from_channel(channel).with_config(config);
-        let (event_loop, addr) = env.create_loop(actor);
+        let (event_loop, addr) = EventLoop::<A, R>::from_channel(channel)
+            .with_config(config)
+            .create(actor);
         let handle = ActorHandle::spawn(event_loop);
         OwningAddr { addr, handle }
     }
@@ -365,8 +366,9 @@ where
             ..
         } = self;
 
-        let env = environment::Environment::<A, R>::from_channel(channel).with_config(config);
-        let (event_loop, addr) = env.create_loop(actor);
+        let (event_loop, addr) = EventLoop::<A, R>::from_channel(channel)
+            .with_config(config)
+            .create(actor);
         ActorHandle::spawn(event_loop).detach();
         addr
     }
@@ -406,9 +408,9 @@ where
             stream,
         } = self;
 
-        let env = environment::Environment::<A, NonRestartable>::from_channel(channel)
-            .with_config(config);
-        let (event_loop, addr) = env.create_loop_on_stream(actor, stream);
+        let (event_loop, addr) = EventLoop::<A, NonRestartable>::from_channel(channel)
+            .with_config(config)
+            .create_on_stream(actor, stream);
         let _handle = ActorHandle::spawn(event_loop);
         addr
     }
@@ -425,9 +427,9 @@ where
             stream,
         } = self;
 
-        let env = environment::Environment::<A, NonRestartable>::from_channel(channel)
-            .with_config(config);
-        let (event_loop, addr) = env.create_loop_on_stream(actor, stream);
+        let (event_loop, addr) = EventLoop::<A, NonRestartable>::from_channel(channel)
+            .with_config(config)
+            .create_on_stream(actor, stream);
         let handle = ActorHandle::spawn(event_loop);
         OwningAddr { addr, handle }
     }

@@ -74,8 +74,8 @@ mod actor;
 mod addr;
 mod channel;
 mod context;
-mod environment;
 pub mod error;
+mod event_loop;
 
 pub use hannibal_derive::{main, message};
 
