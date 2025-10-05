@@ -32,4 +32,5 @@ pub enum ActorError {
     /// Indicates that an actor's task took too long to complete.
     #[error("Actor's task took too long to complete")]
     Timeout,
+
 }

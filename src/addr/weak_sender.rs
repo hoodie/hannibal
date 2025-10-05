@@ -1,10 +1,8 @@
 use dyn_clone::DynClone;
 
-use std::sync::Arc;
-
 use crate::{
     Actor, Handler,
-    channel::{ChanTx, ForceChanTx, WeakChanTx, WeakForceChanTx},
+    channel::{ActorTx, WeakActorTx},
     context::ContextID,
     error::ActorError::AlreadyStopped,
 };
@@ -45,29 +43,20 @@ impl<M: Message<Response = ()>> WeakSender<M> {
         }
     }
 
-    fn new<A>(tx: ChanTx<A>, force_tx: ForceChanTx<A>, id: ContextID) -> Self
+    fn new<A>(tx: ActorTx<A>, id: ContextID) -> Self
     where
         A: Actor + Handler<M>,
         M: Message<Response = ()>,
     {
-        Self::from_weak_tx(Arc::downgrade(&tx), Arc::downgrade(&force_tx), id)
+        Self::from_weak_tx(tx.downgrade(), id)
     }
 
-    pub(crate) fn from_weak_tx<A>(
-        weak_tx: WeakChanTx<A>,
-        weak_force_tx: WeakForceChanTx<A>,
-        id: ContextID,
-    ) -> Self
+    pub(crate) fn from_weak_tx<A>(weak_tx: WeakActorTx<A>, id: ContextID) -> Self
     where
         A: Actor + Handler<M>,
         M: Message<Response = ()>,
     {
-        let upgrade = Box::new(move || {
-            weak_tx
-                .upgrade()
-                .zip(weak_force_tx.upgrade())
-                .map(|(tx, force_tx)| Sender::new(tx, force_tx, id))
-        });
+        let upgrade = Box::new(move || weak_tx.upgrade().map(|tx| Sender::new(tx, id)));
 
         WeakSender { upgrade, id }
     }
@@ -78,11 +67,7 @@ where
     A: Actor + Handler<M>,
 {
     fn from(addr: Addr<A>) -> Self {
-        Self::new(
-            addr.payload_tx.to_owned(),
-            addr.payload_force_tx.to_owned(),
-            addr.context_id,
-        )
+        Self::new(addr.payload_tx.to_owned(), addr.context_id)
     }
 }
 
@@ -91,11 +76,7 @@ where
     A: Actor + Handler<M>,
 {
     fn from(addr: &Addr<A>) -> Self {
-        Self::new(
-            addr.payload_tx.to_owned(),
-            addr.payload_force_tx.to_owned(),
-            addr.context_id,
-        )
+        Self::new(addr.payload_tx.to_owned(), addr.context_id)
     }
 }
 

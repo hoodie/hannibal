@@ -3,7 +3,6 @@ use std::{
     future::Future,
     ops::{Deref, DerefMut},
     pin::Pin,
-    sync::Arc,
     task::Poll,
 };
 use weak_addr::WeakAddr;
@@ -17,7 +16,7 @@ pub mod weak_sender;
 use crate::{
     RestartableActor,
     actor::{Actor, ActorHandle, JoinFuture},
-    channel::{ChanTx, ForceChanTx},
+    channel::ActorTx,
     context::{ContextID, RunningFuture},
     error::Result,
     event_loop::Payload,
@@ -72,8 +71,7 @@ impl Message for () {
 ///
 pub struct Addr<A> {
     pub(crate) context_id: ContextID,
-    pub(crate) payload_tx: ChanTx<A>,
-    pub(crate) payload_force_tx: ForceChanTx<A>,
+    pub(crate) payload_tx: ActorTx<A>,
     pub(crate) running: RunningFuture,
 }
 
@@ -81,8 +79,7 @@ impl<A: Actor> Clone for Addr<A> {
     fn clone(&self) -> Self {
         Addr {
             context_id: self.context_id,
-            payload_tx: Arc::clone(&self.payload_tx),
-            payload_force_tx: Arc::clone(&self.payload_force_tx),
+            payload_tx: self.payload_tx.clone(),
             running: self.running.clone(),
         }
     }
@@ -92,7 +89,8 @@ impl<A: Actor> Addr<A> {
     /// Sends a stop signal to the actor.
     pub fn stop(&mut self) -> Result<()> {
         log::trace!("stopping actor");
-        self.payload_force_tx.send(Payload::Stop)?;
+        self.payload_tx.force_send(Payload::Stop);
+        // TODO: remove needless Result
         Ok(())
     }
 
@@ -120,18 +118,18 @@ impl<A: Actor> Addr<A> {
     {
         let (tx_response, response) = oneshot::channel();
         log::trace!("calling actor {}", std::any::type_name::<M>());
-        self.payload_force_tx
-            .send(Payload::task(move |actor, ctx| {
-                log::trace!("handling task call");
-                Box::pin(async move {
-                    log::trace!("actor handling call {}", std::any::type_name::<M>());
-                    let res = Handler::handle(actor, ctx, msg).await;
-                    let _ = tx_response.send(res);
-                })
-            }))?;
+        self.payload_tx.force_send(Payload::task(move |actor, ctx| {
+            log::trace!("handling task call");
+            Box::pin(async move {
+                log::trace!("actor handling call {}", std::any::type_name::<M>());
+                let res = Handler::handle(actor, ctx, msg).await;
+                let _ = tx_response.send(res);
+            })
+        }));
 
         let response = response.await?;
         log::trace!("received response from actor");
+        // TODO: remove needless Result
         Ok(response)
     }
 
@@ -139,31 +137,15 @@ impl<A: Actor> Addr<A> {
     pub async fn ping(&self) -> Result<()> {
         log::trace!("pinging actor");
         let (tx_response, response) = oneshot::channel();
-        self.payload_force_tx
-            .send(Payload::task(move |_actor, _ctx| {
+        self.payload_tx
+            .force_send(Payload::task(move |_actor, _ctx| {
                 Box::pin(async move {
                     let _ = tx_response.send(());
                 })
-            }))?;
+            }));
 
+        // TODO: remove needless Result
         Ok(response.await?)
-    }
-
-    // TODO: look if this can be made available exclusively to unbounded event-loops
-    #[allow(dead_code)]
-    pub(crate) fn force_send<M: Message<Response = ()>>(&self, msg: M) -> Result<()>
-    where
-        A: Handler<M>,
-    {
-        log::trace!(
-            "force sending message to actor {}",
-            std::any::type_name::<M>()
-        );
-        self.payload_force_tx
-            .send(Payload::task(move |actor, ctx| {
-                Box::pin(Handler::handle(actor, ctx, msg))
-            }))?;
-        Ok(())
     }
 
     /// Sends a fire-and-forget message to the actor.
@@ -176,7 +158,7 @@ impl<A: Actor> Addr<A> {
             .send(Payload::task(move |actor, ctx| {
                 Box::pin(Handler::handle(actor, ctx, msg))
             }))
-            .await?;
+            .await;
         Ok(())
     }
 
@@ -224,7 +206,8 @@ impl<A: RestartableActor> Addr<A> {
     ///
     /// [`StreamHandlers`](`crate::StreamHandler`) for example can't be restarted.
     pub fn restart(&mut self) -> Result<()> {
-        self.payload_force_tx.send(Payload::Restart)?;
+        // TODO: remove needless Result
+        self.payload_tx.force_send(Payload::Restart);
         Ok(())
     }
 }
