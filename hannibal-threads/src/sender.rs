@@ -23,7 +23,7 @@ where
 {
     fn from(Addr { ctx, actor }: Addr<A>) -> Self {
         Sender {
-            tx: ctx.tx.clone(),
+            tx: ctx.weak_tx.clone(),
             actor: actor.clone(),
             marker: PhantomData,
         }

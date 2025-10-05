@@ -11,7 +11,6 @@ pub mod actor;
 pub mod handler;
 
 pub use addr::Addr;
-pub use channel::Channel;
 pub use context::Context;
 pub use event_loop::EventLoop;
 pub use sender::Sender;
