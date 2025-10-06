@@ -158,7 +158,7 @@ impl<A: Actor> Addr<A> {
             .send(Payload::task(move |actor, ctx| {
                 Box::pin(Handler::handle(actor, ctx, msg))
             }))
-            .await;
+            .await.map_err(|_| Error::SendFailed)?;
         Ok(())
     }
 
