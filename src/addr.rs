@@ -209,7 +209,9 @@ impl<A: RestartableActor> Addr<A> {
     /// [`StreamHandlers`](`crate::StreamHandler`) for example can't be restarted.
     pub fn restart(&mut self) -> Result<()> {
         // TODO: remove needless Result
-        self.payload_tx.force_send(Payload::Restart);
+        self.payload_tx
+            .force_send(Payload::Restart)
+            .map_err(|_err| ActorError::AlreadyStopped)?;
         Ok(())
     }
 }
