@@ -18,7 +18,7 @@ use crate::{
     actor::{Actor, ActorHandle, JoinFuture},
     channel::ActorTx,
     context::{ContextID, RunningFuture},
-    error::Result,
+    error::{ActorError, Result},
     event_loop::Payload,
     handler::Handler,
 };
@@ -142,7 +142,8 @@ impl<A: Actor> Addr<A> {
                 Box::pin(async move {
                     let _ = tx_response.send(());
                 })
-            }));
+            }))
+            .map_err(|_err| ActorError::AlreadyStopped)?;
 
         // TODO: remove needless Result
         Ok(response.await?)
@@ -158,7 +159,8 @@ impl<A: Actor> Addr<A> {
             .send(Payload::task(move |actor, ctx| {
                 Box::pin(Handler::handle(actor, ctx, msg))
             }))
-            .await.map_err(|_| Error::SendFailed)?;
+            .await
+            .map_err(|_err| ActorError::AlreadyStopped)?;
         Ok(())
     }
 
