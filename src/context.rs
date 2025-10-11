@@ -637,9 +637,8 @@ mod interval_cleanup {
                     SendInterval,
                     HandleSleepPostSleep,
                     HandleStop,
-                    // technically after Stopping the tasks we do NOT want to receive sleep events anymore anyway
-                    // HandleSleep,
-                    // HandleSleepPostSleep,
+                    HandleSleep,
+                    HandleSleepPostSleep,
                     TriggerHalt,
                     Stopped,
                 ]
