@@ -15,12 +15,14 @@ clippy:
     cargo --quiet clippy --workspace --quiet --lib --tests --no-default-features --features async_runtime,tokio
 
 
-test $NEXTEST_STATUS_LEVEL="slow":
-    cargo nextest run --workspace
-    cargo nextest run --workspace --all-targets
-    cargo nextest run --workspace --lib --no-default-features --features tokio_runtime
-    cargo nextest run --workspace --lib --no-default-features --features async_runtime
-    cargo nextest run --workspace --lib --no-default-features --features async_runtime,tokio
+export NEXTEST_HIDE_PROGRESS_BAR:="true"
+
+test $NEXTEST_STATUS_LEVEL="slow" $NEXTEST_FAILURE_OUTPUT="final" $NEXTEST_FINAL_STATUS_LEVEL="slow":
+    cargo nextest run --workspace --no-fail-fast
+    # cargo nextest run --workspace --no-fail-fast --all-targets
+    # cargo nextest run --workspace --no-fail-fast --lib --no-default-features --features tokio_runtime
+    # cargo nextest run --workspace --no-fail-fast --lib --no-default-features --features async_runtime
+    # cargo nextest run --workspace --no-fail-fast --lib --no-default-features --features async_runtime,tokio
 
 build-examples:
     cargo build --manifest-path hannibal-examples/Cargo.toml --features tokio_runtime

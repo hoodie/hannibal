@@ -238,11 +238,13 @@ where
 
     /// Use a bounded channel for message passing.
     pub fn bounded(self, capacity: usize) -> ActorBuilderWithChannel<A, RestartOnly> {
+        #[allow(deprecated)]
         self.with_channel(Channel::bounded(capacity))
     }
 
     /// Use an unbounded channel for message passing.
     pub fn unbounded(self) -> ActorBuilderWithChannel<A, RestartOnly> {
+        #[allow(deprecated)]
         self.with_channel(Channel::unbounded())
     }
 
@@ -253,6 +255,7 @@ where
         S::Item: 'static + Send,
         A: StreamHandler<S::Item>,
     {
+        #[allow(deprecated)]
         self.with_channel(Channel::bounded(capacity))
             .non_restartable()
             .with_stream(stream)
@@ -265,6 +268,7 @@ where
         S::Item: 'static + Send,
         A: StreamHandler<S::Item>,
     {
+        #[allow(deprecated)]
         self.with_channel(Channel::unbounded())
             .non_restartable()
             .with_stream(stream)
@@ -351,7 +355,7 @@ where
             ..
         } = self;
 
-        let (event_loop, addr) = EventLoop::<A, R>::from_channel(channel)
+        let (event_loop, addr) = EventLoop::<A, R>::from_channel(channel.into())
             .with_config(config)
             .create(actor);
         let handle = ActorHandle::spawn(event_loop);
@@ -366,7 +370,7 @@ where
             ..
         } = self;
 
-        let (event_loop, addr) = EventLoop::<A, R>::from_channel(channel)
+        let (event_loop, addr) = EventLoop::<A, R>::from_channel(channel.into())
             .with_config(config)
             .create(actor);
         ActorHandle::spawn(event_loop).detach();
@@ -408,7 +412,7 @@ where
             stream,
         } = self;
 
-        let (event_loop, addr) = EventLoop::<A, NonRestartable>::from_channel(channel)
+        let (event_loop, addr) = EventLoop::<A, NonRestartable>::from_channel(channel.into())
             .with_config(config)
             .create_on_stream(actor, stream);
         let _handle = ActorHandle::spawn(event_loop);
@@ -427,7 +431,7 @@ where
             stream,
         } = self;
 
-        let (event_loop, addr) = EventLoop::<A, NonRestartable>::from_channel(channel)
+        let (event_loop, addr) = EventLoop::<A, NonRestartable>::from_channel(channel.into())
             .with_config(config)
             .create_on_stream(actor, stream);
         let handle = ActorHandle::spawn(event_loop);
