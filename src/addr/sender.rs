@@ -2,7 +2,7 @@ use dyn_clone::DynClone;
 
 use std::{future::Future, pin::Pin};
 
-use crate::{Actor, Handler, channel::ActorTx, context::ContextID};
+use crate::{channel::ActorTx, context::ContextID, error::ActorError, Actor, Handler};
 
 use super::{Addr, Message, Payload, Result, weak_sender::WeakSender};
 
@@ -62,7 +62,8 @@ impl<M: Message<Response = ()>> Sender<M> {
             Box::new(move |msg: M| {
                 tx.force_send(Payload::task(move |actor, ctx| {
                     Box::pin(Handler::handle(&mut *actor, ctx, msg))
-                }));
+                }))
+                .map_err(|_err| ActorError::AlreadyStopped)?;
                 Ok(())
             })
         };

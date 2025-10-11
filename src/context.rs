@@ -107,7 +107,7 @@ impl<A: Actor> Context<A> {
     /// Stop the actor.
     pub fn stop(&self) -> Result<()> {
         if let Some(tx) = self.weak_tx.upgrade() {
-            tx.force_send(Payload::Stop);
+            tx.force_send(Payload::Stop).map_err(|_| AlreadyStopped)?;
             Ok(())
         } else {
             Err(AlreadyStopped)

@@ -1,4 +1,4 @@
-#![allow(deprecated, unused_imports)]
+#![allow(deprecated, unused_imports, dead_code)]
 use futures::{
     Stream as _,
     stream::{PollFn, poll_fn},
@@ -14,11 +14,11 @@ use std::{
 
 use crate::{Actor, Handler, Message, error::Result, event_loop::Payload};
 
-#[deprecated(note = "use async_channel::WeakSender")]
-pub type WeakChanTx<A> = Weak<dyn TxFn<A>>;
+// #[deprecated(note = "use async_channel::WeakSender")]
+// pub type WeakChanTx<A> = Weak<dyn TxFn<A>>;
 
-#[deprecated(note = "use async_channel::Sender")]
-pub type ChanTx<A> = Arc<dyn TxFn<A>>;
+// #[deprecated(note = "use async_channel::Sender")]
+// pub type ChanTx<A> = Arc<dyn TxFn<A>>;
 
 // pub type MessageTx<M: Message, A: Actor + Handler<M>> = async_channel::Sender<Payload<A>>;
 
@@ -28,7 +28,7 @@ pub type ActorRx<A> = async_channel::Receiver<Payload<A>>;
 
 //todo: rename to WeakPayloadTx and WeakPayloadRx
 pub type WeakActorTx<A> = async_channel::WeakSender<Payload<A>>;
-pub type WeakActorRx<A> = async_channel::WeakReceiver<Payload<A>>;
+// pub type WeakActorRx<A> = async_channel::WeakReceiver<Payload<A>>;
 
 #[deprecated(note = "use async_channel::Receiver")]
 pub type PayloadStream<A> =

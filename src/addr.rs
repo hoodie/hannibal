@@ -89,7 +89,9 @@ impl<A: Actor> Addr<A> {
     /// Sends a stop signal to the actor.
     pub fn stop(&mut self) -> Result<()> {
         log::trace!("stopping actor");
-        self.payload_tx.force_send(Payload::Stop);
+        self.payload_tx
+            .force_send(Payload::Stop)
+            .map_err(|_err| ActorError::AlreadyStopped)?;
         // TODO: remove needless Result
         Ok(())
     }
@@ -118,14 +120,16 @@ impl<A: Actor> Addr<A> {
     {
         let (tx_response, response) = oneshot::channel();
         log::trace!("calling actor {}", std::any::type_name::<M>());
-        self.payload_tx.force_send(Payload::task(move |actor, ctx| {
-            log::trace!("handling task call");
-            Box::pin(async move {
-                log::trace!("actor handling call {}", std::any::type_name::<M>());
-                let res = Handler::handle(actor, ctx, msg).await;
-                let _ = tx_response.send(res);
-            })
-        }));
+        self.payload_tx
+            .force_send(Payload::task(move |actor, ctx| {
+                log::trace!("handling task call");
+                Box::pin(async move {
+                    log::trace!("actor handling call {}", std::any::type_name::<M>());
+                    let res = Handler::handle(actor, ctx, msg).await;
+                    let _ = tx_response.send(res);
+                })
+            }))
+            .map_err(|_err| ActorError::AlreadyStopped)?;
 
         let response = response.await?;
         log::trace!("received response from actor");
