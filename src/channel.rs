@@ -87,9 +87,8 @@ where
 
         let force_send = Arc::new(move |event: Payload<A>| -> Result<()> {
             let mut tx = tx.clone();
-            // THIS IS A BUG!
-            // Just calling this without checking for readiness will just queue this and ignore the bound
-            tx.start_send(event)?;
+            tx.try_send(event)
+                .map_err(|_| crate::error::ActorError::AlreadyStopped)?;
             Ok(())
         });
 
