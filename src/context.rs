@@ -281,7 +281,7 @@ impl<A: Actor> Context<A> {
             loop {
                 runtime::sleep(duration).await;
                 log::trace!("sending interval msg after sleep");
-                if myself.try_force_send(message.clone()).is_err() {
+                if myself.try_send(message.clone()).await.is_err() {
                     break;
                 }
             }
