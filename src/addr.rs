@@ -98,7 +98,7 @@ impl<A: Actor> Addr<A> {
 
     /// Halts the actor and awaits its termination.
     pub async fn halt(mut self) -> Result<()> {
-        log::trace!("halting actor");
+        log::trace!("halting actor: stop and await");
         self.stop()?;
         self.await
     }
