@@ -108,6 +108,7 @@ impl<A: Actor, R: RestartStrategy<A>> EventLoop<A, R> {
 
             let timeout = self.config.timeout;
             while let Some(event) = self.payload_stream.next().await {
+                log::trace!("processing event");
                 match event {
                     Payload::Restart => {
                         log::trace!("restarting {}", A::NAME);
