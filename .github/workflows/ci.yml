@@ -9,7 +9,8 @@ jobs:
     strategy:
       matrix:
         rust: [stable, beta, nightly]
-        features: [default, tokio_runtime, async_runtime]
+        runtimes: ["tokio_runtime", "async_runtime", "async_runtime,tokio"]
+        channels: [async_channel, futures_channel] # futures_channel is default
     steps:
       - uses: actions/checkout@v4
       - uses: Swatinem/rust-cache@v2
@@ -18,20 +19,18 @@ jobs:
           toolchain: ${{ matrix.rust }}
 
       - name: check
-        run: cargo check
+        run: cargo check --all-targets
 
-      - name: check
-        run: cargo check --all-targets --no-default-features --features ${{matrix.features}}
-
-      - name: check ${{matrix.features}}
-        run: cargo check --all-targets --no-default-features --features ${{matrix.features}}
+      - name: check ${{matrix.runtimes}},${{matrix.channels}}
+        run: cargo check --all-targets --no-default-features --features ${{matrix.runtimes}},${{matrix.channels}}
 
   fmtclippy:
     runs-on: ubuntu-latest
     strategy:
       matrix:
         rust: [stable, beta]
-        features: [default, tokio_runtime, async_runtime]
+        runtimes: ["tokio_runtime", "async_runtime", "async_runtime,tokio"]
+        channels: [async_channel, futures_channel] # futures_channel is default
     steps:
       - uses: actions/checkout@v4
       - uses: Swatinem/rust-cache@v2
@@ -43,8 +42,8 @@ jobs:
       - name: clippy
         run: cargo clippy --workspace --all-targets -- -D warnings
 
-      - name: clippy ${{matrix.features}}
-        run: cargo clippy --workspace --no-default-features --features ${{matrix.features}}
+      - name: clippy ${{matrix.runtimes}},${{matrix.channels}}
+        run: cargo clippy --workspace --no-default-features --features ${{matrix.runtimes}},${{matrix.channels}}
 
       - name: cargo-clippy
         run: cargo clippy --workspace --all-targets -- -D warnings

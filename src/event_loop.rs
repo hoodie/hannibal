@@ -1,4 +1,4 @@
-use std::{future::Future, marker::PhantomData, time::Duration};
+use std::{future::Future, marker::PhantomData, pin::pin, time::Duration};
 
 use futures::{FutureExt, Stream, StreamExt as _, channel::oneshot};
 
@@ -107,7 +107,10 @@ impl<A: Actor, R: RestartStrategy<A>> EventLoop<A, R> {
             actor.started(&mut self.ctx).await?;
 
             let timeout = self.config.timeout;
-            while let Some(event) = self.rx.next().await {
+            #[cfg(feature = "async_channel")]
+            log::trace!(actor=A::NAME, id:% =self.ctx.id; "still waiting for {} events", self.rx.len());
+            let mut payload_rx = pin!(self.rx);
+            while let Some(event) = payload_rx.next().await {
                 log::trace!(actor=A::NAME, id:% =self.ctx.id; "processing event");
                 match event {
                     Payload::Restart => {
@@ -154,13 +157,14 @@ impl<A: Actor, R: RestartStrategy<A>> EventLoop<A, R> {
         let timeout = self.config.timeout;
         let actor_loop = async move {
             actor.started(&mut self.ctx).await?;
+            let mut rx = pin!(self.rx);
             loop {
                 futures::select! {
-                    event = self.rx.next().fuse() => {
+                    event = rx.next().fuse() => {
                         match event {
-                            Some(Payload::Task(f)) => {
+                            Some(Payload::Task(task_fn)) => {
                                 log::trace!(name = A::NAME;  "received task");
-                                if let Err(err) = timeout_fut(f(&mut actor, &mut self.ctx), timeout).await {
+                                if let Err(err) = timeout_fut(task_fn(&mut actor, &mut self.ctx), timeout).await {
                                     if self.config.fail_on_timeout {
                                         log::warn!("{} {}, exiting", A::NAME, err);
                                         actor.cancelled(&mut self.ctx).await;

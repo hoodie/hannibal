@@ -10,7 +10,10 @@ use crate::{
     actor::Actor,
     channel::WeakTx,
     context::task_id::TaskID,
-    error::{ActorError::AlreadyStopped, Result},
+    error::{
+        ActorError::{self, AlreadyStopped},
+        Result,
+    },
     event_loop::Payload,
     runtime,
 };
@@ -106,8 +109,9 @@ impl<A> Drop for Context<A> {
 impl<A: Actor> Context<A> {
     /// Stop the actor.
     pub fn stop(&self) -> Result<()> {
-        if let Some(sender) = self.weak_tx.upgrade() {
-            Ok(sender.force_send(Payload::Stop)?)
+        if let Some(tx) = self.weak_tx.upgrade() {
+            tx.force_send(Payload::Stop).map_err(|_| AlreadyStopped)?;
+            Ok(())
         } else {
             Err(AlreadyStopped)
         }
@@ -150,6 +154,7 @@ impl<A: Actor> Context<A> {
                 .iter()
                 .filter_map(|child| child.downcast_ref::<Sender<M>>())
             {
+                // TODO: force_send is not correct here, we should have a try_send mechanism instead
                 if let Err(error) = child.force_send(message.clone()) {
                     log::error!("Failed to send message to child: {error}");
                 }
@@ -391,8 +396,10 @@ impl<A: RestartableActor> Context<A> {
     /// *`RecreateFromDefault`*: create a new instance of the actor and start it.
     ///
     pub fn restart(&self) -> Result<()> {
-        if let Some(sender) = self.weak_tx.upgrade() {
-            Ok(sender.force_send(Payload::Restart)?)
+        if let Some(tx) = self.weak_tx.upgrade() {
+            tx.force_send(Payload::Restart)
+                .map_err(|_err| ActorError::AlreadyStopped)?;
+            Ok(())
         } else {
             Err(AlreadyStopped)
         }

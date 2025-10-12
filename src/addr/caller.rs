@@ -3,7 +3,7 @@ use futures::channel::oneshot;
 
 use std::{future::Future, pin::Pin};
 
-use crate::{Actor, Handler, channel, context::ContextID};
+use crate::{Actor, Handler, channel, context::ContextID, error::ActorError};
 
 use super::{Addr, Message, Payload, Result, weak_caller::WeakCaller};
 
@@ -48,7 +48,8 @@ impl<M: Message> Caller<M> {
                             let _ = response_tx.send(res);
                         })
                     }))
-                    .await?;
+                    .await
+                    .map_err(|_err| ActorError::AlreadyStopped)?;
 
                     Ok(response.await?)
                 })
