@@ -408,6 +408,11 @@ mod test_log {
         }
         vec.len()
     }
+
+    pub fn log_is_empty() -> bool {
+        let vec = &*ATOMIC_VEC.lock().unwrap();
+        vec.is_empty()
+    }
 }
 
 #[cfg(test)]
@@ -500,7 +505,7 @@ mod interval_cleanup {
         use crate::{
             context::{
                 ContextID,
-                test_log::{STARTED, append_to_log, log_events, print_log},
+                test_log::{STARTED, append_to_log, log_events, log_is_empty, print_log},
             },
             prelude::*,
         };
@@ -600,6 +605,7 @@ mod interval_cleanup {
                     },
                     self.interval,
                 );
+                log::info!("IntervalActor started");
                 Ok(())
             }
             async fn stopped(&mut self, _: &mut Context<Self>) {
@@ -609,6 +615,7 @@ mod interval_cleanup {
 
         #[test_log::test(tokio::test)]
         async fn dont_overlap_when_tasks_take_too_long() {
+            assert!(log_is_empty(), "Log should be empty before test");
             // Ensure STARTED is reset for each test run
             STARTED.set(Instant::now()).ok();
 
@@ -616,7 +623,6 @@ mod interval_cleanup {
                 interval: Duration::from_millis(70),
             })
             .bounded(1)
-            // .unbounded()
             .spawn();
 
             let halt_after = Duration::from_millis(700);
@@ -634,18 +640,18 @@ mod interval_cleanup {
                     .map(EventKind::from)
                     .collect::<Vec<_>>(),
                 [
-                    SendInterval,
-                    HandleSleep,
-                    SendDelay,
-                    SendInterval,
-                    HandleSleepPostSleep,
-                    HandleStop,
-                    HandleSleep,
-                    HandleSleepPostSleep,
-                    TriggerHalt,
+                    SendInterval,         // (main) [ 75ms] schedule interval 1
+                    HandleSleep,          // (loop) [ 75ms] interval 1
+                    SendDelay,            // (main) [ 83ms] schedule task stop
+                    SendInterval,         // (main) [148ms] schedule interval 2
+                    HandleSleepPostSleep, // (loop) [277ms] interval 1
+                    HandleStop,           // (loop) [277ms] stop tasks
+                    HandleSleep,          // (loop) [277ms] interval 2 (sometimes missing)
+                    HandleSleepPostSleep, // (loop) [479ms] interval 2 (sometimes missing)
+                    TriggerHalt,          // (main) [704ms]
                     Stopped,
                 ]
-            )
+            );
         }
     }
 
