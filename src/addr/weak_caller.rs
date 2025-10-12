@@ -1,10 +1,8 @@
 use dyn_clone::DynClone;
 
-use std::sync::Arc;
-
 use crate::{
     Actor, Handler,
-    channel::{ChanTx, WeakChanTx},
+    channel::{PayloadTx, WeakPayloadTx},
     context::ContextID,
     error::ActorError::AlreadyStopped,
 };
@@ -37,15 +35,15 @@ impl<M: Message> WeakCaller<M> {
         }
     }
 
-    fn new<A>(tx: ChanTx<A>, id: ContextID) -> Self
+    fn new<A>(tx: PayloadTx<A>, id: ContextID) -> Self
     where
         A: Actor + Handler<M>,
         M: Message,
     {
-        Self::from_weak_tx(Arc::downgrade(&tx), id)
+        Self::from_weak_tx(tx.downgrade(), id)
     }
 
-    pub(crate) fn from_weak_tx<A>(weak_tx: WeakChanTx<A>, id: ContextID) -> Self
+    pub(crate) fn from_weak_tx<A>(weak_tx: WeakPayloadTx<A>, id: ContextID) -> Self
     where
         A: Actor + Handler<M>,
         M: Message,
