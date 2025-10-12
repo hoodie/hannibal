@@ -260,6 +260,7 @@ impl<A: Actor> Context<A> {
 
     #[cfg(test)]
     pub(crate) fn stop_tasks(&mut self) {
+        log::trace!("Stopping all tasks ({})", self.tasks.len());
         for (_, handle) in self.tasks.drain() {
             handle.abort();
         }
@@ -276,12 +277,15 @@ impl<A: Actor> Context<A> {
     {
         let myself = self.weak_sender();
         self.spawn_task(async move {
+            log::trace!("Starting interval with message");
             loop {
                 runtime::sleep(duration).await;
+                log::trace!("sending interval msg after sleep");
                 if myself.try_force_send(message.clone()).is_err() {
                     break;
                 }
             }
+            log::trace!("Interval stopped");
         })
     }
 
@@ -296,12 +300,15 @@ impl<A: Actor> Context<A> {
     {
         let myself = self.weak_sender();
         self.spawn_task(async move {
+            log::trace!("Starting interval with message_fn");
             loop {
                 runtime::sleep(duration).await;
+                log::trace!("sending interval msg after sleep");
                 if myself.try_send(message_fn()).await.is_err() {
                     break;
                 }
             }
+            log::trace!("Interval stopped");
         })
     }
 
@@ -316,11 +323,13 @@ impl<A: Actor> Context<A> {
     {
         let myself = self.weak_sender();
         self.spawn_task(async move {
+            log::trace!("Scheduling delayed send");
             runtime::sleep(duration).await;
 
             if myself.try_send(message_fn()).await.is_err() {
                 log::warn!("Failed to send message");
             }
+            log::trace!("Delayed send completed");
         })
     }
 
@@ -363,6 +372,45 @@ impl<A: RestartableActor> Context<A> {
 }
 
 #[cfg(test)]
+mod test_log {
+    #![allow(clippy::unwrap_used)]
+    use std::{
+        sync::{LazyLock, Mutex, OnceLock},
+        time::Instant,
+    };
+
+    pub static ATOMIC_VEC: LazyLock<Mutex<Vec<(String, usize)>>> = LazyLock::new(Default::default);
+    pub static STARTED: OnceLock<Instant> = OnceLock::new();
+
+    pub fn append_to_log(item: impl Into<String>, kind: impl Into<usize>) {
+        #[cfg(feature = "tokio_runtime")]
+        let task_id = tokio::task::try_id();
+        let started = STARTED.get_or_init(Instant::now);
+        let elapsed = started.elapsed().as_millis();
+        let msg = item.into();
+        #[cfg(feature = "tokio_runtime")]
+        let log_line = format!("[{:>5} ms] {:?} {}", elapsed, task_id, msg);
+        #[cfg(not(feature = "tokio_runtime"))]
+        let log_line = format!("[{:>5} ms] {}", elapsed, msg);
+        let vec = &*ATOMIC_VEC;
+        vec.lock().unwrap().push((log_line, kind.into()));
+    }
+
+    pub fn log_events() -> Vec<usize> {
+        let vec = &*ATOMIC_VEC.lock().unwrap();
+        vec.iter().map(|(_, evt)| *evt).collect()
+    }
+
+    pub fn print_log() -> usize {
+        let vec = &*ATOMIC_VEC.lock().unwrap();
+        for (i, (line, evt)) in vec.iter().enumerate() {
+            eprintln!("Log {:>3}: {evt} {line:?}", i + 1);
+        }
+        vec.len()
+    }
+}
+
+#[cfg(test)]
 mod interval_cleanup {
     #![allow(clippy::unwrap_used)]
 
@@ -371,7 +419,7 @@ mod interval_cleanup {
             Arc,
             atomic::{AtomicBool, Ordering},
         },
-        time::{Duration, Instant},
+        time::Duration,
     };
 
     use crate::runtime::sleep;
@@ -415,40 +463,75 @@ mod interval_cleanup {
     }
 
     mod interval_order {
-        use std::sync::Mutex;
-        use std::sync::atomic::AtomicU32;
+        use std::{sync::atomic::AtomicU32, time::Instant};
+        #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+        enum EventKind {
+            HandleSleep = 0,
+            HandleSleepPostSleep = 1,
+            HandleStop = 2,
+            SendDelay = 3,
+            SendInterval = 4,
+            TriggerHalt = 5,
+            Stopped = 6,
+        }
+
+        impl From<usize> for EventKind {
+            fn from(val: usize) -> Self {
+                match val {
+                    0 => EventKind::HandleSleep,
+                    1 => EventKind::HandleSleepPostSleep,
+                    2 => EventKind::HandleStop,
+                    3 => EventKind::SendDelay,
+                    4 => EventKind::SendInterval,
+                    5 => EventKind::TriggerHalt,
+                    6 => EventKind::Stopped,
+                    _ => panic!("Invalid event kind"),
+                }
+            }
+        }
+
+        impl From<EventKind> for usize {
+            fn from(val: EventKind) -> Self {
+                val as usize
+            }
+        }
 
         use super::*;
-        use crate::{context::ContextID, prelude::*};
-
-        use std::sync::LazyLock;
-
-        static ATOMIC_VEC: LazyLock<Mutex<Vec<String>>> = LazyLock::new(|| Mutex::new(Vec::new()));
-
-        fn append_to_log(item: impl Into<String>) {
-            let vec = &*ATOMIC_VEC;
-            vec.lock().unwrap().push(item.into());
-        }
-
-        fn print_log() -> usize {
-            let vec = &*ATOMIC_VEC.lock().unwrap();
-            for (i, line) in vec.iter().enumerate() {
-                eprintln!("Log {i:?}: {line:?}");
-            }
-            vec.len()
-        }
+        use crate::{
+            context::{
+                ContextID,
+                test_log::{STARTED, append_to_log, log_events, print_log},
+            },
+            prelude::*,
+        };
 
         #[derive(Debug)]
         struct IntervalActor {
-            started: Instant,
             interval: Duration,
         }
 
+        impl IntervalActor {
+            // runtime() is no longer needed, so it can be removed
+        }
+
         #[derive(Clone, Copy, Debug, Default)]
-        struct IntervalSleep(Duration, u32);
+        struct IntervalSleep {
+            duration: Duration,
+            count: u32,
+        }
 
         impl Message for IntervalSleep {
             type Response = ();
+        }
+
+        impl IntervalSleep {
+            fn new(duration: Duration, count: u32) -> Self {
+                Self { duration, count }
+            }
+
+            async fn sleep(&self) {
+                sleep(self.duration).await;
+            }
         }
 
         struct StopTasks;
@@ -457,32 +540,32 @@ mod interval_cleanup {
         }
 
         impl Handler<IntervalSleep> for IntervalActor {
-            async fn handle(
-                &mut self,
-                _ctx: &mut Context<Self>,
-                IntervalSleep(duration, invocation): IntervalSleep,
-            ) {
+            async fn handle(&mut self, _ctx: &mut Context<Self>, sleep_msg: IntervalSleep) {
                 let call_id = ContextID::default();
 
-                let called = Instant::now();
-                let called_after_ms = called.duration_since(self.started).as_millis();
-                append_to_log(format!(
-                    "handle {call_id}/{invocation} called {called_after_ms}ms"
-                ));
+                append_to_log(
+                    format!("Handle<IntervalSleep> {call_id}/{} called", sleep_msg.count),
+                    EventKind::HandleSleep,
+                );
 
-                sleep(duration).await;
+                sleep_msg.sleep().await;
 
-                let woke_up = Instant::now();
-                let woke_after_ms = woke_up.duration_since(self.started).as_millis();
-                append_to_log(format!(
-                    "handler {call_id}/{invocation} wake up {woke_after_ms}ms"
-                ));
+                append_to_log(
+                    format!(
+                        "Handle<IntervalSleep> {call_id}/{} post sleep of {:?}",
+                        sleep_msg.count, sleep_msg.duration
+                    ),
+                    EventKind::HandleSleepPostSleep,
+                );
             }
         }
 
         impl Handler<StopTasks> for IntervalActor {
             async fn handle(&mut self, ctx: &mut Context<Self>, _: StopTasks) {
-                append_to_log("stopping tasks");
+                append_to_log(
+                    "🧹 handing StopTasks -> stopping tasks",
+                    EventKind::HandleStop,
+                );
                 ctx.stop_tasks();
             }
         }
@@ -490,43 +573,79 @@ mod interval_cleanup {
         impl Actor for IntervalActor {
             async fn started(&mut self, ctx: &mut Context<Self>) -> DynResult<()> {
                 let invocation_id = AtomicU32::new(1);
+                let stop_delay = 80;
                 ctx.delayed_send(
-                    || {
-                        append_to_log("stopping tasks");
+                    move || {
+                        append_to_log(
+                            format!("sending: StopTasks after {stop_delay}ms"),
+                            EventKind::SendDelay,
+                        );
                         StopTasks
                     },
-                    Duration::from_millis(80),
+                    Duration::from_millis(stop_delay),
                 );
+                let interval = Duration::from_millis(200);
+                let self_interval = self.interval;
                 ctx.interval_with(
                     move || {
                         let invocation = invocation_id.fetch_add(1, Ordering::SeqCst);
-                        append_to_log(format!("invoked {invocation}"));
-                        IntervalSleep(Duration::from_millis(500), invocation)
+                        append_to_log(
+                            format!(
+                                "sending: IntervalSleep {invocation} every {:?}",
+                                self_interval
+                            ),
+                            EventKind::SendInterval,
+                        );
+                        IntervalSleep::new(interval, invocation)
                     },
                     self.interval,
                 );
                 Ok(())
             }
             async fn stopped(&mut self, _: &mut Context<Self>) {
-                append_to_log("stopped");
+                append_to_log("🏁 Actor stopped", EventKind::Stopped);
             }
         }
 
-        #[tokio::test]
+        #[test_log::test(tokio::test)]
         async fn dont_overlap_when_tasks_take_too_long() {
+            // Ensure STARTED is reset for each test run
+            STARTED.set(Instant::now()).ok();
+
             let addr = crate::build(IntervalActor {
-                started: Instant::now(),
-                interval: Duration::from_millis(30),
+                interval: Duration::from_millis(70),
             })
             .bounded(1)
             // .unbounded()
             .spawn();
 
-            sleep(Duration::from_millis(600)).await;
-
+            let halt_after = Duration::from_millis(700);
+            sleep(halt_after).await;
+            append_to_log(
+                format!("✋ HALTING ACTOR AFTER {halt_after:?}"),
+                EventKind::TriggerHalt,
+            );
             addr.halt().await.unwrap();
-            let log_length = print_log();
-            assert_eq!(log_length, 12);
+            print_log();
+            use EventKind::*;
+            assert_eq!(
+                log_events()
+                    .into_iter()
+                    .map(EventKind::from)
+                    .collect::<Vec<_>>(),
+                [
+                    SendInterval,
+                    HandleSleep,
+                    SendDelay,
+                    SendInterval,
+                    HandleSleepPostSleep,
+                    HandleStop,
+                    HandleSleep,
+                    HandleSleepPostSleep,
+                    TriggerHalt,
+                    Stopped,
+                ]
+            )
         }
     }
 
