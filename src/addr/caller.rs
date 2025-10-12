@@ -1,10 +1,9 @@
 use dyn_clone::DynClone;
 use futures::channel::oneshot;
 
-use std::sync::{Arc, Weak};
 use std::{future::Future, pin::Pin};
 
-use crate::{Actor, Handler, channel::ChanTx, context::ContextID};
+use crate::{Actor, Handler, channel::PayloadTx, context::ContextID, error::ActorError};
 
 use super::{Addr, Message, Payload, Result, weak_caller::WeakCaller};
 
@@ -31,27 +30,26 @@ impl<M: Message> Caller<M> {
         self.downgrade_fn.downgrade()
     }
 
-    pub(crate) fn new<A>(tx: ChanTx<A>, id: ContextID) -> Self
+    pub(crate) fn new<A>(tx: PayloadTx<A>, id: ContextID) -> Self
     where
         A: Actor + Handler<M>,
     {
-        let weak_tx: Weak<_> = Arc::downgrade(&tx);
+        let weak_tx = tx.downgrade();
 
-        // TODO: make this queue-safe
         let call_fn = Box::new(
             move |msg| -> Pin<Box<dyn Future<Output = Result<M::Response>>>> {
-                let tx = Arc::clone(&tx);
+                let tx = tx.clone();
                 Box::pin(async move {
                     let (response_tx, response) = oneshot::channel();
 
-                    // TODO: make this queue-safe
                     tx.send(Payload::task(move |actor, ctx| {
                         Box::pin(async move {
                             let res = Handler::handle(&mut *actor, ctx, msg).await;
                             let _ = response_tx.send(res);
                         })
                     }))
-                    .await?;
+                    .await
+                    .map_err(|_err| ActorError::AlreadyStopped)?;
 
                     Ok(response.await?)
                 })
