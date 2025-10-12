@@ -260,6 +260,7 @@ impl<A: Actor> Context<A> {
 
     #[cfg(test)]
     pub(crate) fn stop_tasks(&mut self) {
+        log::trace!("Stopping all tasks ({})", self.tasks.len());
         for (_, handle) in self.tasks.drain() {
             handle.abort();
         }
@@ -276,12 +277,15 @@ impl<A: Actor> Context<A> {
     {
         let myself = self.weak_sender();
         self.spawn_task(async move {
+            log::trace!("Starting interval with message");
             loop {
                 runtime::sleep(duration).await;
+                log::trace!("sending interval msg after sleep");
                 if myself.try_force_send(message.clone()).is_err() {
                     break;
                 }
             }
+            log::trace!("Interval stopped");
         })
     }
 
@@ -296,12 +300,15 @@ impl<A: Actor> Context<A> {
     {
         let myself = self.weak_sender();
         self.spawn_task(async move {
+            log::trace!("Starting interval with message_fn");
             loop {
                 runtime::sleep(duration).await;
+                log::trace!("sending interval msg after sleep");
                 if myself.try_send(message_fn()).await.is_err() {
                     break;
                 }
             }
+            log::trace!("Interval stopped");
         })
     }
 
@@ -316,11 +323,13 @@ impl<A: Actor> Context<A> {
     {
         let myself = self.weak_sender();
         self.spawn_task(async move {
+            log::trace!("Scheduling delayed send");
             runtime::sleep(duration).await;
 
             if myself.try_send(message_fn()).await.is_err() {
                 log::warn!("Failed to send message");
             }
+            log::trace!("Delayed send completed");
         })
     }
 
@@ -553,7 +562,10 @@ mod interval_cleanup {
 
         impl Handler<StopTasks> for IntervalActor {
             async fn handle(&mut self, ctx: &mut Context<Self>, _: StopTasks) {
-                append_to_log("handing StopTasks -> stopping tasks", EventKind::HandleStop);
+                append_to_log(
+                    "🧹 handing StopTasks -> stopping tasks",
+                    EventKind::HandleStop,
+                );
                 ctx.stop_tasks();
             }
         }
@@ -595,7 +607,7 @@ mod interval_cleanup {
             }
         }
 
-        #[tokio::test]
+        #[test_log::test(tokio::test)]
         async fn dont_overlap_when_tasks_take_too_long() {
             // Ensure STARTED is reset for each test run
             STARTED.set(Instant::now()).ok();
