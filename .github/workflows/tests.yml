@@ -1,0 +1,39 @@
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      stress_count:
+        description: 'Number of times to run stress tests'
+        required: false
+        default: '10'
+
+name: Tests
+
+jobs:
+  test:
+    name: cargo-test ...
+    runs-on: ubuntu-latest
+    env:
+      CARGO_TERM_COLOR: always
+      RUST_BACKTRACE: 1
+      RUST_LOG: trace
+      STRESS_COUNT: ${{ github.event.inputs.stress_count || 1 }}
+    strategy:
+      matrix:
+        rust: [stable, beta, nightly]
+        features: [tokio_runtime, async_runtime, "async_runtime,tokio"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - uses: taiki-e/install-action@nextest
+
+      - name: workspace
+        run: cargo nextest run --workspace --all-targets --stress-count $STRESS_COUNT
+
+      - name: test (most)
+        run: cargo nextest run --workspace --all-targets --no-default-features --features ${{matrix.features}} --stress-count $STRESS_COUNT
+
+      - name: lib test ${{matrix.features}}
+        run: cargo nextest run --workspace --lib --no-default-features --features ${{matrix.features}} --stress-count $STRESS_COUNT
