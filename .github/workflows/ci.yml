@@ -9,7 +9,8 @@ jobs:
     strategy:
       matrix:
         rust: [stable, beta, nightly]
-        features: [default, tokio_runtime, async_runtime]
+        runtime: [default, tokio_runtime, async_runtime]
+        channels: ['', async-channel]
     steps:
       - uses: actions/checkout@v4
       - uses: Swatinem/rust-cache@v2
@@ -20,18 +21,25 @@ jobs:
       - name: check
         run: cargo check
 
-      - name: check
-        run: cargo check --all-targets --no-default-features --features ${{matrix.features}}
+      - name: check ${{matrix.runtime}},${{matrix.channels}}
+        if: matrix.runtime != 'default' || matrix.channels != ''
+        run: cargo check --all-targets --no-default-features --features ${{matrix.runtime}},${{matrix.channels}}
 
-      - name: check ${{matrix.features}}
-        run: cargo check --all-targets --no-default-features --features ${{matrix.features}}
+      - name: check ${{matrix.runtime}}
+        if: matrix.runtime != 'default' && matrix.channels == ''
+        run: cargo check --all-targets --no-default-features --features ${{matrix.runtime}}
+
+      - name: check ${{matrix.channels}}
+        if: matrix.runtime == 'default' && matrix.channels != ''
+        run: cargo check --all-targets --no-default-features --features ${{matrix.channels}}
 
   fmtclippy:
     runs-on: ubuntu-latest
     strategy:
       matrix:
         rust: [stable, beta]
-        features: [default, tokio_runtime, async_runtime]
+        runtime: [default, tokio_runtime, async_runtime]
+        channels: ['', async-channel]
     steps:
       - uses: actions/checkout@v4
       - uses: Swatinem/rust-cache@v2
@@ -43,8 +51,17 @@ jobs:
       - name: clippy
         run: cargo clippy --workspace --all-targets -- -D warnings
 
-      - name: clippy ${{matrix.features}}
-        run: cargo clippy --workspace --no-default-features --features ${{matrix.features}}
+      - name: clippy ${{matrix.runtime}},${{matrix.channels}}
+        if: matrix.runtime != 'default' || matrix.channels != ''
+        run: cargo clippy --workspace --no-default-features --features ${{matrix.runtime}},${{matrix.channels}} -- -D warnings
+
+      - name: clippy ${{matrix.runtime}}
+        if: matrix.runtime != 'default' && matrix.channels == ''
+        run: cargo clippy --workspace --no-default-features --features ${{matrix.runtime}} -- -D warnings
+
+      - name: clippy ${{matrix.channels}}
+        if: matrix.runtime == 'default' && matrix.channels != ''
+        run: cargo clippy --workspace --no-default-features --features ${{matrix.channels}} -- -D warnings
 
       - name: cargo-clippy
         run: cargo clippy --workspace --all-targets -- -D warnings

@@ -5,7 +5,7 @@ use futures::{
 
 use std::{
     future::Future,
-    pin::{Pin, pin},
+    pin::Pin,
     sync::{Arc, Weak},
     task,
 };
@@ -70,6 +70,7 @@ impl<A> Channel<A>
 where
     for<'a> A: 'a,
 {
+    #[cfg(not(feature = "async-channel"))]
     pub fn bounded(buffer: usize) -> Self {
         let (tx, mut rx) = futures::channel::mpsc::channel::<Payload<A>>(buffer);
         let tx2 = tx.clone();
@@ -94,13 +95,14 @@ where
         });
 
         let recv: PayloadStream<A> = poll_fn(Box::new(move |ctx| {
-            let pinned = pin!(&mut rx);
+            let pinned = std::pin::pin!(&mut rx);
             pinned.poll_next(ctx)
         }));
 
         Self::new(send, force_send, recv)
     }
 
+    #[cfg(not(feature = "async-channel"))]
     pub fn unbounded() -> Self {
         let (tx, mut rx) = futures::channel::mpsc::unbounded::<Payload<A>>();
         let tx2 = tx.clone();
@@ -123,8 +125,77 @@ where
             Ok(())
         });
         let recv: PayloadStream<A> = poll_fn(Box::new(move |ctx| {
-            let pinned = pin!(&mut rx);
+            let pinned = std::pin::pin!(&mut rx);
             pinned.poll_next(ctx)
+        }));
+
+        Self::new(send, force_send, recv)
+    }
+    #[cfg(feature = "async-channel")]
+    pub fn bounded(buffer: usize) -> Self {
+        let (tx, rx) = async_channel::bounded(buffer);
+        let tx2 = tx.clone();
+
+        let send = Arc::new(
+            move |event: Payload<A>| -> Pin<Box<dyn Future<Output = Result<()>> + Send>> {
+                let tx = tx2.clone();
+                Box::pin(async move {
+                    let tx = tx.clone();
+                    tx.send(event)
+                        .await
+                        .map_err(|_| crate::error::ActorError::AlreadyStopped)?;
+                    Ok(())
+                })
+            },
+        );
+
+        let force_send = Arc::new(move |event: Payload<A>| -> Result<()> {
+            let tx = tx.clone();
+            tx.force_send(event)
+                .map_err(|_| crate::error::ActorError::AlreadyStopped)?;
+            Ok(())
+        });
+
+        let recv: PayloadStream<A> = poll_fn(Box::new(move |ctx| {
+            let rx = rx.clone();
+            futures_lite::pin!(rx);
+            // let pinned = futures_lite::pin!(rx);
+            rx.poll_next(ctx)
+        }));
+
+        Self::new(send, force_send, recv)
+    }
+
+    #[cfg(feature = "async-channel")]
+    pub fn unbounded() -> Self {
+        let (tx, rx) = async_channel::unbounded();
+        let tx2 = tx.clone();
+
+        let send = Arc::new(
+            move |event: Payload<A>| -> Pin<Box<dyn Future<Output = Result<()>> + Send>> {
+                let tx = tx2.clone();
+                Box::pin(async move {
+                    let tx = tx.clone();
+                    tx.send(event)
+                        .await
+                        .map_err(|_| crate::error::ActorError::AlreadyStopped)?;
+                    Ok(())
+                })
+            },
+        );
+
+        let force_send = Arc::new(move |event: Payload<A>| -> Result<()> {
+            let tx = tx.clone();
+            tx.force_send(event)
+                .map_err(|_| crate::error::ActorError::AlreadyStopped)?;
+            Ok(())
+        });
+
+        let recv: PayloadStream<A> = poll_fn(Box::new(move |ctx| {
+            let rx = rx.clone();
+            futures_lite::pin!(rx);
+            // let pinned = futures_lite::pin!(rx);
+            rx.poll_next(ctx)
         }));
 
         Self::new(send, force_send, recv)
