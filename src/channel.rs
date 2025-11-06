@@ -1,13 +1,13 @@
 use futures::{
     Stream as _,
     stream::{PollFn, poll_fn},
-    task,
 };
 
 use std::{
     future::Future,
     pin::{Pin, pin},
     sync::{Arc, Weak},
+    task,
 };
 
 use crate::{error::Result, event_loop::Payload};
