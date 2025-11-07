@@ -25,14 +25,6 @@ jobs:
         if: matrix.runtime != 'default' || matrix.channels != ''
         run: cargo check --all-targets --no-default-features --features ${{matrix.runtime}},${{matrix.channels}}
 
-      - name: check ${{matrix.runtime}}
-        if: matrix.runtime != 'default' && matrix.channels == ''
-        run: cargo check --all-targets --no-default-features --features ${{matrix.runtime}}
-
-      - name: check ${{matrix.channels}}
-        if: matrix.runtime == 'default' && matrix.channels != ''
-        run: cargo check --all-targets --no-default-features --features ${{matrix.channels}}
-
   fmtclippy:
     runs-on: ubuntu-latest
     strategy:
@@ -54,14 +46,6 @@ jobs:
       - name: clippy ${{matrix.runtime}},${{matrix.channels}}
         if: matrix.runtime != 'default' || matrix.channels != ''
         run: cargo clippy --workspace --no-default-features --features ${{matrix.runtime}},${{matrix.channels}} -- -D warnings
-
-      - name: clippy ${{matrix.runtime}}
-        if: matrix.runtime != 'default' && matrix.channels == ''
-        run: cargo clippy --workspace --no-default-features --features ${{matrix.runtime}} -- -D warnings
-
-      - name: clippy ${{matrix.channels}}
-        if: matrix.runtime == 'default' && matrix.channels != ''
-        run: cargo clippy --workspace --no-default-features --features ${{matrix.channels}} -- -D warnings
 
       - name: cargo-clippy
         run: cargo clippy --workspace --all-targets -- -D warnings
