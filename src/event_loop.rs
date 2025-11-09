@@ -108,21 +108,21 @@ impl<A: Actor, R: RestartStrategy<A>> EventLoop<A, R> {
 
             let timeout = self.config.timeout;
             while let Some(event) = self.payload_stream.next().await {
-                log::trace!("processing event");
+                log::trace!(actor=A::NAME, id:% =self.ctx.id; "processing event");
                 match event {
                     Payload::Restart => {
-                        log::trace!("restarting {}", A::NAME);
+                        log::trace!(actor=A::NAME, id:% =self.ctx.id; "restarting");
                         actor = R::refresh(actor, &mut self.ctx).await?
                     }
                     Payload::Task(f) => {
-                        log::trace!(name = A::NAME;  "received task");
+                        log::trace!(actor=A::NAME, id:% =self.ctx.id;  "received task");
                         if let Err(err) = timeout_fut(f(&mut actor, &mut self.ctx), timeout).await {
                             if self.config.fail_on_timeout {
-                                log::warn!("{} {}, exiting", A::NAME, err);
+                                log::warn!(actor=A::NAME, id:% =self.ctx.id; "{}, exiting", err);
                                 actor.cancelled(&mut self.ctx).await;
                                 return Err(err);
                             } else {
-                                log::warn!("{} {}, ignoring", A::NAME, err);
+                                log::warn!(actor=A::NAME, id:% =self.ctx.id; "{}, ignoring", err);
                                 continue;
                             }
                         }
