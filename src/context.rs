@@ -384,14 +384,16 @@ mod test_log {
 
     pub fn append_to_log(item: impl Into<String>, kind: impl Into<usize>) {
         #[cfg(feature = "tokio_runtime")]
-        let task_id = tokio::task::try_id();
+        let task_id = tokio::task::try_id()
+            .map(|id| id.to_string())
+            .unwrap_or(String::from("-"));
         let started = STARTED.get_or_init(Instant::now);
         let elapsed = started.elapsed().as_millis();
         let msg = item.into();
         #[cfg(feature = "tokio_runtime")]
-        let log_line = format!("[{:>5} ms] {:?} {}", elapsed, task_id, msg);
+        let log_line = format!("[{elapsed:>5} ms] {task_id} {msg}");
         #[cfg(not(feature = "tokio_runtime"))]
-        let log_line = format!("[{:>5} ms] {}", elapsed, msg);
+        let log_line = format!("[{elapsed:>5} ms] {msg}");
         let vec = &*ATOMIC_VEC;
         vec.lock().unwrap().push((log_line, kind.into()));
     }
@@ -468,7 +470,16 @@ mod interval_cleanup {
     }
 
     mod interval_order {
+        use super::*;
+        use crate::{
+            context::{
+                ContextID,
+                test_log::{STARTED, append_to_log, log_events, log_is_empty, print_log},
+            },
+            prelude::*,
+        };
         use std::{sync::atomic::AtomicU32, time::Instant};
+
         #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
         enum EventKind {
             HandleSleep = 0,
@@ -501,22 +512,9 @@ mod interval_cleanup {
             }
         }
 
-        use super::*;
-        use crate::{
-            context::{
-                ContextID,
-                test_log::{STARTED, append_to_log, log_events, log_is_empty, print_log},
-            },
-            prelude::*,
-        };
-
         #[derive(Debug)]
         struct IntervalActor {
             interval: Duration,
-        }
-
-        impl IntervalActor {
-            // runtime() is no longer needed, so it can be removed
         }
 
         #[derive(Clone, Copy, Debug, Default)]
@@ -549,7 +547,7 @@ mod interval_cleanup {
                 let call_id = ContextID::default();
 
                 append_to_log(
-                    format!("Handle<IntervalSleep> {call_id}/{} called", sleep_msg.count),
+                    format!("handling: IntervalSleep {call_id}/{}", sleep_msg.count),
                     EventKind::HandleSleep,
                 );
 
@@ -557,7 +555,7 @@ mod interval_cleanup {
 
                 append_to_log(
                     format!(
-                        "Handle<IntervalSleep> {call_id}/{} post sleep of {:?}",
+                        "handling: IntervalSleep {call_id}/{} post sleep of {:?}",
                         sleep_msg.count, sleep_msg.duration
                     ),
                     EventKind::HandleSleepPostSleep,
@@ -567,11 +565,11 @@ mod interval_cleanup {
 
         impl Handler<StopTasks> for IntervalActor {
             async fn handle(&mut self, ctx: &mut Context<Self>, _: StopTasks) {
+                ctx.stop_tasks();
                 append_to_log(
-                    "🧹 handing StopTasks -> stopping tasks",
+                    "handling: StopTasks -> stopping tasks",
                     EventKind::HandleStop,
                 );
-                ctx.stop_tasks();
             }
         }
 
@@ -582,7 +580,7 @@ mod interval_cleanup {
                 ctx.delayed_send(
                     move || {
                         append_to_log(
-                            format!("sending: StopTasks after {stop_delay}ms"),
+                            format!("sending:  StopTasks after {stop_delay}ms"),
                             EventKind::SendDelay,
                         );
                         StopTasks
@@ -596,7 +594,7 @@ mod interval_cleanup {
                         let invocation = invocation_id.fetch_add(1, Ordering::SeqCst);
                         append_to_log(
                             format!(
-                                "sending: IntervalSleep {invocation} every {:?}",
+                                "sending:  IntervalSleep {invocation} every {:?}",
                                 self_interval
                             ),
                             EventKind::SendInterval,
@@ -622,7 +620,7 @@ mod interval_cleanup {
             let addr = crate::build(IntervalActor {
                 interval: Duration::from_millis(70),
             })
-            .bounded(7)
+            .bounded(1)
             .spawn();
 
             let halt_after = Duration::from_millis(700);
