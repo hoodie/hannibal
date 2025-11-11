@@ -1,6 +1,10 @@
 use std::{
     any::{Any, TypeId},
     collections::HashMap,
+    sync::{
+        Arc,
+        atomic::{AtomicUsize, Ordering},
+    },
 };
 
 use futures::channel::oneshot;
@@ -24,6 +28,42 @@ pub struct StopNotifier(pub(crate) oneshot::Sender<()>);
 impl StopNotifier {
     pub fn notify(self) {
         self.0.send(()).ok();
+    }
+}
+
+pub struct QueueMetrics {
+    capacity: AtomicUsize,
+    queue_length: AtomicUsize,
+}
+
+impl QueueMetrics {
+    pub fn new(capacity: Option<usize>) -> Self {
+        Self {
+            capacity: AtomicUsize::new(capacity.unwrap_or(usize::MAX)),
+            queue_length: AtomicUsize::new(0),
+        }
+    }
+
+    pub fn new_arc(capacity: Option<usize>) -> Arc<Self> {
+        Arc::new(Self::new(capacity))
+    }
+
+    pub fn capacity(&self) -> usize {
+        self.capacity.load(Ordering::Relaxed)
+    }
+
+    pub fn queue_length(&self) -> usize {
+        self.queue_length.load(Ordering::Relaxed)
+    }
+
+    pub(crate) fn set_queue_length(&self, length: usize) {
+        self.queue_length.store(length, Ordering::Relaxed);
+    }
+}
+
+impl Default for QueueMetrics {
+    fn default() -> Self {
+        Self::new(None)
     }
 }
 
@@ -95,6 +135,7 @@ pub struct Context<A> {
     pub(crate) children: HashMap<TypeId, Vec<AnyBox>>,
     // TODO: make this a slab and use unique ids to address handles so that users can actually stop intervals again
     pub(crate) tasks: HashMap<TaskID, futures::future::AbortHandle>,
+    pub(crate) queue_metrics: Arc<QueueMetrics>,
 }
 
 impl<A> Drop for Context<A> {
@@ -202,6 +243,11 @@ impl<A: Actor> Context<A> {
         A: Handler<M>,
     {
         crate::WeakCaller::from_weak_tx(self.weak_tx.clone(), self.id)
+    }
+
+    /// Get the queue metrics for this actor.
+    pub fn queue_metrics(&self) -> Arc<QueueMetrics> {
+        self.queue_metrics.clone()
     }
 }
 
@@ -543,7 +589,7 @@ mod interval_cleanup {
         }
 
         impl Handler<IntervalSleep> for IntervalActor {
-            async fn handle(&mut self, _ctx: &mut Context<Self>, sleep_msg: IntervalSleep) {
+            async fn handle(&mut self, ctx: &mut Context<Self>, sleep_msg: IntervalSleep) {
                 let call_id = ContextID::default();
 
                 append_to_log(

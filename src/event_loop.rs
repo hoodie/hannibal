@@ -6,7 +6,7 @@ use crate::{
     Actor, Addr, Context,
     actor::restart_strategy::{RecreateFromDefault, RestartOnly, RestartStrategy},
     channel::{Channel, PayloadRx},
-    context::StopNotifier,
+    context::{QueueMetrics, StopNotifier},
     handler::StreamHandler,
     runtime::sleep,
 };
@@ -32,12 +32,14 @@ pub struct EventLoop<A: Actor, R: RestartStrategy<A> = RestartOnly> {
 impl<A: Actor, R: RestartStrategy<A>> EventLoop<A, R> {
     pub(crate) fn from_channel(channel: Channel<A>) -> Self {
         let (tx_running, rx_running) = oneshot::channel::<()>();
+
         let ctx = Context {
             id: Default::default(),
             weak_tx: channel.tx.downgrade(),
             running: futures::FutureExt::shared(rx_running),
             children: Default::default(),
             tasks: Default::default(),
+            queue_metrics: QueueMetrics::new_arc(channel.capacity()),
         };
         let stop = StopNotifier(tx_running);
 
@@ -104,10 +106,16 @@ impl<A: Actor, R: RestartStrategy<A>> EventLoop<A, R> {
             actor.started(&mut self.ctx).await?;
 
             let timeout = self.config.timeout;
+            let queue_metrics = self.ctx.queue_metrics.clone();
             log::trace!(actor=A::NAME, id:% =self.ctx.id; "still waiting for {} events", self.payload_rx.len());
+
             let mut payload_rx = pin!(self.payload_rx);
+
             while let Some(event) = payload_rx.next().await {
+                queue_metrics.set_queue_length(payload_rx.len());
+
                 log::trace!(actor=A::NAME, id:% =self.ctx.id; "processing event");
+
                 match event {
                     Payload::Restart => {
                         log::trace!(actor=A::NAME, id:% =self.ctx.id; "restarting");
@@ -151,10 +159,14 @@ impl<A: Actor, R: RestartStrategy<A>> EventLoop<A, R> {
         A: StreamHandler<S::Item>,
     {
         let timeout = self.config.timeout;
+        let queue_metrics = self.ctx.queue_metrics.clone();
+
         let actor_loop = async move {
             actor.started(&mut self.ctx).await?;
             let mut payload_rx = pin!(self.payload_rx);
             loop {
+                queue_metrics.set_queue_length(payload_rx.len());
+
                 futures::select! {
                     event = payload_rx.next().fuse() => {
                         match event {

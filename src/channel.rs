@@ -31,4 +31,8 @@ where
 
         Self::new(tx, rx)
     }
+
+    pub fn capacity(&self) -> Option<usize> {
+        self.tx.capacity()
+    }
 }
