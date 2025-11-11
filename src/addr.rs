@@ -120,7 +120,7 @@ impl<A: Actor> Addr<A> {
         let (tx_response, response) = oneshot::channel();
         log::trace!("calling actor {}", std::any::type_name::<M>());
         self.payload_tx
-            .force_send(Payload::task(move |actor, ctx| {
+            .try_send(Payload::task(move |actor, ctx| {
                 log::trace!("handling task call");
                 Box::pin(async move {
                     log::trace!("actor handling call {}", std::any::type_name::<M>());
@@ -140,7 +140,7 @@ impl<A: Actor> Addr<A> {
         log::trace!("pinging actor");
         let (tx_response, response) = oneshot::channel();
         self.payload_tx
-            .force_send(Payload::task(move |_actor, _ctx| {
+            .try_send(Payload::task(move |_actor, _ctx| {
                 Box::pin(async move {
                     let _ = tx_response.send(());
                 })

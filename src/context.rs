@@ -154,6 +154,7 @@ impl<A: Actor> Context<A> {
                 .iter()
                 .filter_map(|child| child.downcast_ref::<Sender<M>>())
             {
+                // TODO: force_send is not correct here, we should have a try_send mechanism instead
                 if let Err(error) = child.force_send(message.clone()) {
                     log::error!("Failed to send message to child: {error}");
                 }
@@ -621,7 +622,7 @@ mod interval_cleanup {
             let addr = crate::build(IntervalActor {
                 interval: Duration::from_millis(70),
             })
-            .bounded(1)
+            .bounded(7)
             .spawn();
 
             let halt_after = Duration::from_millis(700);
