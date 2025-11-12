@@ -254,6 +254,9 @@ impl<A: Actor> Context<A> {
 
         let task_id = TaskHandle(TaskID::default());
         self.tasks.insert(task_id.0, handle);
+        #[cfg(feature = "tokio_runtime")]
+        tokio::spawn(task.map(|_| ()));
+        #[cfg(not(feature = "tokio_runtime"))]
         async_global_executor::spawn(task.map(|_| ())).detach();
         task_id
     }
