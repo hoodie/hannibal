@@ -475,10 +475,7 @@ mod interval_cleanup {
     mod interval_order {
         use super::*;
         use crate::{
-            context::{
-                ContextID,
-                test_log::{STARTED, append_to_log, log_events, log_is_empty, print_log},
-            },
+            context::test_log::{STARTED, append_to_log, log_events, log_is_empty, print_log},
             prelude::*,
         };
         use std::{sync::atomic::AtomicU32, time::Instant};
@@ -547,20 +544,16 @@ mod interval_cleanup {
 
         impl Handler<IntervalSleep> for IntervalActor {
             async fn handle(&mut self, _ctx: &mut Context<Self>, sleep_msg: IntervalSleep) {
-                let call_id = ContextID::default();
-
+                let IntervalSleep { duration, count } = sleep_msg;
                 append_to_log(
-                    format!("handling: IntervalSleep {call_id}/{}", sleep_msg.count),
+                    format!("handling: IntervalSleep {count}"),
                     EventKind::HandleSleep,
                 );
 
                 sleep_msg.sleep().await;
 
                 append_to_log(
-                    format!(
-                        "handling: IntervalSleep {call_id}/{} post sleep of {:?}",
-                        sleep_msg.count, sleep_msg.duration
-                    ),
+                    format!("handling: IntervalSleep {count} post sleep of {duration:?}",),
                     EventKind::HandleSleepPostSleep,
                 );
             }
