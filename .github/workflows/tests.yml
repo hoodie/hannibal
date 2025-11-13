@@ -17,7 +17,7 @@ jobs:
     env:
       CARGO_TERM_COLOR: always
       RUST_BACKTRACE: 1
-      RUST_LOG: trace
+      # RUST_LOG: trace
       STRESS_COUNT: ${{ github.event.inputs.stress_count || 1 }}
     strategy:
       matrix:

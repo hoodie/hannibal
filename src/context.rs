@@ -8,9 +8,12 @@ use futures::channel::oneshot;
 use crate::{
     Addr, Handler, Message, RestartableActor, Sender, WeakAddr,
     actor::Actor,
-    channel::{WeakChanTx, WeakForceChanTx},
+    channel::WeakPayloadTx,
     context::task_id::TaskID,
-    error::{ActorError::AlreadyStopped, Result},
+    error::{
+        ActorError::{self, AlreadyStopped},
+        Result,
+    },
     event_loop::Payload,
     runtime,
 };
@@ -87,8 +90,7 @@ type AnyBox = Box<dyn Any + Send + Sync>;
 ///
 pub struct Context<A> {
     pub(crate) id: ContextID,
-    pub(crate) weak_tx: WeakChanTx<A>,
-    pub(crate) weak_force_tx: WeakForceChanTx<A>,
+    pub(crate) weak_tx: WeakPayloadTx<A>,
     pub(crate) running: RunningFuture,
     pub(crate) children: HashMap<TypeId, Vec<AnyBox>>,
     // TODO: make this a slab and use unique ids to address handles so that users can actually stop intervals again
@@ -107,8 +109,9 @@ impl<A> Drop for Context<A> {
 impl<A: Actor> Context<A> {
     /// Stop the actor.
     pub fn stop(&self) -> Result<()> {
-        if let Some(tx) = self.weak_force_tx.upgrade() {
-            Ok(tx.send(Payload::Stop)?)
+        if let Some(tx) = self.weak_tx.upgrade() {
+            tx.force_send(Payload::Stop).map_err(|_| AlreadyStopped)?;
+            Ok(())
         } else {
             Err(AlreadyStopped)
         }
@@ -151,6 +154,7 @@ impl<A: Actor> Context<A> {
                 .iter()
                 .filter_map(|child| child.downcast_ref::<Sender<M>>())
             {
+                // TODO: force_send is not correct here, we should have a try_send mechanism instead
                 if let Err(error) = child.force_send(message.clone()) {
                     log::error!("Failed to send message to child: {error}");
                 }
@@ -171,12 +175,10 @@ impl<A: Actor> Context<A> {
     /// This is not public since it offers no more convenience than [`Context::weak_address`] (you need to upgrade either way).
     fn address(&self) -> Option<Addr<A>> {
         let payload_tx = self.weak_tx.upgrade()?;
-        let payload_force_tx = self.weak_force_tx.upgrade()?;
 
         Some(Addr {
             context_id: self.id,
             payload_tx,
-            payload_force_tx,
             running: self.running.clone(),
         })
     }
@@ -191,11 +193,7 @@ impl<A: Actor> Context<A> {
     where
         A: Handler<M>,
     {
-        crate::WeakSender::from_weak_tx(
-            std::sync::Weak::clone(&self.weak_tx),
-            std::sync::Weak::clone(&self.weak_force_tx),
-            self.id,
-        )
+        crate::WeakSender::from_weak_tx(self.weak_tx.clone(), self.id)
     }
 
     /// Create a weak caller to the actor.
@@ -203,7 +201,7 @@ impl<A: Actor> Context<A> {
     where
         A: Handler<M>,
     {
-        crate::WeakCaller::from_weak_tx(std::sync::Weak::clone(&self.weak_tx), self.id)
+        crate::WeakCaller::from_weak_tx(self.weak_tx.clone(), self.id)
     }
 }
 
@@ -284,7 +282,7 @@ impl<A: Actor> Context<A> {
             loop {
                 runtime::sleep(duration).await;
                 log::trace!("sending interval msg after sleep");
-                if myself.try_force_send(message.clone()).is_err() {
+                if myself.try_send(message.clone()).await.is_err() {
                     break;
                 }
             }
@@ -366,8 +364,10 @@ impl<A: RestartableActor> Context<A> {
     /// *`RecreateFromDefault`*: create a new instance of the actor and start it.
     ///
     pub fn restart(&self) -> Result<()> {
-        if let Some(tx) = self.weak_force_tx.upgrade() {
-            Ok(tx.send(Payload::Restart)?)
+        if let Some(tx) = self.weak_tx.upgrade() {
+            tx.force_send(Payload::Restart)
+                .map_err(|_err| ActorError::AlreadyStopped)?;
+            Ok(())
         } else {
             Err(AlreadyStopped)
         }
@@ -387,14 +387,16 @@ mod test_log {
 
     pub fn append_to_log(item: impl Into<String>, kind: impl Into<usize>) {
         #[cfg(feature = "tokio_runtime")]
-        let task_id = tokio::task::try_id();
+        let task_id = tokio::task::try_id()
+            .map(|id| id.to_string())
+            .unwrap_or(String::from("-"));
         let started = STARTED.get_or_init(Instant::now);
         let elapsed = started.elapsed().as_millis();
         let msg = item.into();
         #[cfg(feature = "tokio_runtime")]
-        let log_line = format!("[{:>5} ms] {:?} {}", elapsed, task_id, msg);
+        let log_line = format!("[{elapsed:>5} ms] {task_id} {msg}");
         #[cfg(not(feature = "tokio_runtime"))]
-        let log_line = format!("[{:>5} ms] {}", elapsed, msg);
+        let log_line = format!("[{elapsed:>5} ms] {msg}");
         let vec = &*ATOMIC_VEC;
         vec.lock().unwrap().push((log_line, kind.into()));
     }
@@ -471,7 +473,13 @@ mod interval_cleanup {
     }
 
     mod interval_order {
+        use super::*;
+        use crate::{
+            context::test_log::{STARTED, append_to_log, log_events, log_is_empty, print_log},
+            prelude::*,
+        };
         use std::{sync::atomic::AtomicU32, time::Instant};
+
         #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
         enum EventKind {
             HandleSleep = 0,
@@ -504,22 +512,9 @@ mod interval_cleanup {
             }
         }
 
-        use super::*;
-        use crate::{
-            context::{
-                ContextID,
-                test_log::{STARTED, append_to_log, log_events, log_is_empty, print_log},
-            },
-            prelude::*,
-        };
-
         #[derive(Debug)]
         struct IntervalActor {
             interval: Duration,
-        }
-
-        impl IntervalActor {
-            // runtime() is no longer needed, so it can be removed
         }
 
         #[derive(Clone, Copy, Debug, Default)]
@@ -549,20 +544,16 @@ mod interval_cleanup {
 
         impl Handler<IntervalSleep> for IntervalActor {
             async fn handle(&mut self, _ctx: &mut Context<Self>, sleep_msg: IntervalSleep) {
-                let call_id = ContextID::default();
-
+                let IntervalSleep { duration, count } = sleep_msg;
                 append_to_log(
-                    format!("Handle<IntervalSleep> {call_id}/{} called", sleep_msg.count),
+                    format!("handling: IntervalSleep {count}"),
                     EventKind::HandleSleep,
                 );
 
                 sleep_msg.sleep().await;
 
                 append_to_log(
-                    format!(
-                        "Handle<IntervalSleep> {call_id}/{} post sleep of {:?}",
-                        sleep_msg.count, sleep_msg.duration
-                    ),
+                    format!("handling: IntervalSleep {count} post sleep of {duration:?}",),
                     EventKind::HandleSleepPostSleep,
                 );
             }
@@ -570,11 +561,11 @@ mod interval_cleanup {
 
         impl Handler<StopTasks> for IntervalActor {
             async fn handle(&mut self, ctx: &mut Context<Self>, _: StopTasks) {
+                ctx.stop_tasks();
                 append_to_log(
-                    "🧹 handing StopTasks -> stopping tasks",
+                    "handling: StopTasks -> stopping tasks",
                     EventKind::HandleStop,
                 );
-                ctx.stop_tasks();
             }
         }
 
@@ -585,7 +576,7 @@ mod interval_cleanup {
                 ctx.delayed_send(
                     move || {
                         append_to_log(
-                            format!("sending: StopTasks after {stop_delay}ms"),
+                            format!("sending:  StopTasks after {stop_delay}ms"),
                             EventKind::SendDelay,
                         );
                         StopTasks
@@ -599,7 +590,7 @@ mod interval_cleanup {
                         let invocation = invocation_id.fetch_add(1, Ordering::SeqCst);
                         append_to_log(
                             format!(
-                                "sending: IntervalSleep {invocation} every {:?}",
+                                "sending:  IntervalSleep {invocation} every {:?}",
                                 self_interval
                             ),
                             EventKind::SendInterval,
