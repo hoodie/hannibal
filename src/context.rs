@@ -261,14 +261,6 @@ impl<A: Actor> Context<A> {
         task_id
     }
 
-    #[cfg(test)]
-    pub(crate) fn stop_tasks(&mut self) {
-        log::trace!("Stopping all tasks ({})", self.tasks.len());
-        for (_, handle) in self.tasks.drain() {
-            handle.abort();
-        }
-    }
-
     /// Send yourself a message at a regular interval.
     pub fn interval<M: Message<Response = ()> + Clone + Send + 'static>(
         &mut self,
@@ -375,53 +367,8 @@ impl<A: RestartableActor> Context<A> {
 }
 
 #[cfg(test)]
-mod test_log {
-    #![allow(clippy::unwrap_used)]
-    use std::{
-        sync::{LazyLock, Mutex, OnceLock},
-        time::Instant,
-    };
-
-    pub static ATOMIC_VEC: LazyLock<Mutex<Vec<(String, usize)>>> = LazyLock::new(Default::default);
-    pub static STARTED: OnceLock<Instant> = OnceLock::new();
-
-    pub fn append_to_log(item: impl Into<String>, kind: impl Into<usize>) {
-        #[cfg(feature = "tokio_runtime")]
-        let task_id = tokio::task::try_id();
-        let started = STARTED.get_or_init(Instant::now);
-        let elapsed = started.elapsed().as_millis();
-        let msg = item.into();
-        #[cfg(feature = "tokio_runtime")]
-        let log_line = format!("[{:>5} ms] {:?} {}", elapsed, task_id, msg);
-        #[cfg(not(feature = "tokio_runtime"))]
-        let log_line = format!("[{:>5} ms] {}", elapsed, msg);
-        let vec = &*ATOMIC_VEC;
-        vec.lock().unwrap().push((log_line, kind.into()));
-    }
-
-    pub fn log_events() -> Vec<usize> {
-        let vec = &*ATOMIC_VEC.lock().unwrap();
-        vec.iter().map(|(_, evt)| *evt).collect()
-    }
-
-    pub fn print_log() -> usize {
-        let vec = &*ATOMIC_VEC.lock().unwrap();
-        for (i, (line, evt)) in vec.iter().enumerate() {
-            eprintln!("Log {:>3}: {evt} {line:?}", i + 1);
-        }
-        vec.len()
-    }
-
-    pub fn log_is_empty() -> bool {
-        let vec = &*ATOMIC_VEC.lock().unwrap();
-        vec.is_empty()
-    }
-}
-
-#[cfg(test)]
+#[allow(clippy::unwrap_used)]
 mod interval_cleanup {
-    #![allow(clippy::unwrap_used)]
-
     use std::{
         sync::{
             Arc,
@@ -471,189 +418,81 @@ mod interval_cleanup {
     }
 
     mod interval_order {
-        use std::{sync::atomic::AtomicU32, time::Instant};
-        #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-        enum EventKind {
-            HandleSleep = 0,
-            HandleSleepPostSleep = 1,
-            HandleStop = 2,
-            SendDelay = 3,
-            SendInterval = 4,
-            TriggerHalt = 5,
-            Stopped = 6,
-        }
-
-        impl From<usize> for EventKind {
-            fn from(val: usize) -> Self {
-                match val {
-                    0 => EventKind::HandleSleep,
-                    1 => EventKind::HandleSleepPostSleep,
-                    2 => EventKind::HandleStop,
-                    3 => EventKind::SendDelay,
-                    4 => EventKind::SendInterval,
-                    5 => EventKind::TriggerHalt,
-                    6 => EventKind::Stopped,
-                    _ => panic!("Invalid event kind"),
-                }
-            }
-        }
-
-        impl From<EventKind> for usize {
-            fn from(val: EventKind) -> Self {
-                val as usize
-            }
-        }
-
         use super::*;
-        use crate::{
-            context::{
-                ContextID,
-                test_log::{STARTED, append_to_log, log_events, log_is_empty, print_log},
-            },
-            prelude::*,
-        };
-
-        #[derive(Debug)]
-        struct IntervalActor {
-            interval: Duration,
-        }
-
-        impl IntervalActor {
-            // runtime() is no longer needed, so it can be removed
-        }
-
-        #[derive(Clone, Copy, Debug, Default)]
-        struct IntervalSleep {
-            duration: Duration,
-            count: u32,
-        }
-
-        impl Message for IntervalSleep {
-            type Response = ();
-        }
-
-        impl IntervalSleep {
-            fn new(duration: Duration, count: u32) -> Self {
-                Self { duration, count }
-            }
-
-            async fn sleep(&self) {
-                sleep(self.duration).await;
-            }
-        }
-
-        struct StopTasks;
-        impl Message for StopTasks {
-            type Response = ();
-        }
-
-        impl Handler<IntervalSleep> for IntervalActor {
-            async fn handle(&mut self, _ctx: &mut Context<Self>, sleep_msg: IntervalSleep) {
-                let call_id = ContextID::default();
-
-                append_to_log(
-                    format!("Handle<IntervalSleep> {call_id}/{} called", sleep_msg.count),
-                    EventKind::HandleSleep,
-                );
-
-                sleep_msg.sleep().await;
-
-                append_to_log(
-                    format!(
-                        "Handle<IntervalSleep> {call_id}/{} post sleep of {:?}",
-                        sleep_msg.count, sleep_msg.duration
-                    ),
-                    EventKind::HandleSleepPostSleep,
-                );
-            }
-        }
-
-        impl Handler<StopTasks> for IntervalActor {
-            async fn handle(&mut self, ctx: &mut Context<Self>, _: StopTasks) {
-                append_to_log(
-                    "🧹 handing StopTasks -> stopping tasks",
-                    EventKind::HandleStop,
-                );
-                ctx.stop_tasks();
-            }
-        }
-
-        impl Actor for IntervalActor {
-            async fn started(&mut self, ctx: &mut Context<Self>) -> DynResult<()> {
-                let invocation_id = AtomicU32::new(1);
-                let stop_delay = 80;
-                ctx.delayed_send(
-                    move || {
-                        append_to_log(
-                            format!("sending: StopTasks after {stop_delay}ms"),
-                            EventKind::SendDelay,
-                        );
-                        StopTasks
-                    },
-                    Duration::from_millis(stop_delay),
-                );
-                let interval = Duration::from_millis(200);
-                let self_interval = self.interval;
-                ctx.interval_with(
-                    move || {
-                        let invocation = invocation_id.fetch_add(1, Ordering::SeqCst);
-                        append_to_log(
-                            format!(
-                                "sending: IntervalSleep {invocation} every {:?}",
-                                self_interval
-                            ),
-                            EventKind::SendInterval,
-                        );
-                        IntervalSleep::new(interval, invocation)
-                    },
-                    self.interval,
-                );
-                log::info!("IntervalActor started");
-                Ok(())
-            }
-            async fn stopped(&mut self, _: &mut Context<Self>) {
-                append_to_log("🏁 Actor stopped", EventKind::Stopped);
-            }
-        }
+        use crate::prelude::*;
 
         #[test_log::test(tokio::test)]
-        async fn dont_overlap_when_tasks_take_too_long() {
-            assert!(log_is_empty(), "Log should be empty before test");
-            // Ensure STARTED is reset for each test run
-            STARTED.set(Instant::now()).ok();
+        async fn handlers_never_overlap() {
+            use std::sync::Arc;
+            use std::sync::atomic::{AtomicBool, AtomicU32};
 
-            let addr = crate::build(IntervalActor {
-                interval: Duration::from_millis(70),
+            let handler_running = Arc::new(AtomicBool::new(false));
+            let overlap_detected = Arc::new(AtomicBool::new(false));
+            let handler_count = Arc::new(AtomicU32::new(0));
+
+            struct NoOverlapActor {
+                handler_running: Arc<AtomicBool>,
+                overlap_detected: Arc<AtomicBool>,
+                handler_count: Arc<AtomicU32>,
+            }
+
+            #[derive(Clone)]
+            struct SlowMessage;
+            impl Message for SlowMessage {
+                type Response = ();
+            }
+
+            impl Handler<SlowMessage> for NoOverlapActor {
+                async fn handle(&mut self, _ctx: &mut Context<Self>, _: SlowMessage) {
+                    let was_running = self.handler_running.swap(true, Ordering::SeqCst);
+
+                    if was_running {
+                        self.overlap_detected.store(true, Ordering::SeqCst);
+                        panic!(
+                            "Handler overlap detected! A handler started while another was still running."
+                        );
+                    }
+
+                    self.handler_count.fetch_add(1, Ordering::SeqCst);
+
+                    sleep(Duration::from_millis(100)).await;
+
+                    self.handler_running.store(false, Ordering::SeqCst);
+                }
+            }
+
+            impl Actor for NoOverlapActor {
+                async fn started(&mut self, ctx: &mut Context<Self>) -> DynResult<()> {
+                    ctx.interval_with(|| SlowMessage, Duration::from_millis(20));
+                    Ok(())
+                }
+            }
+
+            let addr = crate::build(NoOverlapActor {
+                handler_running: Arc::clone(&handler_running),
+                overlap_detected: Arc::clone(&overlap_detected),
+                handler_count: Arc::clone(&handler_count),
             })
-            .bounded(1)
+            .bounded(10)
             .spawn();
 
-            let halt_after = Duration::from_millis(700);
-            sleep(halt_after).await;
-            append_to_log(
-                format!("✋ HALTING ACTOR AFTER {halt_after:?}"),
-                EventKind::TriggerHalt,
-            );
+            sleep(Duration::from_millis(300)).await;
             addr.halt().await.unwrap();
-            print_log();
-            use EventKind::*;
-            assert_eq!(
-                log_events()
-                    .into_iter()
-                    .map(EventKind::from)
-                    .collect::<Vec<_>>(),
-                [
-                    SendInterval,         // (main) [ 75ms] schedule interval 1
-                    HandleSleep,          // (loop) [ 75ms] interval 1
-                    SendDelay,            // (main) [ 83ms] schedule task stop
-                    SendInterval,         // (main) [148ms] schedule interval 2
-                    HandleSleepPostSleep, // (loop) [277ms] interval 1
-                    HandleStop,           // (loop) [277ms] stop tasks
-                    HandleSleep,          // (loop) [277ms] interval 2 (sometimes missing)
-                    HandleSleepPostSleep, // (loop) [479ms] interval 2 (sometimes missing)
-                    TriggerHalt,          // (main) [704ms]
-                    Stopped,
-                ]
+
+            assert!(
+                !overlap_detected.load(Ordering::SeqCst),
+                "Handlers should never overlap"
+            );
+
+            let count = handler_count.load(Ordering::SeqCst);
+            assert!(
+                count >= 2,
+                "At least 2 handlers should have executed (got {count})",
+            );
+
+            assert!(
+                !handler_running.load(Ordering::SeqCst),
+                "No handler should be running after halt"
             );
         }
     }
