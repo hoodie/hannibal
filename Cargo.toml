@@ -32,6 +32,7 @@ tokio = { version = "1", features = ["full"], optional = true }
 async-io = { version = "2.5.0", optional = true }
 async-global-executor = { version = "3", optional = true }
 async-channel = "2.5.0"
+flume = "0.11.1"
 
 [features]
 default = [

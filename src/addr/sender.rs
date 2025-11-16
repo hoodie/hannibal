@@ -46,7 +46,7 @@ impl<M: Message<Response = ()>> Sender<M> {
                 move |msg: M| -> Pin<Box<dyn Future<Output = Result<()>> + Send>> {
                     let tx = tx.clone();
                     Box::pin(async move {
-                        tx.send(Payload::task(move |actor, ctx| {
+                        tx.send_async(Payload::task(move |actor, ctx| {
                             Box::pin(Handler::handle(&mut *actor, ctx, msg))
                         }))
                         .await
@@ -59,7 +59,7 @@ impl<M: Message<Response = ()>> Sender<M> {
 
         let force_send_fn: Box<dyn ForceSenderFn<M>> = {
             Box::new(move |msg: M| {
-                tx.force_send(Payload::task(move |actor, ctx| {
+                tx.send(Payload::task(move |actor, ctx| {
                     Box::pin(Handler::handle(&mut *actor, ctx, msg))
                 }))
                 .map_err(|_err| ActorError::AlreadyStopped)?;

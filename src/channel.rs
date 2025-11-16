@@ -1,9 +1,9 @@
 use crate::event_loop::Payload;
 
-pub type PayloadTx<A> = async_channel::Sender<Payload<A>>;
-pub type PayloadRx<A> = async_channel::Receiver<Payload<A>>;
+pub type PayloadTx<A> = flume::Sender<Payload<A>>;
+pub type PayloadRx<A> = flume::Receiver<Payload<A>>;
 
-pub type WeakPayloadTx<A> = async_channel::WeakSender<Payload<A>>;
+pub type WeakPayloadTx<A> = flume::WeakSender<Payload<A>>;
 
 pub(crate) struct Channel<A> {
     pub tx: PayloadTx<A>,
@@ -21,13 +21,13 @@ where
     for<'a> A: 'a,
 {
     pub fn bounded(buffer: usize) -> Self {
-        let (tx, rx) = async_channel::bounded(buffer);
+        let (tx, rx) = flume::bounded(buffer);
 
         Self::new(tx, rx)
     }
 
     pub fn unbounded() -> Self {
-        let (tx, rx) = async_channel::unbounded();
+        let (tx, rx) = flume::unbounded();
 
         Self::new(tx, rx)
     }

@@ -110,7 +110,7 @@ impl<A: Actor> Context<A> {
     /// Stop the actor.
     pub fn stop(&self) -> Result<()> {
         if let Some(tx) = self.weak_tx.upgrade() {
-            tx.force_send(Payload::Stop).map_err(|_| AlreadyStopped)?;
+            tx.send(Payload::Stop).map_err(|_| AlreadyStopped)?;
             Ok(())
         } else {
             Err(AlreadyStopped)
@@ -357,7 +357,7 @@ impl<A: RestartableActor> Context<A> {
     ///
     pub fn restart(&self) -> Result<()> {
         if let Some(tx) = self.weak_tx.upgrade() {
-            tx.force_send(Payload::Restart)
+            tx.send(Payload::Restart)
                 .map_err(|_err| ActorError::AlreadyStopped)?;
             Ok(())
         } else {

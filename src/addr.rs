@@ -90,7 +90,7 @@ impl<A: Actor> Addr<A> {
     pub fn stop(&mut self) -> Result<()> {
         log::trace!("stopping actor");
         self.payload_tx
-            .force_send(Payload::Stop)
+            .send(Payload::Stop)
             .map_err(|_err| ActorError::AlreadyStopped)?;
         Ok(())
     }
@@ -157,7 +157,7 @@ impl<A: Actor> Addr<A> {
     {
         log::trace!("sending message to actor {}", std::any::type_name::<M>());
         self.payload_tx
-            .send(Payload::task(move |actor, ctx| {
+            .send_async(Payload::task(move |actor, ctx| {
                 Box::pin(Handler::handle(actor, ctx, msg))
             }))
             .await
@@ -211,7 +211,7 @@ impl<A: RestartableActor> Addr<A> {
     pub fn restart(&mut self) -> Result<()> {
         // TODO: remove needless Result
         self.payload_tx
-            .force_send(Payload::Restart)
+            .send(Payload::Restart)
             .map_err(|_err| ActorError::AlreadyStopped)?;
         Ok(())
     }

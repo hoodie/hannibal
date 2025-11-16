@@ -105,7 +105,7 @@ impl<A: Actor, R: RestartStrategy<A>> EventLoop<A, R> {
 
             let timeout = self.config.timeout;
             log::trace!(actor=A::NAME, id:% =self.ctx.id; "still waiting for {} events", self.payload_rx.len());
-            let mut payload_rx = pin!(self.payload_rx);
+            let mut payload_rx = pin!(self.payload_rx.stream());
             while let Some(event) = payload_rx.next().await {
                 log::trace!(actor=A::NAME, id:% =self.ctx.id; "processing event");
                 match event {
@@ -153,14 +153,14 @@ impl<A: Actor, R: RestartStrategy<A>> EventLoop<A, R> {
         let timeout = self.config.timeout;
         let actor_loop = async move {
             actor.started(&mut self.ctx).await?;
-            let mut payload_rx = pin!(self.payload_rx);
+            let mut payload_rx = pin!(self.payload_rx.stream());
             loop {
                 futures::select! {
                     event = payload_rx.next().fuse() => {
                         match event {
-                            Some(Payload::Task(task_fn)) => {
+                            Some(Payload::Task(f)) => {
                                 log::trace!(name = A::NAME;  "received task");
-                                if let Err(err) = timeout_fut(task_fn(&mut actor, &mut self.ctx), timeout).await {
+                                if let Err(err) = timeout_fut(f(&mut actor, &mut self.ctx), timeout).await {
                                     if self.config.fail_on_timeout {
                                         log::warn!("{} {}, exiting", A::NAME, err);
                                         actor.cancelled(&mut self.ctx).await;

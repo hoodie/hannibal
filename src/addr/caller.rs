@@ -42,7 +42,7 @@ impl<M: Message> Caller<M> {
                 Box::pin(async move {
                     let (response_tx, response) = oneshot::channel();
 
-                    tx.send(Payload::task(move |actor, ctx| {
+                    tx.send_async(Payload::task(move |actor, ctx| {
                         Box::pin(async move {
                             let res = Handler::handle(&mut *actor, ctx, msg).await;
                             let _ = response_tx.send(res);
