@@ -5,7 +5,7 @@ use futures::{FutureExt, Stream, StreamExt as _, channel::oneshot};
 use crate::{
     Actor, Addr, Context,
     actor::restart_strategy::{RecreateFromDefault, RestartOnly, RestartStrategy},
-    channel::{Channel, PayloadStream},
+    channel::{Channel, Receiver},
     context::StopNotifier,
     handler::StreamHandler,
     runtime::sleep,
@@ -25,39 +25,39 @@ pub struct EventLoop<A: Actor, R: RestartStrategy<A> = RestartOnly> {
     addr: Addr<A>,
     stop: StopNotifier,
     config: EventLoopConfig,
-    payload_stream: PayloadStream<A>,
+    payload_receiver: Receiver<A>,
     phantom: PhantomData<R>,
 }
 
 impl<A: Actor, R: RestartStrategy<A>> EventLoop<A, R> {
     pub(crate) fn from_channel(channel: Channel<A>) -> Self {
         let (tx_running, rx_running) = oneshot::channel::<()>();
+        let (sender, payload_receiver) = channel.break_up();
+        let weak_sender = sender.downgrade();
         let ctx = Context {
             id: Default::default(),
-            weak_tx: channel.weak_tx(),
-            weak_force_tx: channel.weak_force_tx(),
+            weak_sender,
             running: futures::FutureExt::shared(rx_running),
             children: Default::default(),
             tasks: Default::default(),
         };
-        let (payload_force_tx, payload_tx, payload_stream) = channel.break_up();
         let stop = StopNotifier(tx_running);
 
         let addr = Addr {
             context_id: ctx.id,
-            payload_force_tx,
-            payload_tx,
+            sender,
             running: ctx.running.clone(),
         };
         EventLoop {
             ctx,
             addr,
             stop,
-            payload_stream,
+            payload_receiver,
             config: Default::default(),
             phantom: PhantomData,
         }
     }
+
     pub(crate) const fn with_config(mut self, config: EventLoopConfig) -> Self {
         self.config = config;
         self
@@ -107,7 +107,7 @@ impl<A: Actor, R: RestartStrategy<A>> EventLoop<A, R> {
             actor.started(&mut self.ctx).await?;
 
             let timeout = self.config.timeout;
-            while let Some(event) = self.payload_stream.next().await {
+            while let Some(event) = self.payload_receiver.next().await {
                 log::trace!(actor=A::NAME, id:% =self.ctx.id; "processing event");
                 match event {
                     Payload::Restart => {
@@ -156,7 +156,7 @@ impl<A: Actor, R: RestartStrategy<A>> EventLoop<A, R> {
             actor.started(&mut self.ctx).await?;
             loop {
                 futures::select! {
-                    event = self.payload_stream.next().fuse() => {
+                    event = self.payload_receiver.next().fuse() => {
                         match event {
                             Some(Payload::Task(f)) => {
                                 log::trace!(name = A::NAME;  "received task");
@@ -220,7 +220,7 @@ where
             addr: self.addr,
             stop: self.stop,
             config: self.config,
-            payload_stream: self.payload_stream,
+            payload_receiver: self.payload_receiver,
             phantom: PhantomData,
         }
     }

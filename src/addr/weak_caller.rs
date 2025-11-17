@@ -1,13 +1,6 @@
 use dyn_clone::DynClone;
 
-use std::sync::Arc;
-
-use crate::{
-    Actor, Handler,
-    channel::{ChanTx, WeakChanTx},
-    context::ContextID,
-    error::ActorError::AlreadyStopped,
-};
+use crate::{Actor, Handler, channel, context::ContextID, error::ActorError::AlreadyStopped};
 
 use super::{Addr, Message, Result, caller::Caller};
 
@@ -37,20 +30,20 @@ impl<M: Message> WeakCaller<M> {
         }
     }
 
-    fn new<A>(tx: ChanTx<A>, id: ContextID) -> Self
+    fn new<A>(sender: channel::Sender<A>, id: ContextID) -> Self
     where
         A: Actor + Handler<M>,
         M: Message,
     {
-        Self::from_weak_tx(Arc::downgrade(&tx), id)
+        Self::from_weak_tx(sender.downgrade(), id)
     }
 
-    pub(crate) fn from_weak_tx<A>(weak_tx: WeakChanTx<A>, id: ContextID) -> Self
+    pub(crate) fn from_weak_tx<A>(weak_sender: channel::WeakSender<A>, id: ContextID) -> Self
     where
         A: Actor + Handler<M>,
         M: Message,
     {
-        let upgrade = Box::new(move || weak_tx.upgrade().map(|tx| Caller::new(tx, id)));
+        let upgrade = Box::new(move || weak_sender.upgrade().map(|sender| Caller::new(sender, id)));
 
         WeakCaller { upgrade, id }
     }
@@ -61,7 +54,7 @@ where
     A: Actor + Handler<M>,
 {
     fn from(addr: Addr<A>) -> Self {
-        Self::new(addr.payload_tx.to_owned(), addr.context_id)
+        Self::new(addr.sender.clone(), addr.context_id)
     }
 }
 
@@ -70,7 +63,7 @@ where
     A: Actor + Handler<M>,
 {
     fn from(addr: &Addr<A>) -> Self {
-        Self::new(addr.payload_tx.to_owned(), addr.context_id)
+        Self::new(addr.sender.clone(), addr.context_id)
     }
 }
 
