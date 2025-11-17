@@ -1,10 +1,9 @@
 use dyn_clone::DynClone;
 use futures::channel::oneshot;
 
-use std::sync::{Arc, Weak};
 use std::{future::Future, pin::Pin};
 
-use crate::{Actor, Handler, channel::ChanTx, context::ContextID};
+use crate::{Actor, Handler, channel, context::ContextID};
 
 use super::{Addr, Message, Payload, Result, weak_caller::WeakCaller};
 
@@ -31,20 +30,18 @@ impl<M: Message> Caller<M> {
         self.downgrade_fn.downgrade()
     }
 
-    pub(crate) fn new<A>(tx: ChanTx<A>, id: ContextID) -> Self
+    pub(crate) fn new<A>(sender: channel::Sender<A>, id: ContextID) -> Self
     where
         A: Actor + Handler<M>,
     {
-        let weak_tx: Weak<_> = Arc::downgrade(&tx);
+        let weak_tx = sender.downgrade();
 
-        // TODO: make this queue-safe
         let call_fn = Box::new(
             move |msg| -> Pin<Box<dyn Future<Output = Result<M::Response>>>> {
-                let tx = Arc::clone(&tx);
+                let tx = sender.clone();
                 Box::pin(async move {
                     let (response_tx, response) = oneshot::channel();
 
-                    // TODO: make this queue-safe
                     tx.send(Payload::task(move |actor, ctx| {
                         Box::pin(async move {
                             let res = Handler::handle(&mut *actor, ctx, msg).await;
@@ -58,7 +55,7 @@ impl<M: Message> Caller<M> {
             },
         );
 
-        let upgrade = Box::new(move || weak_tx.upgrade().map(|tx| Caller::new(tx, id)));
+        let upgrade = Box::new(move || weak_tx.upgrade().map(|sender| Caller::new(sender, id)));
 
         let downgrade_fn = Box::new(move || WeakCaller {
             upgrade: upgrade.clone(),
@@ -93,7 +90,7 @@ where
     A: Actor + Handler<M>,
 {
     fn from(addr: Addr<A>) -> Self {
-        Caller::new(addr.payload_tx.to_owned(), addr.context_id)
+        Caller::new(addr.sender.clone(), addr.context_id)
     }
 }
 
