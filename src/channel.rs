@@ -12,13 +12,7 @@ use std::{
 
 use crate::{error::Result, event_loop::Payload};
 
-pub type WeakChanTx<A> = Weak<dyn TxFn<A>>;
-pub type ChanTx<A> = Arc<dyn TxFn<A>>;
-
-pub type PayloadStream<A> =
-    PollFn<Box<dyn FnMut(&mut task::Context<'_>) -> task::Poll<Option<Payload<A>>> + Send>>;
-
-pub(crate) trait TxFn<A>: Send + Sync {
+trait TxFn<A>: Send + Sync {
     fn send(&self, msg: Payload<A>) -> Pin<Box<dyn Future<Output = Result<()>> + Send>>;
 }
 
@@ -32,10 +26,7 @@ where
     }
 }
 
-pub type ForceChanTx<A> = Arc<dyn ForceTxFn<A>>;
-pub type WeakForceChanTx<A> = Weak<dyn ForceTxFn<A>>;
-
-pub(crate) trait ForceTxFn<A>: Send + Sync {
+trait ForceTxFn<A>: Send + Sync {
     fn send(&self, msg: Payload<A>) -> Result<()>;
 }
 
@@ -49,20 +40,97 @@ where
     }
 }
 
-// TODO: consider getting rid of this and just using `Sink` and `
-pub(crate) struct Channel<A> {
-    tx_fn: ChanTx<A>,
-    force_tx_fn: ForceChanTx<A>,
+type PayloadStream<A> =
+    PollFn<Box<dyn FnMut(&mut task::Context<'_>) -> task::Poll<Option<Payload<A>>> + Send>>;
+
+pub(crate) struct Sender<A> {
+    tx: Arc<dyn TxFn<A>>,
+    force_tx: Arc<dyn ForceTxFn<A>>,
+}
+
+impl<A> Clone for Sender<A> {
+    fn clone(&self) -> Self {
+        Self {
+            tx: Arc::clone(&self.tx),
+            force_tx: Arc::clone(&self.force_tx),
+        }
+    }
+}
+
+impl<A> Sender<A> {
+    fn new(tx: Arc<dyn TxFn<A>>, force_tx: Arc<dyn ForceTxFn<A>>) -> Self {
+        Self { tx, force_tx }
+    }
+
+    pub fn downgrade(&self) -> WeakSender<A> {
+        WeakSender {
+            tx: Arc::downgrade(&self.tx),
+            force_tx: Arc::downgrade(&self.force_tx),
+        }
+    }
+
+    pub fn send(&self, msg: Payload<A>) -> Pin<Box<dyn Future<Output = Result<()>> + Send>> {
+        self.tx.send(msg)
+    }
+
+    pub fn force_send(&self, msg: Payload<A>) -> Result<()> {
+        self.force_tx.send(msg)
+    }
+}
+
+pub(crate) struct WeakSender<A> {
+    tx: Weak<dyn TxFn<A>>,
+    force_tx: Weak<dyn ForceTxFn<A>>,
+}
+
+impl<A> WeakSender<A> {
+    pub fn upgrade(&self) -> Option<Sender<A>> {
+        Some(Sender {
+            tx: self.tx.upgrade()?,
+            force_tx: self.force_tx.upgrade()?,
+        })
+    }
+}
+
+impl<A> Clone for WeakSender<A> {
+    fn clone(&self) -> Self {
+        Self {
+            tx: Weak::clone(&self.tx),
+            force_tx: Weak::clone(&self.force_tx),
+        }
+    }
+}
+
+pub(crate) struct Receiver<A> {
     stream: PayloadStream<A>,
 }
 
+impl<A> Receiver<A> {
+    pub(crate) fn new(stream: PayloadStream<A>) -> Self {
+        Self { stream }
+    }
+}
+
+impl<A> futures::Stream for Receiver<A> {
+    type Item = Payload<A>;
+
+    fn poll_next(
+        mut self: Pin<&mut Self>,
+        cx: &mut task::Context<'_>,
+    ) -> task::Poll<Option<Self::Item>> {
+        let pinned = pin!(&mut self.stream);
+        pinned.poll_next(cx)
+    }
+}
+
+pub(crate) struct Channel<A> {
+    sender: Sender<A>,
+    receiver: Receiver<A>,
+}
+
 impl<A> Channel<A> {
-    fn new(tx_fn: ChanTx<A>, force_tx_fn: ForceChanTx<A>, stream: PayloadStream<A>) -> Self {
-        Channel {
-            tx_fn,
-            force_tx_fn,
-            stream,
-        }
+    const fn new(sender: Sender<A>, receiver: Receiver<A>) -> Self {
+        Channel { sender, receiver }
     }
 }
 
@@ -87,8 +155,6 @@ where
 
         let force_send = Arc::new(move |event: Payload<A>| -> Result<()> {
             let mut tx = tx.clone();
-            // THIS IS A BUG!
-            // Just calling this without checking for readiness will just queue this and ignore the bound
             tx.start_send(event)?;
             Ok(())
         });
@@ -98,7 +164,10 @@ where
             pinned.poll_next(ctx)
         }));
 
-        Self::new(send, force_send, recv)
+        let sender = Sender::new(send, force_send);
+        let receiver = Receiver::new(recv);
+
+        Self::new(sender, receiver)
     }
 
     pub fn unbounded() -> Self {
@@ -122,22 +191,19 @@ where
             tx.start_send(event)?;
             Ok(())
         });
+
         let recv: PayloadStream<A> = poll_fn(Box::new(move |ctx| {
             let pinned = pin!(&mut rx);
             pinned.poll_next(ctx)
         }));
 
-        Self::new(send, force_send, recv)
+        let sender = Sender::new(send, force_send);
+        let receiver = Receiver::new(recv);
+
+        Self::new(sender, receiver)
     }
 
-    pub fn break_up(self) -> (ForceChanTx<A>, ChanTx<A>, PayloadStream<A>) {
-        (self.force_tx_fn, self.tx_fn, self.stream)
-    }
-
-    pub fn weak_force_tx(&self) -> WeakForceChanTx<A> {
-        Arc::downgrade(&self.force_tx_fn)
-    }
-    pub fn weak_tx(&self) -> WeakChanTx<A> {
-        Arc::downgrade(&self.tx_fn)
+    pub fn break_up(self) -> (Sender<A>, Receiver<A>) {
+        (self.sender, self.receiver)
     }
 }

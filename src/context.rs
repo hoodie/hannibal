@@ -8,7 +8,7 @@ use futures::channel::oneshot;
 use crate::{
     Addr, Handler, Message, RestartableActor, Sender, WeakAddr,
     actor::Actor,
-    channel::{WeakChanTx, WeakForceChanTx},
+    channel::WeakSender,
     context::task_id::TaskID,
     error::{ActorError::AlreadyStopped, Result},
     event_loop::Payload,
@@ -87,8 +87,7 @@ type AnyBox = Box<dyn Any + Send + Sync>;
 ///
 pub struct Context<A> {
     pub(crate) id: ContextID,
-    pub(crate) weak_tx: WeakChanTx<A>,
-    pub(crate) weak_force_tx: WeakForceChanTx<A>,
+    pub(crate) weak_sender: WeakSender<A>,
     pub(crate) running: RunningFuture,
     pub(crate) children: HashMap<TypeId, Vec<AnyBox>>,
     // TODO: make this a slab and use unique ids to address handles so that users can actually stop intervals again
@@ -107,8 +106,8 @@ impl<A> Drop for Context<A> {
 impl<A: Actor> Context<A> {
     /// Stop the actor.
     pub fn stop(&self) -> Result<()> {
-        if let Some(tx) = self.weak_force_tx.upgrade() {
-            Ok(tx.send(Payload::Stop)?)
+        if let Some(sender) = self.weak_sender.upgrade() {
+            Ok(sender.force_send(Payload::Stop)?)
         } else {
             Err(AlreadyStopped)
         }
@@ -170,13 +169,11 @@ impl<A: Actor> Context<A> {
     /// If you store an `Addr` to the actor within itself it will no longer self terminate.
     /// This is not public since it offers no more convenience than [`Context::weak_address`] (you need to upgrade either way).
     fn address(&self) -> Option<Addr<A>> {
-        let payload_tx = self.weak_tx.upgrade()?;
-        let payload_force_tx = self.weak_force_tx.upgrade()?;
+        let sender = self.weak_sender.upgrade()?;
 
         Some(Addr {
             context_id: self.id,
-            payload_tx,
-            payload_force_tx,
+            sender,
             running: self.running.clone(),
         })
     }
@@ -191,11 +188,7 @@ impl<A: Actor> Context<A> {
     where
         A: Handler<M>,
     {
-        crate::WeakSender::from_weak_tx(
-            std::sync::Weak::clone(&self.weak_tx),
-            std::sync::Weak::clone(&self.weak_force_tx),
-            self.id,
-        )
+        crate::WeakSender::from_weak_tx(self.weak_sender.clone(), self.id)
     }
 
     /// Create a weak caller to the actor.
@@ -203,7 +196,7 @@ impl<A: Actor> Context<A> {
     where
         A: Handler<M>,
     {
-        crate::WeakCaller::from_weak_tx(std::sync::Weak::clone(&self.weak_tx), self.id)
+        crate::WeakCaller::from_weak_tx(self.weak_sender.clone(), self.id)
     }
 }
 
@@ -358,8 +351,8 @@ impl<A: RestartableActor> Context<A> {
     /// *`RecreateFromDefault`*: create a new instance of the actor and start it.
     ///
     pub fn restart(&self) -> Result<()> {
-        if let Some(tx) = self.weak_force_tx.upgrade() {
-            Ok(tx.send(Payload::Restart)?)
+        if let Some(sender) = self.weak_sender.upgrade() {
+            Ok(sender.force_send(Payload::Restart)?)
         } else {
             Err(AlreadyStopped)
         }

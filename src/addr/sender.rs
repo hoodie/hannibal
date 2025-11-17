@@ -1,16 +1,8 @@
 use dyn_clone::DynClone;
 
-use std::{
-    future::Future,
-    pin::Pin,
-    sync::{Arc, Weak},
-};
+use std::{future::Future, pin::Pin};
 
-use crate::{
-    Actor, Handler,
-    channel::{ChanTx, ForceChanTx},
-    context::ContextID,
-};
+use crate::{Actor, Handler, channel, context::ContextID};
 
 use super::{Addr, Message, Payload, Result, weak_sender::WeakSender};
 
@@ -42,31 +34,28 @@ impl<M: Message<Response = ()>> Sender<M> {
         self.downgrade_fn.downgrade()
     }
 
-    pub(crate) fn new<A>(tx: ChanTx<A>, force_tx: ForceChanTx<A>, id: ContextID) -> Self
+    pub(crate) fn new<A>(sender: channel::Sender<A>, id: ContextID) -> Self
     where
         A: Actor + Handler<M>,
     {
-        let weak_tx: Weak<_> = Arc::downgrade(&tx);
-        let weak_force_tx: Weak<_> = Arc::downgrade(&force_tx);
+        let weak_tx = sender.downgrade();
 
-        let send_fn = Box::new(move |msg| {
-            tx.send(Payload::task(move |actor, ctx| {
-                Box::pin(Handler::handle(&mut *actor, ctx, msg))
-            }))
-        });
+        let send_fn = {
+            let tx = sender.clone();
+            Box::new(move |msg| {
+                tx.send(Payload::task(move |actor, ctx| {
+                    Box::pin(Handler::handle(&mut *actor, ctx, msg))
+                }))
+            })
+        };
 
         let force_send_fn = Box::new(move |msg| {
-            force_tx.send(Payload::task(move |actor, ctx| {
+            sender.force_send(Payload::task(move |actor, ctx| {
                 Box::pin(Handler::handle(&mut *actor, ctx, msg))
             }))
         });
 
-        let upgrade = Box::new(move || {
-            weak_tx
-                .upgrade()
-                .zip(weak_force_tx.upgrade())
-                .map(|(tx, force_tx)| Sender::new(tx, force_tx, id))
-        });
+        let upgrade = Box::new(move || weak_tx.upgrade().map(|sender| Sender::new(sender, id)));
 
         let downgrade_fn = Box::new(move || WeakSender {
             upgrade: upgrade.clone(),
@@ -115,11 +104,7 @@ where
     A: Actor + Handler<M>,
 {
     fn from(addr: Addr<A>) -> Self {
-        Sender::new(
-            addr.payload_tx.to_owned(),
-            addr.payload_force_tx.to_owned(),
-            addr.context_id,
-        )
+        Sender::new(addr.sender.clone(), addr.context_id)
     }
 }
 
@@ -128,11 +113,7 @@ where
     A: Actor + Handler<M>,
 {
     fn from(addr: &Addr<A>) -> Self {
-        Sender::new(
-            addr.payload_tx.to_owned(),
-            addr.payload_force_tx.to_owned(),
-            addr.context_id,
-        )
+        Sender::new(addr.sender.clone(), addr.context_id)
     }
 }
 

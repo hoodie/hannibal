@@ -1,5 +1,3 @@
-use std::sync::Arc;
-
 use dyn_clone::DynClone;
 
 use crate::{
@@ -54,22 +52,17 @@ impl<A: Actor> WeakAddr<A> {
 
 impl<A: Actor> From<&Addr<A>> for WeakAddr<A> {
     fn from(addr: &Addr<A>) -> Self {
-        let weak_tx = Arc::downgrade(&addr.payload_tx);
-        let weak_force_tx = Arc::downgrade(&addr.payload_force_tx);
+        let weak_sender = addr.sender.downgrade();
         let context_id = addr.context_id;
         let running = addr.running.clone();
         let running_inner = addr.running.clone();
         let upgrade = Box::new(move || {
             let running = running_inner.clone();
-            weak_tx
-                .upgrade()
-                .zip(weak_force_tx.upgrade())
-                .map(|(payload_tx, payload_force_tx)| Addr {
-                    context_id,
-                    payload_force_tx,
-                    payload_tx,
-                    running,
-                })
+            weak_sender.upgrade().map(|sender| Addr {
+                context_id,
+                sender,
+                running,
+            })
         });
 
         WeakAddr {
