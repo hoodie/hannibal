@@ -57,15 +57,13 @@ impl<M: Message<Response = ()>> Sender<M> {
             )
         };
 
-        let force_send_fn: Box<dyn ForceSenderFn<M>> = {
-            Box::new(move |msg: M| {
-                tx.force_send(Payload::task(move |actor, ctx| {
-                    Box::pin(Handler::handle(&mut *actor, ctx, msg))
-                }))
-                .map_err(|_err| ActorError::AlreadyStopped)?;
-                Ok(())
-            })
-        };
+        let force_send_fn = Box::new(move |msg| {
+            tx.force_send(Payload::task(move |actor, ctx| {
+                Box::pin(Handler::handle(&mut *actor, ctx, msg))
+            }))
+            .map_err(|_err| ActorError::AlreadyStopped)?;
+            Ok(())
+        });
 
         let downgrade_fn: Box<dyn DowngradeFn<M>> = {
             Box::new(move || {
