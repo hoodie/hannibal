@@ -437,10 +437,8 @@ mod interval_cleanup {
             }
 
             #[derive(Clone)]
+            #[message]
             struct SlowMessage;
-            impl Message for SlowMessage {
-                type Response = ();
-            }
 
             impl Handler<SlowMessage> for NoOverlapActor {
                 async fn handle(&mut self, _ctx: &mut Context<Self>, _: SlowMessage) {
@@ -533,11 +531,8 @@ mod interval_cleanup {
             .spawn();
             sleep(Duration::from_millis(300)).await;
 
-            // #[derive(hannibal_derive::Message)]
+            #[derive(hannibal_derive::Message)]
             struct StopInterval;
-            impl Message for StopInterval {
-                type Response = ();
-            }
             impl Handler<StopInterval> for IntervalWithActor {
                 async fn handle(
                     &mut self,
