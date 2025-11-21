@@ -21,6 +21,11 @@ test $RUST_LOG="trace" $NEXTEST_STATUS_LEVEL="slow" $NEXTEST_FAILURE_OUTPUT="fin
     cargo nextest run --workspace --lib --no-default-features --features async_runtime --stress-count $STRESS_COUNT
     cargo nextest run --workspace --lib --no-default-features --features async_runtime,tokio --stress-count $STRESS_COUNT
 
+doc_test:
+    cargo test --workspace --doc --no-default-features --features tokio_runtime
+    cargo test --workspace --doc --no-default-features --features async_runtime
+    cargo test --workspace --doc --no-default-features --features async_runtime,tokio
+
 install-deps:
     cargo install cargo-nextest
     cargo install cargo-semver-checks
@@ -31,4 +36,4 @@ semver-checks:
 build-examples:
     cargo build --manifest-path hannibal-examples/Cargo.toml --features tokio_runtime
 
-ci: install-deps clippy test build-examples semver-checks
+ci: install-deps clippy test build-examples semver-checks doc_test
