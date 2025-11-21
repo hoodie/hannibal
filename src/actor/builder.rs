@@ -411,7 +411,7 @@ where
         let (event_loop, addr) = EventLoop::<A, NonRestartable>::from_channel(channel)
             .with_config(config)
             .create_on_stream(actor, stream);
-        let _handle = ActorHandle::spawn(event_loop);
+        ActorHandle::spawn(event_loop).detach();
         addr
     }
 

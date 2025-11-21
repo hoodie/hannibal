@@ -163,16 +163,12 @@ mod subscribe_publish_unsubscribe {
     #![allow(clippy::unwrap_used)]
 
     use futures::future::join;
+    use hannibal_derive::Message;
 
-    use crate::{
-        Actor, Broker, Context, DynResult, Handler, Message, Service, prelude::Spawnable as _,
-    };
+    use crate::{Actor, Broker, Context, DynResult, Handler, Service, prelude::Spawnable as _};
 
-    #[derive(Clone, Debug)]
+    #[derive(Clone, Debug, Message)]
     struct Topic1(u32);
-    impl Message for Topic1 {
-        type Response = ();
-    }
 
     #[derive(Default, Debug, PartialEq)]
     struct Subscribing(Vec<u32>);
