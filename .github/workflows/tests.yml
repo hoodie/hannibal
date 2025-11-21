@@ -37,3 +37,9 @@ jobs:
 
       - name: lib test ${{matrix.features}}
         run: cargo nextest run --workspace --lib --no-default-features --features ${{matrix.features}} --stress-count $STRESS_COUNT
+
+      - name: doc test (default)
+        run: cargo test --doc --workspace
+
+      - name: doc test ${{matrix.features}}
+        run: cargo test --doc --workspace --no-default-features --features ${{matrix.features}}
