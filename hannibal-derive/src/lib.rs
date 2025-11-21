@@ -1,9 +1,19 @@
-extern crate proc_macro;
+use std::env::var;
 
 use proc_macro::TokenStream;
+use proc_macro_crate::{FoundCrate, crate_name};
 use proc_macro2::Span;
 use quote::quote;
 use syn::{DeriveInput, Ident, parse_macro_input};
+
+fn get_crate_path() -> proc_macro2::TokenStream {
+    match (crate_name("hannibal"), var("CARGO_CRATE_NAME").as_deref()) {
+        (Ok(FoundCrate::Itself), Ok("hannibal")) => quote!(crate),
+        (Ok(FoundCrate::Itself), _) => quote!(::hannibal),
+        (Ok(FoundCrate::Name(_name)), _) => quote!(::hannibal),
+        (Err(_), _) => quote!(::hannibal),
+    }
+}
 
 #[proc_macro_attribute]
 pub fn main(_args: TokenStream, input: TokenStream) -> TokenStream {
@@ -11,12 +21,13 @@ pub fn main(_args: TokenStream, input: TokenStream) -> TokenStream {
 
     input.sig.ident = Ident::new("original_main", Span::call_site());
     let return_type = &input.sig.output;
+    let crate_path = get_crate_path();
 
     let generated = quote! {
         #input
 
         fn main() #return_type {
-            hannibal::runtime::block_on(original_main())
+            #crate_path::runtime::block_on(original_main())
         }
     };
 
@@ -45,9 +56,10 @@ pub fn message(args: TokenStream, input: TokenStream) -> TokenStream {
 
     let ast = syn::parse::<DeriveInput>(input).unwrap();
     let ident = &ast.ident;
+    let crate_path = get_crate_path();
     let generated = quote! {
         #ast
-        impl ::hannibal::Message for #ident {
+        impl #crate_path::Message for #ident {
             type Response = #response_type;
         }
     };
@@ -59,8 +71,9 @@ pub fn derive_message(input: TokenStream) -> TokenStream {
     let ast = syn::parse::<DeriveInput>(input).unwrap();
 
     let name = &ast.ident;
+    let crate_path = get_crate_path();
     let generated = quote! {
-        impl ::hannibal::Message for #name {
+        impl #crate_path::Message for #name {
             type Response = ();
         }
     };
@@ -72,12 +85,14 @@ pub fn derive_restartable_actor(input: TokenStream) -> TokenStream {
     let ast = syn::parse::<DeriveInput>(input).unwrap();
 
     let name = &ast.ident;
+    let crate_path = get_crate_path();
     let generated = quote! {
-        impl ::hannibal::RestartableActor for #name {
+        impl #crate_path::RestartableActor for #name {
         }
     };
     generated.into()
 }
+
 #[proc_macro_derive(Actor)]
 pub fn derive_actor(input: TokenStream) -> TokenStream {
     let ast = syn::parse::<DeriveInput>(input).unwrap();
@@ -85,9 +100,9 @@ pub fn derive_actor(input: TokenStream) -> TokenStream {
     let name = &ast.ident;
     let generics = &ast.generics;
     let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
+    let crate_path = get_crate_path();
     let generated = quote! {
-        impl #impl_generics ::hannibal::Actor for #name #ty_generics #where_clause {
-            // impl ::hannibal::Actor for #name {
+        impl #impl_generics #crate_path::Actor for #name #ty_generics #where_clause {
         }
     };
     generated.into()
@@ -98,8 +113,9 @@ pub fn derive_service(input: TokenStream) -> TokenStream {
     let ast = syn::parse::<DeriveInput>(input).unwrap();
 
     let name = &ast.ident;
+    let crate_path = get_crate_path();
     let generated = quote! {
-        impl ::hannibal::Service for #name {
+        impl #crate_path::Service for #name {
         }
     };
     generated.into()

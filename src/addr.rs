@@ -315,7 +315,9 @@ impl<A> DerefMut for OwningAddr<A> {
 #[cfg(test)]
 mod tests {
     #![allow(clippy::unwrap_used)]
-    use crate::{Context, DynResult, Message, event_loop::EventLoop};
+    use hannibal_derive::message;
+
+    use crate::{Context, DynResult, event_loop::EventLoop};
 
     use super::*;
     use std::future::Future;
@@ -323,20 +325,14 @@ mod tests {
     #[derive(Debug, Default)]
     pub struct MyActor(pub Option<&'static str>);
 
+    #[message]
     pub struct Stop;
-    impl Message for Stop {
-        type Response = ();
-    }
 
+    #[message]
     pub struct Store(pub &'static str);
-    impl Message for Store {
-        type Response = ();
-    }
 
+    #[message(response=i32)]
     pub struct Add(pub i32, pub i32);
-    impl Message for Add {
-        type Response = i32;
-    }
 
     impl Actor for MyActor {}
 
