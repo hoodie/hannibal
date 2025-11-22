@@ -26,14 +26,6 @@ impl<M: Message<Response = ()>> WeakSender<M> {
         self.upgrade.upgrade()
     }
 
-    pub(crate) fn try_force_send(&self, msg: M) -> Result<()> {
-        if let Some(sender) = self.upgrade.upgrade() {
-            sender.force_send(msg)
-        } else {
-            Err(AlreadyStopped)
-        }
-    }
-
     /// Attempts to send a message to the actor.
     ///
     /// If the actor is stopped, an error is returned.
