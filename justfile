@@ -27,8 +27,8 @@ doc_test:
     cargo test --workspace --doc --no-default-features --features async_runtime,tokio
 
 install-deps:
-    cargo install cargo-nextest
-    cargo install cargo-semver-checks
+    @cargo -q install cargo-nextest
+    @cargo -q install cargo-semver-checks
 
 semver-checks:
     cargo semver-checks
