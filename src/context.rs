@@ -244,6 +244,13 @@ impl std::fmt::Debug for TaskHandle {
     }
 }
 
+async fn interval_timeout<T>(fut: impl Future<Output = T>, timeout: Duration) -> Option<T> {
+    futures::select_biased! {
+        success = fut.fuse() => Some(success),
+        _ = FutureExt::fuse(crate::runtime::sleep(timeout)) => None
+    }
+}
+
 /// ## Task Handling
 impl<A: Actor> Context<A> {
     /// Spawn a task that will be executed in the background.
@@ -262,6 +269,11 @@ impl<A: Actor> Context<A> {
     }
 
     /// Send yourself a message at a regular interval.
+    ///
+    /// ## Backpressure
+    ///
+    /// Ticks that take longer than 50% of the interval duration to send are skipped
+    /// to prevent stale message buildup when the actor cannot keep pace with the interval.
     pub fn interval<M: Message<Response = ()> + Clone + Send + 'static>(
         &mut self,
         message: M,
@@ -272,11 +284,24 @@ impl<A: Actor> Context<A> {
     {
         let myself = self.weak_sender();
         self.spawn_task(async move {
+            let expiry = duration
+                .mul_f32(0.5)
+                .clamp(Duration::from_millis(100), Duration::from_secs(5));
             log::trace!("Starting interval with message");
             loop {
                 runtime::sleep(duration).await;
+                let Some(sender) = myself.upgrade() else {
+                    log::trace!("interval ended after actor dropped");
+                    break;
+                };
                 log::trace!("sending interval msg after sleep");
-                if myself.try_force_send(message.clone()).is_err() {
+                let Some(sent) = interval_timeout(sender.send(message.clone()), expiry).await
+                else {
+                    log::warn!("tick missed by {}ms, skipping", expiry.as_millis());
+                    continue;
+                };
+                if let Err(error) = sent {
+                    log::warn!("interval message failed: {error}");
                     break;
                 }
             }
@@ -285,6 +310,13 @@ impl<A: Actor> Context<A> {
     }
 
     /// Send yourself a message at a regular interval.
+    ///
+    /// ## Backpressure
+    ///
+    /// Ticks that take longer than 50% of the interval duration to send are skipped
+    /// to prevent stale message buildup when the actor cannot keep pace with the interval.
+    ///
+    /// Warning: don't do anything expensive in the message function, as it will block the interval.
     pub fn interval_with<M: Message<Response = ()>>(
         &mut self,
         message_fn: impl Fn() -> M + Send + Sync + 'static,
@@ -295,11 +327,23 @@ impl<A: Actor> Context<A> {
     {
         let myself = self.weak_sender();
         self.spawn_task(async move {
+            let expiry = duration
+                .mul_f32(0.5)
+                .clamp(Duration::from_millis(100), Duration::from_secs(5));
             log::trace!("Starting interval with message_fn");
             loop {
                 runtime::sleep(duration).await;
+                let Some(sender) = myself.upgrade() else {
+                    log::trace!("interval ended after actor dropped");
+                    break;
+                };
                 log::trace!("sending interval msg after sleep");
-                if myself.try_send(message_fn()).await.is_err() {
+                let Some(sent) = interval_timeout(sender.send(message_fn()), expiry).await else {
+                    log::warn!("tick missed by {}ms, skipping", expiry.as_millis());
+                    continue;
+                };
+                if let Err(error) = sent {
+                    log::warn!("interval message failed: {error}");
                     break;
                 }
             }
@@ -521,6 +565,7 @@ mod interval_cleanup {
                 self.running.store(true, Ordering::SeqCst);
             }
         }
+
         #[tokio::test]
         async fn stopped_by_task_handle() {
             let running = Arc::new(AtomicBool::new(false));
