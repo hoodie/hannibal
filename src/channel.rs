@@ -43,12 +43,12 @@ where
 type PayloadStream<A> =
     PollFn<Box<dyn FnMut(&mut task::Context<'_>) -> task::Poll<Option<Payload<A>>> + Send>>;
 
-pub(crate) struct Sender<A> {
+pub(crate) struct Tx<A> {
     tx: Arc<dyn TxFn<A>>,
     force_tx: Arc<dyn ForceTxFn<A>>,
 }
 
-impl<A> Clone for Sender<A> {
+impl<A> Clone for Tx<A> {
     fn clone(&self) -> Self {
         Self {
             tx: Arc::clone(&self.tx),
@@ -57,13 +57,13 @@ impl<A> Clone for Sender<A> {
     }
 }
 
-impl<A> Sender<A> {
+impl<A> Tx<A> {
     fn new(tx: Arc<dyn TxFn<A>>, force_tx: Arc<dyn ForceTxFn<A>>) -> Self {
         Self { tx, force_tx }
     }
 
-    pub fn downgrade(&self) -> WeakSender<A> {
-        WeakSender {
+    pub fn downgrade(&self) -> WeakTx<A> {
+        WeakTx {
             tx: Arc::downgrade(&self.tx),
             force_tx: Arc::downgrade(&self.force_tx),
         }
@@ -78,21 +78,21 @@ impl<A> Sender<A> {
     }
 }
 
-pub(crate) struct WeakSender<A> {
+pub(crate) struct WeakTx<A> {
     tx: Weak<dyn TxFn<A>>,
     force_tx: Weak<dyn ForceTxFn<A>>,
 }
 
-impl<A> WeakSender<A> {
-    pub fn upgrade(&self) -> Option<Sender<A>> {
-        Some(Sender {
+impl<A> WeakTx<A> {
+    pub fn upgrade(&self) -> Option<Tx<A>> {
+        Some(Tx {
             tx: self.tx.upgrade()?,
             force_tx: self.force_tx.upgrade()?,
         })
     }
 }
 
-impl<A> Clone for WeakSender<A> {
+impl<A> Clone for WeakTx<A> {
     fn clone(&self) -> Self {
         Self {
             tx: Weak::clone(&self.tx),
@@ -101,17 +101,17 @@ impl<A> Clone for WeakSender<A> {
     }
 }
 
-pub(crate) struct Receiver<A> {
+pub(crate) struct Rx<A> {
     stream: PayloadStream<A>,
 }
 
-impl<A> Receiver<A> {
+impl<A> Rx<A> {
     pub(crate) fn new(stream: PayloadStream<A>) -> Self {
         Self { stream }
     }
 }
 
-impl<A> futures::Stream for Receiver<A> {
+impl<A> futures::Stream for Rx<A> {
     type Item = Payload<A>;
 
     fn poll_next(
@@ -124,13 +124,13 @@ impl<A> futures::Stream for Receiver<A> {
 }
 
 pub(crate) struct Channel<A> {
-    sender: Sender<A>,
-    receiver: Receiver<A>,
+    tx: Tx<A>,
+    rx: Rx<A>,
 }
 
 impl<A> Channel<A> {
-    const fn new(sender: Sender<A>, receiver: Receiver<A>) -> Self {
-        Channel { sender, receiver }
+    const fn new(tx: Tx<A>, rx: Rx<A>) -> Self {
+        Channel { tx, rx }
     }
 }
 
@@ -164,10 +164,10 @@ where
             pinned.poll_next(ctx)
         }));
 
-        let sender = Sender::new(send, force_send);
-        let receiver = Receiver::new(recv);
+        let tx = Tx::new(send, force_send);
+        let rx = Rx::new(recv);
 
-        Self::new(sender, receiver)
+        Self::new(tx, rx)
     }
 
     pub fn unbounded() -> Self {
@@ -197,13 +197,13 @@ where
             pinned.poll_next(ctx)
         }));
 
-        let sender = Sender::new(send, force_send);
-        let receiver = Receiver::new(recv);
+        let tx = Tx::new(send, force_send);
+        let rx = Rx::new(recv);
 
-        Self::new(sender, receiver)
+        Self::new(tx, rx)
     }
 
-    pub fn break_up(self) -> (Sender<A>, Receiver<A>) {
-        (self.sender, self.receiver)
+    pub fn break_up(self) -> (Tx<A>, Rx<A>) {
+        (self.tx, self.rx)
     }
 }

@@ -34,14 +34,14 @@ impl<M: Message<Response = ()>> Sender<M> {
         self.downgrade_fn.downgrade()
     }
 
-    pub(crate) fn new<A>(sender: channel::Sender<A>, id: ContextID) -> Self
+    pub(crate) fn new<A>(tx: channel::Tx<A>, id: ContextID) -> Self
     where
         A: Actor + Handler<M>,
     {
-        let weak_tx = sender.downgrade();
+        let weak_tx = tx.downgrade();
 
         let send_fn = {
-            let tx = sender.clone();
+            let tx = tx.clone();
             Box::new(move |msg| {
                 tx.send(Payload::task(move |actor, ctx| {
                     Box::pin(Handler::handle(&mut *actor, ctx, msg))
@@ -50,12 +50,12 @@ impl<M: Message<Response = ()>> Sender<M> {
         };
 
         let force_send_fn = Box::new(move |msg| {
-            sender.force_send(Payload::task(move |actor, ctx| {
+            tx.force_send(Payload::task(move |actor, ctx| {
                 Box::pin(Handler::handle(&mut *actor, ctx, msg))
             }))
         });
 
-        let upgrade = Box::new(move || weak_tx.upgrade().map(|sender| Sender::new(sender, id)));
+        let upgrade = Box::new(move || weak_tx.upgrade().map(|tx| Sender::new(tx, id)));
 
         let downgrade_fn = Box::new(move || WeakSender {
             upgrade: upgrade.clone(),
@@ -104,7 +104,7 @@ where
     A: Actor + Handler<M>,
 {
     fn from(addr: Addr<A>) -> Self {
-        Sender::new(addr.sender.clone(), addr.context_id)
+        Sender::new(addr.tx.clone(), addr.context_id)
     }
 }
 
@@ -113,7 +113,7 @@ where
     A: Actor + Handler<M>,
 {
     fn from(addr: &Addr<A>) -> Self {
-        Sender::new(addr.sender.clone(), addr.context_id)
+        Sender::new(addr.tx.clone(), addr.context_id)
     }
 }
 

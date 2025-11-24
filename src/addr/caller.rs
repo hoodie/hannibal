@@ -30,15 +30,15 @@ impl<M: Message> Caller<M> {
         self.downgrade_fn.downgrade()
     }
 
-    pub(crate) fn new<A>(sender: channel::Sender<A>, id: ContextID) -> Self
+    pub(crate) fn new<A>(tx: channel::Tx<A>, id: ContextID) -> Self
     where
         A: Actor + Handler<M>,
     {
-        let weak_tx = sender.downgrade();
+        let weak_tx = tx.downgrade();
 
         let call_fn = Box::new(
             move |msg| -> Pin<Box<dyn Future<Output = Result<M::Response>>>> {
-                let tx = sender.clone();
+                let tx = tx.clone();
                 Box::pin(async move {
                     let (response_tx, response) = oneshot::channel();
 
@@ -55,7 +55,7 @@ impl<M: Message> Caller<M> {
             },
         );
 
-        let upgrade = Box::new(move || weak_tx.upgrade().map(|sender| Caller::new(sender, id)));
+        let upgrade = Box::new(move || weak_tx.upgrade().map(|tx| Caller::new(tx, id)));
 
         let downgrade_fn = Box::new(move || WeakCaller {
             upgrade: upgrade.clone(),
@@ -90,7 +90,7 @@ where
     A: Actor + Handler<M>,
 {
     fn from(addr: Addr<A>) -> Self {
-        Caller::new(addr.sender.clone(), addr.context_id)
+        Caller::new(addr.tx.clone(), addr.context_id)
     }
 }
 

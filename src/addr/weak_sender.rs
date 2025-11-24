@@ -30,20 +30,20 @@ impl<M: Message<Response = ()>> WeakSender<M> {
         }
     }
 
-    fn new<A>(sender: channel::Sender<A>, id: ContextID) -> Self
+    fn new<A>(tx: channel::Tx<A>, id: ContextID) -> Self
     where
         A: Actor + Handler<M>,
         M: Message<Response = ()>,
     {
-        Self::from_weak_tx(sender.downgrade(), id)
+        Self::from_weak_tx(tx.downgrade(), id)
     }
 
-    pub(crate) fn from_weak_tx<A>(weak_sender: channel::WeakSender<A>, id: ContextID) -> Self
+    pub(crate) fn from_weak_tx<A>(weak_tx: channel::WeakTx<A>, id: ContextID) -> Self
     where
         A: Actor + Handler<M>,
         M: Message<Response = ()>,
     {
-        let upgrade = Box::new(move || weak_sender.upgrade().map(|sender| Sender::new(sender, id)));
+        let upgrade = Box::new(move || weak_tx.upgrade().map(|tx| Sender::new(tx, id)));
 
         WeakSender { upgrade, id }
     }
@@ -54,7 +54,7 @@ where
     A: Actor + Handler<M>,
 {
     fn from(addr: Addr<A>) -> Self {
-        Self::new(addr.sender.clone(), addr.context_id)
+        Self::new(addr.tx.clone(), addr.context_id)
     }
 }
 
@@ -63,7 +63,7 @@ where
     A: Actor + Handler<M>,
 {
     fn from(addr: &Addr<A>) -> Self {
-        Self::new(addr.sender.clone(), addr.context_id)
+        Self::new(addr.tx.clone(), addr.context_id)
     }
 }
 

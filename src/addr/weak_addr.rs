@@ -52,15 +52,15 @@ impl<A: Actor> WeakAddr<A> {
 
 impl<A: Actor> From<&Addr<A>> for WeakAddr<A> {
     fn from(addr: &Addr<A>) -> Self {
-        let weak_sender = addr.sender.downgrade();
+        let weak_tx = addr.tx.downgrade();
         let context_id = addr.context_id;
         let running = addr.running.clone();
         let running_inner = addr.running.clone();
         let upgrade = Box::new(move || {
             let running = running_inner.clone();
-            weak_sender.upgrade().map(|sender| Addr {
+            weak_tx.upgrade().map(|tx| Addr {
                 context_id,
-                sender,
+                tx,
                 running,
             })
         });

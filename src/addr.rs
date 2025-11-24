@@ -16,7 +16,7 @@ pub mod weak_sender;
 use crate::{
     RestartableActor,
     actor::{Actor, ActorHandle, JoinFuture},
-    channel::Sender,
+    channel::Tx,
     context::{ContextID, RunningFuture},
     error::Result,
     event_loop::Payload,
@@ -71,7 +71,7 @@ impl Message for () {
 ///
 pub struct Addr<A> {
     pub(crate) context_id: ContextID,
-    pub(crate) sender: Sender<A>,
+    pub(crate) tx: Tx<A>,
     pub(crate) running: RunningFuture,
 }
 
@@ -79,7 +79,7 @@ impl<A: Actor> Clone for Addr<A> {
     fn clone(&self) -> Self {
         Addr {
             context_id: self.context_id,
-            sender: self.sender.clone(),
+            tx: self.tx.clone(),
             running: self.running.clone(),
         }
     }
@@ -89,7 +89,7 @@ impl<A: Actor> Addr<A> {
     /// Sends a stop signal to the actor.
     pub fn stop(&mut self) -> Result<()> {
         log::trace!("stopping actor");
-        self.sender.force_send(Payload::Stop)?;
+        self.tx.force_send(Payload::Stop)?;
         Ok(())
     }
 
@@ -117,7 +117,7 @@ impl<A: Actor> Addr<A> {
     {
         let (tx_response, response) = oneshot::channel();
         log::trace!("calling actor {}", std::any::type_name::<M>());
-        self.sender.force_send(Payload::task(move |actor, ctx| {
+        self.tx.force_send(Payload::task(move |actor, ctx| {
             log::trace!("handling task call");
             Box::pin(async move {
                 log::trace!("actor handling call {}", std::any::type_name::<M>());
@@ -135,7 +135,7 @@ impl<A: Actor> Addr<A> {
     pub async fn ping(&self) -> Result<()> {
         log::trace!("pinging actor");
         let (tx_response, response) = oneshot::channel();
-        self.sender.force_send(Payload::task(move |_actor, _ctx| {
+        self.tx.force_send(Payload::task(move |_actor, _ctx| {
             Box::pin(async move {
                 let _ = tx_response.send(());
             })
@@ -154,7 +154,7 @@ impl<A: Actor> Addr<A> {
             "force sending message to actor {}",
             std::any::type_name::<M>()
         );
-        self.sender.force_send(Payload::task(move |actor, ctx| {
+        self.tx.force_send(Payload::task(move |actor, ctx| {
             Box::pin(Handler::handle(actor, ctx, msg))
         }))?;
         Ok(())
@@ -166,7 +166,7 @@ impl<A: Actor> Addr<A> {
         A: Handler<M>,
     {
         log::trace!("sending message to actor {}", std::any::type_name::<M>());
-        self.sender
+        self.tx
             .send(Payload::task(move |actor, ctx| {
                 Box::pin(Handler::handle(actor, ctx, msg))
             }))
@@ -218,7 +218,7 @@ impl<A: RestartableActor> Addr<A> {
     ///
     /// [`StreamHandlers`](`crate::StreamHandler`) for example can't be restarted.
     pub fn restart(&mut self) -> Result<()> {
-        self.sender.force_send(Payload::Restart)?;
+        self.tx.force_send(Payload::Restart)?;
         Ok(())
     }
 }
