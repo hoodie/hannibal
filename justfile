@@ -27,8 +27,8 @@ doc_test:
     cargo test --workspace --doc --no-default-features --features async_runtime,tokio
 
 install-deps:
-    cargo install cargo-nextest
-    cargo install cargo-semver-checks
+    @cargo -q install cargo-nextest
+    @cargo -q install cargo-semver-checks
 
 semver-checks:
     cargo semver-checks
@@ -36,4 +36,4 @@ semver-checks:
 build-examples:
     cargo build --manifest-path hannibal-examples/Cargo.toml --features tokio_runtime
 
-ci: install-deps clippy test build-examples semver-checks doc_test
+ci: install-deps clippy test build-examples doc_test semver-checks

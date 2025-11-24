@@ -3,7 +3,6 @@ use std::{
     future::Future,
     ops::{Deref, DerefMut},
     pin::Pin,
-    sync::Arc,
     task::Poll,
 };
 use weak_addr::WeakAddr;
@@ -17,7 +16,7 @@ pub mod weak_sender;
 use crate::{
     RestartableActor,
     actor::{Actor, ActorHandle, JoinFuture},
-    channel::{ChanTx, ForceChanTx},
+    channel::Tx,
     context::{ContextID, RunningFuture},
     error::Result,
     event_loop::Payload,
@@ -72,8 +71,7 @@ impl Message for () {
 ///
 pub struct Addr<A> {
     pub(crate) context_id: ContextID,
-    pub(crate) payload_tx: ChanTx<A>,
-    pub(crate) payload_force_tx: ForceChanTx<A>,
+    pub(crate) tx: Tx<A>,
     pub(crate) running: RunningFuture,
 }
 
@@ -81,8 +79,7 @@ impl<A: Actor> Clone for Addr<A> {
     fn clone(&self) -> Self {
         Addr {
             context_id: self.context_id,
-            payload_tx: Arc::clone(&self.payload_tx),
-            payload_force_tx: Arc::clone(&self.payload_force_tx),
+            tx: self.tx.clone(),
             running: self.running.clone(),
         }
     }
@@ -92,7 +89,7 @@ impl<A: Actor> Addr<A> {
     /// Sends a stop signal to the actor.
     pub fn stop(&mut self) -> Result<()> {
         log::trace!("stopping actor");
-        self.payload_force_tx.send(Payload::Stop)?;
+        self.tx.force_send(Payload::Stop)?;
         Ok(())
     }
 
@@ -120,15 +117,14 @@ impl<A: Actor> Addr<A> {
     {
         let (tx_response, response) = oneshot::channel();
         log::trace!("calling actor {}", std::any::type_name::<M>());
-        self.payload_force_tx
-            .send(Payload::task(move |actor, ctx| {
-                log::trace!("handling task call");
-                Box::pin(async move {
-                    log::trace!("actor handling call {}", std::any::type_name::<M>());
-                    let res = Handler::handle(actor, ctx, msg).await;
-                    let _ = tx_response.send(res);
-                })
-            }))?;
+        self.tx.force_send(Payload::task(move |actor, ctx| {
+            log::trace!("handling task call");
+            Box::pin(async move {
+                log::trace!("actor handling call {}", std::any::type_name::<M>());
+                let res = Handler::handle(actor, ctx, msg).await;
+                let _ = tx_response.send(res);
+            })
+        }))?;
 
         let response = response.await?;
         log::trace!("received response from actor");
@@ -139,12 +135,11 @@ impl<A: Actor> Addr<A> {
     pub async fn ping(&self) -> Result<()> {
         log::trace!("pinging actor");
         let (tx_response, response) = oneshot::channel();
-        self.payload_force_tx
-            .send(Payload::task(move |_actor, _ctx| {
-                Box::pin(async move {
-                    let _ = tx_response.send(());
-                })
-            }))?;
+        self.tx.force_send(Payload::task(move |_actor, _ctx| {
+            Box::pin(async move {
+                let _ = tx_response.send(());
+            })
+        }))?;
 
         Ok(response.await?)
     }
@@ -159,10 +154,9 @@ impl<A: Actor> Addr<A> {
             "force sending message to actor {}",
             std::any::type_name::<M>()
         );
-        self.payload_force_tx
-            .send(Payload::task(move |actor, ctx| {
-                Box::pin(Handler::handle(actor, ctx, msg))
-            }))?;
+        self.tx.force_send(Payload::task(move |actor, ctx| {
+            Box::pin(Handler::handle(actor, ctx, msg))
+        }))?;
         Ok(())
     }
 
@@ -172,7 +166,7 @@ impl<A: Actor> Addr<A> {
         A: Handler<M>,
     {
         log::trace!("sending message to actor {}", std::any::type_name::<M>());
-        self.payload_tx
+        self.tx
             .send(Payload::task(move |actor, ctx| {
                 Box::pin(Handler::handle(actor, ctx, msg))
             }))
@@ -224,7 +218,7 @@ impl<A: RestartableActor> Addr<A> {
     ///
     /// [`StreamHandlers`](`crate::StreamHandler`) for example can't be restarted.
     pub fn restart(&mut self) -> Result<()> {
-        self.payload_force_tx.send(Payload::Restart)?;
+        self.tx.force_send(Payload::Restart)?;
         Ok(())
     }
 }
