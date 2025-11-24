@@ -36,4 +36,4 @@ semver-checks:
 build-examples:
     cargo build --manifest-path hannibal-examples/Cargo.toml --features tokio_runtime
 
-ci: install-deps clippy test build-examples semver-checks doc_test
+ci: install-deps clippy test build-examples doc_test semver-checks
