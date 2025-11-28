@@ -14,6 +14,7 @@ use super::{Addr, Message, Payload, Result, weak_sender::WeakSender};
 /// Senders can be downgraded to [`WeakSender`](`crate::WeakSender`) to check if the actor is still alive.
 pub struct Sender<M: Message<Response = ()>> {
     send_fn: Box<dyn SenderFn<M>>,
+    try_send_fn: Box<dyn TrySenderFn<M>>,
     force_send_fn: Box<dyn ForceSenderFn<M>>,
     downgrade_fn: Box<dyn DowngradeFn<M>>,
     id: ContextID,
@@ -27,6 +28,11 @@ impl<M: Message<Response = ()>> Sender<M> {
 
     pub(crate) fn force_send(&self, msg: M) -> Result<()> {
         self.force_send_fn.send(msg)
+    }
+
+    /// Tries to send a fire-and-forget message to the actor.
+    pub fn try_send(&self, msg: M) -> Result<()> {
+        self.try_send_fn.try_send(msg)
     }
 
     /// Downgrades this to a weak senders that does not keep the actor alive.
@@ -57,13 +63,26 @@ impl<M: Message<Response = ()>> Sender<M> {
             )
         };
 
-        let force_send_fn = Box::new(move |msg| {
-            tx.force_send(Payload::task(move |actor, ctx| {
-                Box::pin(Handler::handle(&mut *actor, ctx, msg))
-            }))
-            .map_err(|_err| ActorError::AlreadyStopped)?;
-            Ok(())
-        });
+        let try_send_fn: Box<dyn TrySenderFn<M>> = {
+            let tx = tx.clone();
+            Box::new(move |msg: M| {
+                tx.try_send(Payload::task(move |actor, ctx| {
+                    Box::pin(Handler::handle(&mut *actor, ctx, msg))
+                }))
+                .map_err(|_err| ActorError::AlreadyStopped)?;
+                Ok(())
+            })
+        };
+
+        let force_send_fn: Box<dyn ForceSenderFn<M>> = {
+            Box::new(move |msg| {
+                tx.force_send(Payload::task(move |actor, ctx| {
+                    Box::pin(Handler::handle(&mut *actor, ctx, msg))
+                }))
+                .map_err(|_err| ActorError::AlreadyStopped)?;
+                Ok(())
+            })
+        };
 
         let downgrade_fn: Box<dyn DowngradeFn<M>> = {
             Box::new(move || {
@@ -78,6 +97,7 @@ impl<M: Message<Response = ()>> Sender<M> {
         Sender {
             id,
             send_fn,
+            try_send_fn,
             force_send_fn,
             downgrade_fn,
         }
@@ -112,6 +132,20 @@ where
     }
 }
 
+trait TrySenderFn<M: Message<Response = ()>>: 'static + Send + Sync + DynClone {
+    fn try_send(&self, msg: M) -> Result<()>;
+}
+
+impl<F, M: Message<Response = ()>> TrySenderFn<M> for F
+where
+    F: Fn(M) -> Result<()>,
+    F: 'static + Send + Sync + Clone,
+{
+    fn try_send(&self, msg: M) -> Result<()> {
+        self(msg)
+    }
+}
+
 impl<M: Message<Response = ()>, A> From<Addr<A>> for Sender<M>
 where
     A: Actor + Handler<M>,
@@ -135,6 +169,7 @@ impl<M: Message<Response = ()>> Clone for Sender<M> {
         Sender {
             id: self.id,
             send_fn: dyn_clone::clone_box(&*self.send_fn),
+            try_send_fn: dyn_clone::clone_box(&*self.try_send_fn),
             force_send_fn: dyn_clone::clone_box(&*self.force_send_fn),
             downgrade_fn: dyn_clone::clone_box(&*self.downgrade_fn),
         }
