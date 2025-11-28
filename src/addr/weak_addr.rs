@@ -48,6 +48,18 @@ impl<A: Actor> WeakAddr<A> {
             Err(AlreadyStopped)
         }
     }
+
+    pub(crate) fn new(
+        context_id: ContextID,
+        upgrade: Box<dyn UpgradeFn<A>>,
+        running: RunningFuture,
+    ) -> Self {
+        WeakAddr {
+            context_id,
+            upgrade,
+            running,
+        }
+    }
 }
 
 impl<A: Actor> From<&Addr<A>> for WeakAddr<A> {
@@ -83,7 +95,7 @@ impl<A: Actor> Clone for WeakAddr<A> {
     }
 }
 
-pub(super) trait UpgradeFn<A: Actor>: Send + Sync + 'static + DynClone {
+pub(crate) trait UpgradeFn<A: Actor>: Send + Sync + 'static + DynClone {
     fn upgrade(&self) -> Option<Addr<A>>;
 }
 

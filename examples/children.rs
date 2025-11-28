@@ -51,7 +51,7 @@ impl Actor for Root {
 
         ctx.interval_with(|| Hello, Duration::from_millis(500));
 
-        let mut me = ctx.weak_address().ok_or("Sorry")?;
+        let mut me = ctx.weak_address();
         ctx.delayed_exec(
             async move {
                 me.try_halt().await.unwrap();

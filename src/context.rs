@@ -158,29 +158,25 @@ impl<A: Actor> Context<A> {
     }
 }
 
-/// ## Creating `Addr`s, `Caller`s and `Sender`s to yoursef
+/// ## Creating `Addr`s, `Caller`s and `Sender`s to yourself
 impl<A: Actor> Context<A> {
-    /// Create an strong address to the actor.
-    ///
-    /// This only works if the actor is still running, otherwise you'll get `None`.
-    ///
-    /// <div class="warning">Leak Potential!</div>
-    ///
-    /// If you store an `Addr` to the actor within itself it will no longer self terminate.
-    /// This is not public since it offers no more convenience than [`Context::weak_address`] (you need to upgrade either way).
-    fn address(&self) -> Option<Addr<A>> {
-        let tx = self.weak_tx.upgrade()?;
+    /// Create an weak address to the actor.
+    pub fn weak_address(&self) -> WeakAddr<A> {
+        let weak_tx = self.weak_tx.clone();
 
-        Some(Addr {
-            context_id: self.id,
-            tx,
-            running: self.running.clone(),
-        })
-    }
+        let context_id = self.id;
+        let running = self.running.clone();
+        let running_inner = self.running.clone();
+        let upgrade = Box::new(move || {
+            let running = running_inner.clone();
+            weak_tx.upgrade().map(|tx| Addr {
+                context_id,
+                tx,
+                running,
+            })
+        });
 
-    /// Create an week address to the actor.
-    pub fn weak_address(&self) -> Option<WeakAddr<A>> {
-        self.address().as_ref().map(Addr::downgrade)
+        WeakAddr::new(context_id, upgrade, running)
     }
 
     /// Create a weak sender to the actor.
