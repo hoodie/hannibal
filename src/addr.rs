@@ -174,6 +174,17 @@ impl<A: Actor> Addr<A> {
         Ok(())
     }
 
+    /// Tries to send a fire-and-forget message to the actor.
+    pub fn try_send<M: Message<Response = ()>>(&self, msg: M) -> Result<()>
+    where
+        A: Handler<M>,
+    {
+        log::trace!("sending message to actor {}", std::any::type_name::<M>());
+        self.tx.try_send(Payload::task(move |actor, ctx| {
+            Box::pin(Handler::handle(actor, ctx, msg))
+        }))
+    }
+
     /// Downgrades this address to a weak address that does not keep the actor alive.
     pub fn downgrade(&self) -> WeakAddr<A> {
         WeakAddr::from(self)

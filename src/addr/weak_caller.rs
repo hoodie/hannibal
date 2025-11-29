@@ -22,7 +22,7 @@ impl<M: Message> WeakCaller<M> {
     /// Attempts to call the actor and receive a response.
     ///
     /// If the actor is stopped, an error is returned.
-    pub async fn try_call(&self, msg: M) -> Result<M::Response> {
+    pub async fn upgrade_and_call(&self, msg: M) -> Result<M::Response> {
         if let Some(caller) = self.upgrade.upgrade() {
             caller.call(msg).await
         } else {
@@ -129,6 +129,6 @@ mod tests {
         addr.stop().unwrap();
 
         actor.await.unwrap().unwrap();
-        assert!(weak_caller.try_call(Add(1, 2)).await.is_err());
+        assert!(weak_caller.upgrade_and_call(Add(1, 2)).await.is_err());
     }
 }

@@ -10,7 +10,10 @@ use std::{
     task,
 };
 
-use crate::{error::Result, event_loop::Payload};
+use crate::{
+    error::{ActorError, Result},
+    event_loop::Payload,
+};
 
 trait TxFn<A>: Send + Sync {
     fn send(&self, msg: Payload<A>) -> Pin<Box<dyn Future<Output = Result<()>> + Send>>;
@@ -22,6 +25,20 @@ where
     F: Send + Sync,
 {
     fn send(&self, msg: Payload<A>) -> Pin<Box<dyn Future<Output = Result<()>> + Send>> {
+        self(msg)
+    }
+}
+
+trait TryTxFn<A>: Send + Sync {
+    fn try_send(&self, msg: Payload<A>) -> Result<()>;
+}
+
+impl<F, A> TryTxFn<A> for F
+where
+    F: Fn(Payload<A>) -> Result<()>,
+    F: Send + Sync,
+{
+    fn try_send(&self, msg: Payload<A>) -> Result<()> {
         self(msg)
     }
 }
@@ -45,6 +62,7 @@ type PayloadStream<A> =
 
 pub(crate) struct Tx<A> {
     tx: Arc<dyn TxFn<A>>,
+    try_tx: Arc<dyn TryTxFn<A>>,
     force_tx: Arc<dyn ForceTxFn<A>>,
 }
 
@@ -52,25 +70,39 @@ impl<A> Clone for Tx<A> {
     fn clone(&self) -> Self {
         Self {
             tx: Arc::clone(&self.tx),
+            try_tx: Arc::clone(&self.try_tx),
             force_tx: Arc::clone(&self.force_tx),
         }
     }
 }
 
 impl<A> Tx<A> {
-    fn new(tx: Arc<dyn TxFn<A>>, force_tx: Arc<dyn ForceTxFn<A>>) -> Self {
-        Self { tx, force_tx }
+    fn new(
+        tx: Arc<dyn TxFn<A>>,
+        try_tx: Arc<dyn TryTxFn<A>>,
+        force_tx: Arc<dyn ForceTxFn<A>>,
+    ) -> Self {
+        Self {
+            tx,
+            try_tx,
+            force_tx,
+        }
     }
 
     pub fn downgrade(&self) -> WeakTx<A> {
         WeakTx {
             tx: Arc::downgrade(&self.tx),
+            try_tx: Arc::downgrade(&self.try_tx),
             force_tx: Arc::downgrade(&self.force_tx),
         }
     }
 
     pub fn send(&self, msg: Payload<A>) -> Pin<Box<dyn Future<Output = Result<()>> + Send>> {
         self.tx.send(msg)
+    }
+
+    pub fn try_send(&self, msg: Payload<A>) -> Result<()> {
+        self.try_tx.try_send(msg)
     }
 
     pub fn force_send(&self, msg: Payload<A>) -> Result<()> {
@@ -80,6 +112,7 @@ impl<A> Tx<A> {
 
 pub(crate) struct WeakTx<A> {
     tx: Weak<dyn TxFn<A>>,
+    try_tx: Weak<dyn TryTxFn<A>>,
     force_tx: Weak<dyn ForceTxFn<A>>,
 }
 
@@ -87,6 +120,7 @@ impl<A> WeakTx<A> {
     pub fn upgrade(&self) -> Option<Tx<A>> {
         Some(Tx {
             tx: self.tx.upgrade()?,
+            try_tx: self.try_tx.upgrade()?,
             force_tx: self.force_tx.upgrade()?,
         })
     }
@@ -96,6 +130,7 @@ impl<A> Clone for WeakTx<A> {
     fn clone(&self) -> Self {
         Self {
             tx: Weak::clone(&self.tx),
+            try_tx: Weak::clone(&self.try_tx),
             force_tx: Weak::clone(&self.force_tx),
         }
     }
@@ -141,6 +176,7 @@ where
     pub fn bounded(buffer: usize) -> Self {
         let (tx, mut rx) = futures::channel::mpsc::channel::<Payload<A>>(buffer);
         let tx2 = tx.clone();
+        let tx3 = tx.clone();
 
         let send = Arc::new(
             move |event: Payload<A>| -> Pin<Box<dyn Future<Output = Result<()>> + Send>> {
@@ -153,6 +189,13 @@ where
             },
         );
 
+        let try_send = Arc::new(move |event: Payload<A>| -> Result<()> {
+            let mut tx = tx3.clone();
+            tx.try_send(event)
+                .map_err(|_| crate::error::ActorError::AlreadyStopped)?;
+            Ok(())
+        });
+
         let force_send = Arc::new(move |event: Payload<A>| -> Result<()> {
             let mut tx = tx.clone();
             tx.start_send(event)?;
@@ -164,7 +207,7 @@ where
             pinned.poll_next(ctx)
         }));
 
-        let tx = Tx::new(send, force_send);
+        let tx = Tx::new(send, try_send, force_send);
         let rx = Rx::new(recv);
 
         Self::new(tx, rx)
@@ -173,6 +216,7 @@ where
     pub fn unbounded() -> Self {
         let (tx, mut rx) = futures::channel::mpsc::unbounded::<Payload<A>>();
         let tx2 = tx.clone();
+        let tx3 = tx.clone();
 
         let send = Arc::new(
             move |event: Payload<A>| -> Pin<Box<dyn Future<Output = Result<()>> + Send>> {
@@ -185,10 +229,17 @@ where
             },
         );
 
+        let try_send = Arc::new(move |event: Payload<A>| -> Result<()> {
+            let try_tx = tx3.clone();
+            try_tx
+                .unbounded_send(event)
+                .map_err(|_| ActorError::AlreadyStopped)?;
+            Ok(())
+        });
+
         let force_send = Arc::new(move |event: Payload<A>| -> Result<()> {
-            log::trace!("sending (unbounded {})", tx.len());
-            let mut tx = tx.clone();
-            tx.start_send(event)?;
+            let mut tx_clone = tx.clone();
+            tx_clone.start_send(event)?;
             Ok(())
         });
 
@@ -197,7 +248,7 @@ where
             pinned.poll_next(ctx)
         }));
 
-        let tx = Tx::new(send, force_send);
+        let tx = Tx::new(send, try_send, force_send);
         let rx = Rx::new(recv);
 
         Self::new(tx, rx)

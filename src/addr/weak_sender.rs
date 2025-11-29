@@ -22,7 +22,7 @@ impl<M: Message<Response = ()>> WeakSender<M> {
     /// Attempts to send a message to the actor.
     ///
     /// If the actor is stopped, an error is returned.
-    pub async fn try_send(&self, msg: M) -> Result<()> {
+    pub async fn upgrade_and_send(&self, msg: M) -> Result<()> {
         if let Some(sender) = self.upgrade.upgrade() {
             sender.send(msg).await
         } else {
@@ -131,7 +131,7 @@ mod tests {
     }
 
     #[test_log::test(tokio::test)]
-    async fn try_call_fails() {
+    async fn upgrade_and_send_fails() {
         let (event_loop, mut addr) = start(MyActor::default());
         let actor = tokio::spawn(event_loop);
 
@@ -139,6 +139,11 @@ mod tests {
         addr.stop().unwrap();
 
         actor.await.unwrap().unwrap();
-        assert!(weak_sender.try_send(Store("to /dev/null")).await.is_err());
+        assert!(
+            weak_sender
+                .upgrade_and_send(Store("to /dev/null"))
+                .await
+                .is_err()
+        );
     }
 }
