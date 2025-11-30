@@ -1,5 +1,32 @@
 # Changelog
 
+## [v0.14.0](https://github.com/hoodie/hannibal/compare/v0.13.2...v0.14.0) (2025-11-30)
+
+### ⚠ BREAKING CHANGE
+
+* renamed try_send of WeakSender to upgrade_and_send()
+clarity
+
+
+### Features
+
+* add sync try_send() to Addr
+([d31c7a0](https://github.com/hoodie/hannibal/commit/d31c7a00c15ac049597a1ea171e967ecae1a0e43))
+
+### Fixes
+
+* Context::weak_addr returns no more Option
+([9ec9561](https://github.com/hoodie/hannibal/commit/9ec95615df374be15905e2a0d75966fd08fcec7a))
+* avoid tick overload by cancelling interval ticks when they exceed their time
+quota
+([457f538](https://github.com/hoodie/hannibal/commit/457f5382833945198170ad03dc8f6c9c0572e336))
+* properly detach task when spawning with a stream
+([dc5803f](https://github.com/hoodie/hannibal/commit/dc5803fa9a717c72b70d14b00081772183f11671))
+* make it possible to use derive macros internally
+([c89197f](https://github.com/hoodie/hannibal/commit/c89197fc647097c3201b83f02a63dff442b0a9cc))
+* use tokio spawn for sub-tasks when tokio_runtime is enabled
+([f84655b](https://github.com/hoodie/hannibal/commit/f84655ba3246624116c8ef587886fc69bd410326))
+
 ### [v0.13.2](https://github.com/hoodie/hannibal/compare/v0.13.1...v0.13.2) (2025-10-05)
 
 #### Features
