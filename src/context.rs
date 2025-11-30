@@ -354,7 +354,7 @@ impl<A: Actor> Context<A> {
             log::trace!("Scheduling delayed send");
             runtime::sleep(duration).await;
 
-            if myself.try_send(message_fn()).await.is_err() {
+            if myself.upgrade_and_send(message_fn()).await.is_err() {
                 log::warn!("Failed to send message");
             }
             log::trace!("Delayed send completed");
