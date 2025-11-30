@@ -18,7 +18,7 @@ use crate::{
     actor::{Actor, ActorHandle, JoinFuture},
     channel::Tx,
     context::{ContextID, RunningFuture},
-    error::Result,
+    error::{ActorError, Result},
     event_loop::Payload,
     handler::Handler,
 };
@@ -89,7 +89,9 @@ impl<A: Actor> Addr<A> {
     /// Sends a stop signal to the actor.
     pub fn stop(&mut self) -> Result<()> {
         log::trace!("stopping actor");
-        self.tx.force_send(Payload::Stop)?;
+        self.tx
+            .force_send(Payload::Stop)
+            .map_err(|_err| ActorError::AlreadyStopped)?;
         Ok(())
     }
 
@@ -117,14 +119,16 @@ impl<A: Actor> Addr<A> {
     {
         let (tx_response, response) = oneshot::channel();
         log::trace!("calling actor {}", std::any::type_name::<M>());
-        self.tx.force_send(Payload::task(move |actor, ctx| {
-            log::trace!("handling task call");
-            Box::pin(async move {
-                log::trace!("actor handling call {}", std::any::type_name::<M>());
-                let res = Handler::handle(actor, ctx, msg).await;
-                let _ = tx_response.send(res);
-            })
-        }))?;
+        self.tx
+            .try_send(Payload::task(move |actor, ctx| {
+                log::trace!("handling task call");
+                Box::pin(async move {
+                    log::trace!("actor handling call {}", std::any::type_name::<M>());
+                    let res = Handler::handle(actor, ctx, msg).await;
+                    let _ = tx_response.send(res);
+                })
+            }))
+            .map_err(|_err| ActorError::AlreadyStopped)?;
 
         let response = response.await?;
         log::trace!("received response from actor");
@@ -135,29 +139,15 @@ impl<A: Actor> Addr<A> {
     pub async fn ping(&self) -> Result<()> {
         log::trace!("pinging actor");
         let (tx_response, response) = oneshot::channel();
-        self.tx.force_send(Payload::task(move |_actor, _ctx| {
-            Box::pin(async move {
-                let _ = tx_response.send(());
-            })
-        }))?;
+        self.tx
+            .try_send(Payload::task(move |_actor, _ctx| {
+                Box::pin(async move {
+                    let _ = tx_response.send(());
+                })
+            }))
+            .map_err(|_err| ActorError::AlreadyStopped)?;
 
         Ok(response.await?)
-    }
-
-    // TODO: look if this can be made available exclusively to unbounded event-loops
-    #[allow(dead_code)]
-    pub(crate) fn force_send<M: Message<Response = ()>>(&self, msg: M) -> Result<()>
-    where
-        A: Handler<M>,
-    {
-        log::trace!(
-            "force sending message to actor {}",
-            std::any::type_name::<M>()
-        );
-        self.tx.force_send(Payload::task(move |actor, ctx| {
-            Box::pin(Handler::handle(actor, ctx, msg))
-        }))?;
-        Ok(())
     }
 
     /// Sends a fire-and-forget message to the actor.
@@ -170,7 +160,8 @@ impl<A: Actor> Addr<A> {
             .send(Payload::task(move |actor, ctx| {
                 Box::pin(Handler::handle(actor, ctx, msg))
             }))
-            .await?;
+            .await
+            .map_err(|_err| ActorError::AlreadyStopped)?;
         Ok(())
     }
 
@@ -180,9 +171,12 @@ impl<A: Actor> Addr<A> {
         A: Handler<M>,
     {
         log::trace!("sending message to actor {}", std::any::type_name::<M>());
-        self.tx.try_send(Payload::task(move |actor, ctx| {
-            Box::pin(Handler::handle(actor, ctx, msg))
-        }))
+        self.tx
+            .try_send(Payload::task(move |actor, ctx| {
+                Box::pin(Handler::handle(actor, ctx, msg))
+            }))
+            .map_err(|_err| ActorError::AlreadyStopped)?;
+        Ok(())
     }
 
     /// Downgrades this address to a weak address that does not keep the actor alive.
@@ -229,7 +223,9 @@ impl<A: RestartableActor> Addr<A> {
     ///
     /// [`StreamHandlers`](`crate::StreamHandler`) for example can't be restarted.
     pub fn restart(&mut self) -> Result<()> {
-        self.tx.force_send(Payload::Restart)?;
+        self.tx
+            .force_send(Payload::Restart)
+            .map_err(|_err| ActorError::AlreadyStopped)?;
         Ok(())
     }
 }

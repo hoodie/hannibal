@@ -2,7 +2,7 @@ use dyn_clone::DynClone;
 
 use std::{future::Future, pin::Pin};
 
-use crate::{Actor, Handler, channel, context::ContextID};
+use crate::{Actor, Handler, channel, context::ContextID, error::ActorError};
 
 use super::{Addr, Message, Payload, Result, weak_sender::WeakSender};
 
@@ -40,27 +40,40 @@ impl<M: Message<Response = ()>> Sender<M> {
     {
         let weak_tx = tx.downgrade();
 
-        let send_fn = {
+        let send_fn: Box<dyn SenderFn<M>> = {
             let tx = tx.clone();
-            Box::new(move |msg| {
-                tx.send(Payload::task(move |actor, ctx| {
-                    Box::pin(Handler::handle(&mut *actor, ctx, msg))
-                }))
-            })
+            Box::new(
+                move |msg: M| -> Pin<Box<dyn Future<Output = Result<()>> + Send>> {
+                    let tx = tx.clone();
+                    Box::pin(async move {
+                        tx.send(Payload::task(move |actor, ctx| {
+                            Box::pin(Handler::handle(&mut *actor, ctx, msg))
+                        }))
+                        .await
+                        .map_err(|_err| ActorError::AlreadyStopped)?;
+                        Ok(())
+                    })
+                },
+            )
         };
 
         let force_send_fn = Box::new(move |msg| {
             tx.force_send(Payload::task(move |actor, ctx| {
                 Box::pin(Handler::handle(&mut *actor, ctx, msg))
             }))
+            .map_err(|_err| ActorError::AlreadyStopped)?;
+            Ok(())
         });
 
-        let upgrade = Box::new(move || weak_tx.upgrade().map(|tx| Sender::new(tx, id)));
-
-        let downgrade_fn = Box::new(move || WeakSender {
-            upgrade: upgrade.clone(),
-            id,
-        });
+        let downgrade_fn: Box<dyn DowngradeFn<M>> = {
+            Box::new(move || {
+                let weak_tx = weak_tx.clone();
+                WeakSender {
+                    upgrade: Box::new(move || weak_tx.upgrade().map(|tx| Sender::new(tx, id))),
+                    id,
+                }
+            })
+        };
 
         Sender {
             id,
