@@ -1,6 +1,6 @@
 [package]
 name = "hannibal"
-version = "0.13.2"
+version = "0.14.0"
 authors = ["Hendrik Sollich <hendrik@hoodie.de>"]
 license = "MIT/Apache-2.0"
 
@@ -20,7 +20,7 @@ members = ["hannibal-derive"]
 exclude = ["hannibal-examples"]
 
 [dependencies]
-hannibal-derive = { path = "hannibal-derive", version = "0.13.2" }
+hannibal-derive = { path = "hannibal-derive", version = "0.14.0" }
 thiserror = "2.0"
 log = { version = "0.4", features = ["kv"] }
 futures = { version = "0.3" }
