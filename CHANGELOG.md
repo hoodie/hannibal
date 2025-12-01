@@ -1,5 +1,12 @@
 # Changelog
 
+### [v0.14.1](https://github.com/hoodie/hannibal/compare/v0.14.0...v0.14.1) (2025-12-01)
+
+#### Features
+
+* add sync try_send() to Sender
+([f1a0edc](https://github.com/hoodie/hannibal/commit/f1a0edc26320ed407fb9472dbabf4aea576b3d98))
+
 ## [v0.14.0](https://github.com/hoodie/hannibal/compare/v0.13.2...v0.14.0) (2025-11-30)
 
 ### ⚠ BREAKING CHANGE
