@@ -1,24 +1,28 @@
-use dyn_clone::DynClone;
-
 use crate::{
     Actor, Addr,
+    channel::WeakTx,
     context::{ContextID, RunningFuture},
     error::{ActorError::AlreadyStopped, Result},
 };
 
 /// A weak reference to an actor.
 ///
-/// This is the weak counterpart to [`Addr`]. It can be upgraded to a strong [`Addr]` if to the Actor is still alive.
+/// This is the weak counterpart to [`Addr`]. It can be upgraded to a strong [`Addr`] if the Actor is still alive.
+#[derive(Clone)]
 pub struct WeakAddr<A: Actor> {
     pub(crate) context_id: ContextID,
-    pub(super) upgrade: Box<dyn UpgradeFn<A>>,
+    pub(super) weak_tx: WeakTx<A>,
     pub(crate) running: RunningFuture,
 }
 
 impl<A: Actor> WeakAddr<A> {
     /// Attempts to upgrade this weak address to a strong address.
     pub fn upgrade(&self) -> Option<Addr<A>> {
-        self.upgrade.upgrade()
+        self.weak_tx.upgrade().map(|tx| Addr {
+            context_id: self.context_id,
+            tx,
+            running: self.running.clone(),
+        })
     }
 
     /// Checks if the actor is stopped.
@@ -49,14 +53,14 @@ impl<A: Actor> WeakAddr<A> {
         }
     }
 
-    pub(crate) fn new(
+    pub(crate) const fn new(
         context_id: ContextID,
-        upgrade: Box<dyn UpgradeFn<A>>,
+        weak_tx: WeakTx<A>,
         running: RunningFuture,
     ) -> Self {
         WeakAddr {
             context_id,
-            upgrade,
+            weak_tx,
             running,
         }
     }
@@ -67,46 +71,12 @@ impl<A: Actor> From<&Addr<A>> for WeakAddr<A> {
         let weak_tx = addr.tx.downgrade();
         let context_id = addr.context_id;
         let running = addr.running.clone();
-        let running_inner = addr.running.clone();
-        let upgrade = Box::new(move || {
-            let running = running_inner.clone();
-            weak_tx.upgrade().map(|tx| Addr {
-                context_id,
-                tx,
-                running,
-            })
-        });
 
         WeakAddr {
             context_id,
-            upgrade,
+            weak_tx,
             running,
         }
-    }
-}
-
-impl<A: Actor> Clone for WeakAddr<A> {
-    fn clone(&self) -> Self {
-        WeakAddr {
-            context_id: self.context_id,
-            upgrade: dyn_clone::clone_box(&*self.upgrade),
-            running: self.running.clone(),
-        }
-    }
-}
-
-pub(crate) trait UpgradeFn<A: Actor>: Send + Sync + 'static + DynClone {
-    fn upgrade(&self) -> Option<Addr<A>>;
-}
-
-impl<F, A> UpgradeFn<A> for F
-where
-    F: Fn() -> Option<Addr<A>>,
-    F: 'static + Send + Sync + Clone,
-    A: Actor,
-{
-    fn upgrade(&self) -> Option<Addr<A>> {
-        self()
     }
 }
 

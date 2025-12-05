@@ -37,7 +37,7 @@ impl<A: Actor, R: RestartStrategy<A>> EventLoop<A, R> {
         let ctx = Context {
             id: Default::default(),
             weak_tx,
-            running: futures::FutureExt::shared(rx_running),
+            running: rx_running.shared(),
             children: Default::default(),
             tasks: Default::default(),
         };

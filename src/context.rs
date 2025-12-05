@@ -6,7 +6,7 @@ use std::{
 use futures::channel::oneshot;
 
 use crate::{
-    Addr, Handler, Message, RestartableActor, Sender, WeakAddr,
+    Handler, Message, RestartableActor, Sender, WeakAddr,
     actor::Actor,
     channel::WeakTx,
     context::task_id::TaskID,
@@ -168,20 +168,10 @@ impl<A: Actor> Context<A> {
     /// Create an weak address to the actor.
     pub fn weak_address(&self) -> WeakAddr<A> {
         let weak_tx = self.weak_tx.clone();
-
         let context_id = self.id;
         let running = self.running.clone();
-        let running_inner = self.running.clone();
-        let upgrade = Box::new(move || {
-            let running = running_inner.clone();
-            weak_tx.upgrade().map(|tx| Addr {
-                context_id,
-                tx,
-                running,
-            })
-        });
 
-        WeakAddr::new(context_id, upgrade, running)
+        WeakAddr::new(context_id, weak_tx, running)
     }
 
     /// Create a weak sender to the actor.
