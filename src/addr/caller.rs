@@ -3,7 +3,7 @@ use futures::channel::oneshot;
 
 use std::{future::Future, pin::Pin};
 
-use crate::{Actor, Handler, channel, context::ContextID, error::ActorError};
+use crate::{Actor, Handler, channel, context::Core, error::ActorError};
 
 use super::{Addr, Message, Payload, Result, weak_caller::WeakCaller};
 
@@ -14,9 +14,9 @@ use super::{Addr, Message, Payload, Result, weak_caller::WeakCaller};
 ///
 /// Callers can be downgraded to [`WeakCaller`](`crate::WeakCaller`) to check if the actor is still alive.
 pub struct Caller<M: Message> {
+    core: Core,
     call_fn: Box<dyn CallerFn<M>>,
     downgrade_fn: Box<dyn DowngradeFn<M>>,
-    id: ContextID,
 }
 
 impl<M: Message> Caller<M> {
@@ -30,7 +30,7 @@ impl<M: Message> Caller<M> {
         self.downgrade_fn.downgrade()
     }
 
-    pub(crate) fn new<A>(tx: channel::Tx<A>, id: ContextID) -> Self
+    pub(crate) fn new<A>(tx: channel::Tx<A>, core: Core) -> Self
     where
         A: Actor + Handler<M>,
     {
@@ -56,18 +56,36 @@ impl<M: Message> Caller<M> {
             },
         );
 
-        let upgrade = Box::new(move || weak_tx.upgrade().map(|tx| Caller::new(tx, id)));
+        let upgrade = {
+            let core = core.clone();
+            Box::new(move || weak_tx.upgrade().map(|tx| Caller::new(tx, core.clone())))
+        };
 
-        let downgrade_fn = Box::new(move || WeakCaller {
-            upgrade: upgrade.clone(),
-            id,
-        });
+        let downgrade_fn = {
+            let core = core.clone();
+            Box::new(move || WeakCaller {
+                upgrade: upgrade.clone(),
+                core: core.clone(),
+            })
+        };
 
         Caller {
-            id,
+            core,
             call_fn,
             downgrade_fn,
         }
+    }
+}
+
+impl<M: Message> Caller<M> {
+    /// Returns true if the actor is still running.
+    pub fn running(&self) -> bool {
+        self.core.running()
+    }
+
+    /// Returns true if the actor has stopped.
+    pub fn stopped(&self) -> bool {
+        self.core.stopped()
     }
 }
 
@@ -91,14 +109,14 @@ where
     A: Actor + Handler<M>,
 {
     fn from(addr: Addr<A>) -> Self {
-        Caller::new(addr.tx.clone(), addr.context_id)
+        Caller::new(addr.tx.clone(), addr.core)
     }
 }
 
 impl<M: Message> Clone for Caller<M> {
     fn clone(&self) -> Self {
         Caller {
-            id: self.id,
+            core: self.core.clone(),
             call_fn: dyn_clone::clone_box(&*self.call_fn),
             downgrade_fn: dyn_clone::clone_box(&*self.downgrade_fn),
         }
