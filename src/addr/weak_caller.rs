@@ -1,6 +1,6 @@
 use dyn_clone::DynClone;
 
-use crate::{Actor, Handler, channel, context::ContextID, error::ActorError::AlreadyStopped};
+use crate::{Actor, Handler, channel, context::Core, error::ActorError::AlreadyStopped};
 
 use super::{Addr, Message, Result, caller::Caller};
 
@@ -9,8 +9,8 @@ use super::{Addr, Message, Result, caller::Caller};
 /// This is the weak counterpart to [`Caller`].
 /// It can be upgraded if the Actor is still alive.
 pub struct WeakCaller<M: Message> {
+    pub(crate) core: Core,
     pub(super) upgrade: Box<dyn UpgradeFn<M>>,
-    pub(crate) id: ContextID,
 }
 
 impl<M: Message> WeakCaller<M> {
@@ -30,31 +30,45 @@ impl<M: Message> WeakCaller<M> {
         }
     }
 
-    fn new<A>(tx: channel::Tx<A>, id: ContextID) -> Self
+    fn new<A>(tx: channel::Tx<A>, core: Core) -> Self
     where
         A: Actor + Handler<M>,
         M: Message,
     {
-        Self::from_weak_tx(tx.downgrade(), id)
+        Self::from_weak_tx(tx.downgrade(), core)
     }
 
-    pub(crate) fn from_weak_tx<A>(weak_tx: channel::WeakTx<A>, id: ContextID) -> Self
+    pub(crate) fn from_weak_tx<A>(weak_tx: channel::WeakTx<A>, core: Core) -> Self
     where
         A: Actor + Handler<M>,
         M: Message,
     {
-        let upgrade = Box::new(move || weak_tx.upgrade().map(|tx| Caller::new(tx, id)));
+        let upgrade = {
+            let core = core.clone();
+            Box::new(move || weak_tx.upgrade().map(|tx| Caller::new(tx, core.clone())))
+        };
 
-        WeakCaller { upgrade, id }
+        WeakCaller { core, upgrade }
     }
 }
 
+impl<M: Message> WeakCaller<M> {
+    /// Returns true if the actor is still running.
+    pub fn running(&self) -> bool {
+        self.core.running()
+    }
+
+    /// Returns true if the actor has stopped.
+    pub fn stopped(&self) -> bool {
+        self.core.stopped()
+    }
+}
 impl<M: Message, A> From<Addr<A>> for WeakCaller<M>
 where
     A: Actor + Handler<M>,
 {
     fn from(addr: Addr<A>) -> Self {
-        Self::new(addr.tx.clone(), addr.context_id)
+        Self::new(addr.tx.clone(), addr.core)
     }
 }
 
@@ -63,15 +77,15 @@ where
     A: Actor + Handler<M>,
 {
     fn from(addr: &Addr<A>) -> Self {
-        Self::new(addr.tx.clone(), addr.context_id)
+        Self::new(addr.tx.clone(), addr.core.clone())
     }
 }
 
 impl<M: Message> Clone for WeakCaller<M> {
     fn clone(&self) -> Self {
         WeakCaller {
+            core: self.core.clone(),
             upgrade: dyn_clone::clone_box(&*self.upgrade),
-            id: self.id,
         }
     }
 }

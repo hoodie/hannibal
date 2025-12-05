@@ -1,7 +1,7 @@
 use crate::{
-    Actor, Addr,
+    Actor, Addr, Handler, Message, WeakCaller, WeakSender,
     channel::WeakTx,
-    context::{ContextID, RunningFuture},
+    context::Core,
     error::{ActorError::AlreadyStopped, Result},
 };
 
@@ -10,24 +10,27 @@ use crate::{
 /// This is the weak counterpart to [`Addr`]. It can be upgraded to a strong [`Addr`] if the Actor is still alive.
 #[derive(Clone)]
 pub struct WeakAddr<A: Actor> {
-    pub(crate) context_id: ContextID,
+    core: Core,
     pub(super) weak_tx: WeakTx<A>,
-    pub(crate) running: RunningFuture,
 }
 
 impl<A: Actor> WeakAddr<A> {
     /// Attempts to upgrade this weak address to a strong address.
     pub fn upgrade(&self) -> Option<Addr<A>> {
         self.weak_tx.upgrade().map(|tx| Addr {
-            context_id: self.context_id,
+            core: self.core.clone(),
             tx,
-            running: self.running.clone(),
         })
+    }
+
+    /// Returns true if the actor is still running.
+    pub fn running(&self) -> bool {
+        self.core.running()
     }
 
     /// Checks if the actor is stopped.
     pub fn stopped(&self) -> bool {
-        self.running.peek().is_some()
+        self.core.stopped()
     }
 
     /// Attempts to send a stop signal to the actor.
@@ -53,30 +56,35 @@ impl<A: Actor> WeakAddr<A> {
         }
     }
 
-    pub(crate) const fn new(
-        context_id: ContextID,
-        weak_tx: WeakTx<A>,
-        running: RunningFuture,
-    ) -> Self {
-        WeakAddr {
-            context_id,
-            weak_tx,
-            running,
-        }
+    pub(crate) const fn new(core: Core, weak_tx: WeakTx<A>) -> Self {
+        WeakAddr { core, weak_tx }
+    }
+
+    /// Creates a weak sender for the actor.
+    pub fn sender<M>(&self) -> WeakSender<M>
+    where
+        A: Actor + Handler<M>,
+        M: Message<Response = ()>,
+    {
+        WeakSender::from_weak_tx(self.weak_tx.clone(), self.core.clone())
+    }
+
+    /// Creates a weak caller for the actor.
+    pub fn caller<M>(&self) -> WeakCaller<M>
+    where
+        A: Actor + Handler<M>,
+        M: Message,
+    {
+        WeakCaller::from_weak_tx(self.weak_tx.clone(), self.core.clone())
     }
 }
 
 impl<A: Actor> From<&Addr<A>> for WeakAddr<A> {
     fn from(addr: &Addr<A>) -> Self {
         let weak_tx = addr.tx.downgrade();
-        let context_id = addr.context_id;
-        let running = addr.running.clone();
+        let core = addr.core.clone();
 
-        WeakAddr {
-            context_id,
-            weak_tx,
-            running,
-        }
+        WeakAddr { core, weak_tx }
     }
 }
 
