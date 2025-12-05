@@ -113,6 +113,17 @@ impl<A: Actor> Context<A> {
             }
         }
     }
+
+    /// Cleanup all child actors which are not running anymore
+    pub fn cleanup_children(&mut self) {
+        for children in self.children.values_mut() {
+            children.retain(|child| {
+                child
+                    .downcast_ref::<Sender<()>>()
+                    .is_some_and(Sender::running)
+            });
+        }
+    }
 }
 
 /// ## Creating `Addr`s, `Caller`s and `Sender`s to yourself
@@ -165,6 +176,8 @@ impl<A: Actor> Context<A> {
 
 use futures::FutureExt;
 use std::{future::Future, time::Duration};
+
+use super::addr::sender::Sender;
 
 /// Represents a handle to a task that can be used to abort the task.
 #[derive(Copy, Clone)]
