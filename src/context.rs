@@ -6,10 +6,9 @@ use std::{
 use futures::channel::oneshot;
 
 use crate::{
-    Addr, Handler, Message, RestartableActor, Sender, WeakAddr,
+    Handler, Message, RestartableActor, WeakAddr,
     actor::Actor,
     channel::WeakTx,
-    context::task_id::TaskID,
     error::{
         ActorError::{self, AlreadyStopped},
         Result,
@@ -17,7 +16,8 @@ use crate::{
     event_loop::Payload,
     runtime,
 };
-pub use context_id::ContextID;
+
+pub(crate) use self::{context_id::ContextID, core::Core, core::Life, task_id::TaskID};
 
 pub type RunningFuture = futures::future::Shared<oneshot::Receiver<()>>;
 pub struct StopNotifier(pub(crate) oneshot::Sender<()>);
@@ -81,6 +81,71 @@ mod task_id {
     }
 }
 
+mod core {
+    use std::{pin::Pin, task::Poll};
+
+    use futures::FutureExt as _;
+
+    use super::{ContextID, RunningFuture};
+    use crate::error::Result;
+
+    #[derive(Clone)]
+    pub(crate) struct Core {
+        pub id: ContextID,
+        running: RunningFuture,
+    }
+
+    impl Core {
+        pub fn new(running: RunningFuture) -> Self {
+            Self {
+                id: ContextID::default(),
+                running,
+            }
+        }
+    }
+
+    impl Life for Core {
+        fn running(&self) -> bool {
+            self.running.peek().is_none()
+        }
+
+        fn stopped(&self) -> bool {
+            self.running.peek().is_some()
+        }
+    }
+
+    impl Core {
+        /// Returns true if the actor is still running.
+        pub fn running(&self) -> bool {
+            self.running.peek().is_none()
+        }
+
+        /// Returns true if the actor has stopped.
+        pub fn stopped(&self) -> bool {
+            self.running.peek().is_some()
+        }
+    }
+
+    impl Future for Core {
+        type Output = Result<()>;
+        fn poll(self: Pin<&mut Self>, cx: &mut std::task::Context<'_>) -> Poll<Self::Output> {
+            log::trace!("polling core");
+            self.get_mut()
+                .running
+                .poll_unpin(cx)
+                .map(|p| p.map_err(Into::into))
+        }
+    }
+
+    pub trait Life {
+        /// Returns true if the actor is still running.
+        fn running(&self) -> bool;
+
+        /// Returns true if the actor has stopped.
+        fn stopped(&self) -> bool;
+    }
+}
+
 type AnyBox = Box<dyn Any + Send + Sync>;
 
 /// Available to the actor in every execution call.
@@ -89,9 +154,8 @@ type AnyBox = Box<dyn Any + Send + Sync>;
 /// You can start intervals, send messages to yourself, and stop the actor.
 ///
 pub struct Context<A> {
-    pub(crate) id: ContextID,
+    pub(crate) core: Core,
     pub(crate) weak_tx: WeakTx<A>,
-    pub(crate) running: RunningFuture,
     pub(crate) children: HashMap<TypeId, Vec<AnyBox>>,
     // TODO: make this a slab and use unique ids to address handles so that users can actually stop intervals again
     pub(crate) tasks: HashMap<TaskID, futures::future::AbortHandle>,
@@ -161,27 +225,24 @@ impl<A: Actor> Context<A> {
             }
         }
     }
+
+    /// Cleanup all child actors which are not running anymore
+    pub fn cleanup_children(&mut self) {
+        for children in self.children.values_mut() {
+            children.retain(|child| {
+                child
+                    .downcast_ref::<Box<dyn Life>>()
+                    .is_some_and(|sender| sender.running())
+            });
+        }
+    }
 }
 
 /// ## Creating `Addr`s, `Caller`s and `Sender`s to yourself
 impl<A: Actor> Context<A> {
-    /// Create an weak address to the actor.
+    /// Create a weak address to the actor.
     pub fn weak_address(&self) -> WeakAddr<A> {
-        let weak_tx = self.weak_tx.clone();
-
-        let context_id = self.id;
-        let running = self.running.clone();
-        let running_inner = self.running.clone();
-        let upgrade = Box::new(move || {
-            let running = running_inner.clone();
-            weak_tx.upgrade().map(|tx| Addr {
-                context_id,
-                tx,
-                running,
-            })
-        });
-
-        WeakAddr::new(context_id, upgrade, running)
+        WeakAddr::new(self.core.clone(), self.weak_tx.clone())
     }
 
     /// Create a weak sender to the actor.
@@ -189,7 +250,7 @@ impl<A: Actor> Context<A> {
     where
         A: Handler<M>,
     {
-        crate::WeakSender::from_weak_tx(self.weak_tx.clone(), self.id)
+        crate::WeakSender::from_weak_tx(self.weak_tx.clone(), self.core.clone())
     }
 
     /// Create a weak caller to the actor.
@@ -197,7 +258,7 @@ impl<A: Actor> Context<A> {
     where
         A: Handler<M>,
     {
-        crate::WeakCaller::from_weak_tx(self.weak_tx.clone(), self.id)
+        crate::WeakCaller::from_weak_tx(self.weak_tx.clone(), self.core.clone())
     }
 }
 
@@ -227,6 +288,8 @@ impl<A: Actor> Context<A> {
 
 use futures::FutureExt;
 use std::{future::Future, time::Duration};
+
+use super::addr::sender::Sender;
 
 /// Represents a handle to a task that can be used to abort the task.
 #[derive(Copy, Clone)]

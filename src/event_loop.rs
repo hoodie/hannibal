@@ -6,6 +6,7 @@ use crate::{
     Actor, Addr, Context,
     actor::restart_strategy::{RecreateFromDefault, RestartOnly, RestartStrategy},
     channel::{Channel, Rx},
+    context::Core,
     context::StopNotifier,
     handler::StreamHandler,
     runtime::sleep,
@@ -35,18 +36,16 @@ impl<A: Actor, R: RestartStrategy<A>> EventLoop<A, R> {
         let (tx, rx) = channel.break_up();
         let weak_tx = tx.downgrade();
         let ctx = Context {
-            id: Default::default(),
             weak_tx,
-            running: futures::FutureExt::shared(rx_running),
+            core: Core::new(rx_running.shared()),
             children: Default::default(),
             tasks: Default::default(),
         };
         let stop = StopNotifier(tx_running);
 
         let addr = Addr {
-            context_id: ctx.id,
             tx,
-            running: ctx.running.clone(),
+            core: ctx.core.clone(),
         };
         EventLoop {
             ctx,
@@ -108,24 +107,24 @@ impl<A: Actor, R: RestartStrategy<A>> EventLoop<A, R> {
 
             let timeout = self.config.timeout;
             #[cfg(feature = "async_channel")]
-            log::trace!(actor=A::NAME, id:% =self.ctx.id; "still waiting for {} events", self.rx.len());
+            log::trace!(actor=A::NAME, id:% =self.ctx.core.id; "still waiting for {} events", self.rx.len());
             let mut payload_rx = pin!(self.rx);
             while let Some(event) = payload_rx.next().await {
-                log::trace!(actor=A::NAME, id:% =self.ctx.id; "processing event");
+                log::trace!(actor=A::NAME, id:% =self.ctx.core.id; "processing event");
                 match event {
                     Payload::Restart => {
-                        log::trace!(actor=A::NAME, id:% =self.ctx.id; "restarting");
+                        log::trace!(actor=A::NAME, id:% =self.ctx.core.id; "restarting");
                         actor = R::refresh(actor, &mut self.ctx).await?
                     }
                     Payload::Task(f) => {
-                        log::trace!(actor=A::NAME, id:% =self.ctx.id;  "received task");
+                        log::trace!(actor=A::NAME, id:% =self.ctx.core.id;  "received task");
                         if let Err(err) = timeout_fut(f(&mut actor, &mut self.ctx), timeout).await {
                             if self.config.fail_on_timeout {
-                                log::warn!(actor=A::NAME, id:% =self.ctx.id; "{}, exiting", err);
+                                log::warn!(actor=A::NAME, id:% =self.ctx.core.id; "{}, exiting", err);
                                 actor.cancelled(&mut self.ctx).await;
                                 return Err(err);
                             } else {
-                                log::warn!(actor=A::NAME, id:% =self.ctx.id; "{}, ignoring", err);
+                                log::warn!(actor=A::NAME, id:% =self.ctx.core.id; "{}, ignoring", err);
                                 continue;
                             }
                         }

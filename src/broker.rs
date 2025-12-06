@@ -127,14 +127,14 @@ impl<T: Message<Response = ()>> Message for Unsubscribe<T> {
 
 impl<T: Message<Response = ()> + Clone> Handler<Subscribe<T>> for Broker<T> {
     async fn handle(&mut self, _ctx: &mut Context<Self>, Subscribe(sender): Subscribe<T>) {
-        self.subscribers.insert(sender.id, sender);
+        self.subscribers.insert(sender.core.id, sender);
         log::trace!("subscribed to topic {:?}", std::any::type_name::<T>());
     }
 }
 
 impl<T: Message<Response = ()> + Clone> Handler<Unsubscribe<T>> for Broker<T> {
     async fn handle(&mut self, _ctx: &mut Context<Self>, Unsubscribe(sender): Unsubscribe<T>) {
-        self.subscribers.remove(&sender.id);
+        self.subscribers.remove(&sender.core.id);
         log::trace!("unsubscribed to topic {:?}", std::any::type_name::<T>());
     }
 }
