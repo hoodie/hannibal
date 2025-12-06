@@ -2,7 +2,7 @@ use dyn_clone::DynClone;
 
 use std::{future::Future, pin::Pin};
 
-use crate::{Actor, Handler, channel, context::Core, error::ActorError};
+use crate::{Actor, Handler, channel, context::{Core, Life}, error::ActorError};
 
 use super::{Addr, Message, Payload, Result, weak_sender::WeakSender};
 
@@ -108,14 +108,12 @@ impl<M: Message<Response = ()>> Sender<M> {
     }
 }
 
-impl<M: Message<Response = ()>> Sender<M> {
-    /// Returns true if the actor is still running.
-    pub fn running(&self) -> bool {
+impl<M: Message<Response = ()>> Life for Sender<M> {
+    fn running(&self) -> bool {
         self.core.running()
     }
 
-    /// Returns true if the actor has stopped.
-    pub fn stopped(&self) -> bool {
+    fn stopped(&self) -> bool {
         self.core.stopped()
     }
 }

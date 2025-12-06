@@ -17,7 +17,7 @@ use crate::{
     runtime,
 };
 
-pub(crate) use self::{context_id::ContextID, core::Core, task_id::TaskID};
+pub(crate) use self::{context_id::ContextID, core::Core, core::Life, task_id::TaskID};
 
 pub type RunningFuture = futures::future::Shared<oneshot::Receiver<()>>;
 pub struct StopNotifier(pub(crate) oneshot::Sender<()>);
@@ -102,12 +102,25 @@ mod core {
                 running,
             }
         }
+    }
 
+    impl Life for Core {
+        fn running(&self) -> bool {
+            self.running.peek().is_none()
+        }
+
+        fn stopped(&self) -> bool {
+            self.running.peek().is_some()
+        }
+    }
+
+    impl Core {
         /// Returns true if the actor is still running.
         pub fn running(&self) -> bool {
             self.running.peek().is_none()
         }
 
+        /// Returns true if the actor has stopped.
         pub fn stopped(&self) -> bool {
             self.running.peek().is_some()
         }
@@ -122,6 +135,14 @@ mod core {
                 .poll_unpin(cx)
                 .map(|p| p.map_err(Into::into))
         }
+    }
+
+    pub trait Life {
+        /// Returns true if the actor is still running.
+        fn running(&self) -> bool;
+
+        /// Returns true if the actor has stopped.
+        fn stopped(&self) -> bool;
     }
 }
 
@@ -210,8 +231,8 @@ impl<A: Actor> Context<A> {
         for children in self.children.values_mut() {
             children.retain(|child| {
                 child
-                    .downcast_ref::<Sender<()>>()
-                    .is_some_and(Sender::running)
+                    .downcast_ref::<Box<dyn Life>>()
+                    .is_some_and(|sender| sender.running())
             });
         }
     }
