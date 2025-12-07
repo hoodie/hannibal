@@ -48,8 +48,9 @@ impl StreamHandler<WsStreamMessage> for WebsocketConnector {
         };
     }
 
-    async fn finished(&mut self, _ctx: &mut hannibal::Context<Self>) {
-        log::info!("websocket stream ended")
+    async fn finished(&mut self, ctx: &mut hannibal::Context<Self>) {
+        log::info!("websocket stream ended");
+        ctx.stop().unwrap();
     }
 }
 

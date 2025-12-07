@@ -7,6 +7,9 @@ impl<T: Send> StreamHandler<T> for Collector<T> {
     async fn handle(&mut self, _ctx: &mut Context<Self>, msg: T) {
         self.0.push(msg);
     }
+    async fn finished(&mut self, ctx: &mut Context<Self>) {
+        ctx.stop().unwrap();
+    }
 }
 
 #[hannibal::main]
