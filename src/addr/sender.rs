@@ -2,7 +2,7 @@ use dyn_clone::DynClone;
 
 use std::{future::Future, pin::Pin};
 
-use crate::{Actor, Handler, channel, context::ContextID, error::ActorError};
+use crate::{Actor, Handler, channel, context::Core, error::ActorError};
 
 use super::{Addr, Message, Payload, Result, weak_sender::WeakSender};
 
@@ -13,11 +13,11 @@ use super::{Addr, Message, Payload, Result, weak_sender::WeakSender};
 ///
 /// Senders can be downgraded to [`WeakSender`](`crate::WeakSender`) to check if the actor is still alive.
 pub struct Sender<M: Message<Response = ()>> {
+    core: Core,
     send_fn: Box<dyn SenderFn<M>>,
     try_send_fn: Box<dyn TrySenderFn<M>>,
     force_send_fn: Box<dyn ForceSenderFn<M>>,
     downgrade_fn: Box<dyn DowngradeFn<M>>,
-    id: ContextID,
 }
 
 impl<M: Message<Response = ()>> Sender<M> {
@@ -40,7 +40,7 @@ impl<M: Message<Response = ()>> Sender<M> {
         self.downgrade_fn.downgrade()
     }
 
-    pub(crate) fn new<A>(tx: channel::Tx<A>, id: ContextID) -> Self
+    pub(crate) fn new<A>(tx: channel::Tx<A>, core: Core) -> Self
     where
         A: Actor + Handler<M>,
     {
@@ -85,22 +85,38 @@ impl<M: Message<Response = ()>> Sender<M> {
         };
 
         let downgrade_fn: Box<dyn DowngradeFn<M>> = {
+            let core = core.clone();
             Box::new(move || {
                 let weak_tx = weak_tx.clone();
+                let core = core.clone();
                 WeakSender {
-                    upgrade: Box::new(move || weak_tx.upgrade().map(|tx| Sender::new(tx, id))),
-                    id,
+                    core: core.clone(),
+                    upgrade: Box::new(move || {
+                        weak_tx.upgrade().map(|tx| Sender::new(tx, core.clone()))
+                    }),
                 }
             })
         };
 
         Sender {
-            id,
+            core,
             send_fn,
             try_send_fn,
             force_send_fn,
             downgrade_fn,
         }
+    }
+}
+
+impl<M: Message<Response = ()>> Sender<M> {
+    /// Returns true if the actor is still running.
+    pub fn running(&self) -> bool {
+        self.core.running()
+    }
+
+    /// Returns true if the actor has stopped.
+    pub fn stopped(&self) -> bool {
+        self.core.stopped()
     }
 }
 
@@ -151,7 +167,7 @@ where
     A: Actor + Handler<M>,
 {
     fn from(addr: Addr<A>) -> Self {
-        Sender::new(addr.tx.clone(), addr.context_id)
+        Sender::new(addr.tx.clone(), addr.core)
     }
 }
 
@@ -160,14 +176,14 @@ where
     A: Actor + Handler<M>,
 {
     fn from(addr: &Addr<A>) -> Self {
-        Sender::new(addr.tx.clone(), addr.context_id)
+        Sender::new(addr.tx.clone(), addr.core.clone())
     }
 }
 
 impl<M: Message<Response = ()>> Clone for Sender<M> {
     fn clone(&self) -> Self {
         Sender {
-            id: self.id,
+            core: self.core.clone(),
             send_fn: dyn_clone::clone_box(&*self.send_fn),
             try_send_fn: dyn_clone::clone_box(&*self.try_send_fn),
             force_send_fn: dyn_clone::clone_box(&*self.force_send_fn),

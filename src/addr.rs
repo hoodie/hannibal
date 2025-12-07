@@ -17,7 +17,7 @@ use crate::{
     RestartableActor,
     actor::{Actor, ActorHandle, JoinFuture},
     channel::Tx,
-    context::{ContextID, RunningFuture},
+    context::Core,
     error::{ActorError, Result},
     event_loop::Payload,
     handler::Handler,
@@ -70,17 +70,15 @@ impl Message for () {
 /// if you don't want to prolong the life of the actor you can use a [`WeakAddr`] via [`Addr::downgrade`].
 ///
 pub struct Addr<A> {
-    pub(crate) context_id: ContextID,
     pub(crate) tx: Tx<A>,
-    pub(crate) running: RunningFuture,
+    pub(crate) core: Core,
 }
 
 impl<A: Actor> Clone for Addr<A> {
     fn clone(&self) -> Self {
         Addr {
-            context_id: self.context_id,
             tx: self.tx.clone(),
-            running: self.running.clone(),
+            core: self.core.clone(),
         }
     }
 }
@@ -104,12 +102,12 @@ impl<A: Actor> Addr<A> {
 
     /// Returns true if the actor is still running.
     pub fn running(&self) -> bool {
-        self.running.peek().is_none()
+        self.core.running()
     }
 
     /// Returns true if the actor has stopped.
     pub fn stopped(&self) -> bool {
-        self.running.peek().is_some()
+        self.core.stopped()
     }
 
     /// Sends a message to the actor and awaits its response.
@@ -234,10 +232,7 @@ impl<A> Future for Addr<A> {
     type Output = Result<()>;
     fn poll(self: Pin<&mut Self>, cx: &mut std::task::Context<'_>) -> Poll<Self::Output> {
         log::trace!("polling actor");
-        self.get_mut()
-            .running
-            .poll_unpin(cx)
-            .map(|p| p.map_err(Into::into))
+        self.get_mut().core.poll_unpin(cx)
     }
 }
 
