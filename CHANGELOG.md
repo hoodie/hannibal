@@ -1,5 +1,12 @@
 # Changelog
 
+### [v0.14.2](https://github.com/hoodie/hannibal/compare/v0.14.1...v0.14.2) (2025-12-07)
+
+#### Features
+
+* add running and stopped methods to weak and strong Addr, Sender and Caller
+([22cf287](https://github.com/hoodie/hannibal/commit/22cf287d1ac525c77bf719242b6389502e973d9f))
+
 ### [v0.14.1](https://github.com/hoodie/hannibal/compare/v0.14.0...v0.14.1) (2025-12-01)
 
 #### Features
