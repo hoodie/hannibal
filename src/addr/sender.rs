@@ -109,12 +109,10 @@ impl<M: Message<Response = ()>> Sender<M> {
 }
 
 impl<M: Message<Response = ()>> Sender<M> {
-    /// Returns true if the actor is still running.
     pub fn running(&self) -> bool {
         self.core.running()
     }
 
-    /// Returns true if the actor has stopped.
     pub fn stopped(&self) -> bool {
         self.core.stopped()
     }
