@@ -21,6 +21,9 @@ impl StreamHandler<i32> for FizzBuzzer {
             _ => {}
         }
     }
+    async fn finished(&mut self, ctx: &mut Context<Self>) {
+        ctx.stop().unwrap();
+    }
 }
 
 #[hannibal::main]

@@ -146,7 +146,7 @@ impl<A: Actor, R: RestartStrategy<A>> EventLoop<A, R> {
     pub fn create_on_stream<S>(
         mut self,
         mut actor: A,
-        mut stream: S,
+        stream: S,
     ) -> (impl Future<Output = crate::DynResult<A>>, Addr<A>)
     where
         S: Stream + Unpin + Send + 'static,
@@ -154,6 +154,7 @@ impl<A: Actor, R: RestartStrategy<A>> EventLoop<A, R> {
         A: StreamHandler<S::Item>,
     {
         let timeout = self.config.timeout;
+        let mut stream = stream.fuse();
         let actor_loop = async move {
             actor.started(&mut self.ctx).await?;
             let mut rx = pin!(self.rx);
@@ -182,10 +183,10 @@ impl<A: Actor, R: RestartStrategy<A>> EventLoop<A, R> {
                             None =>  break
                         }
                     },
-                    stream_msg = stream.next().fuse() => {
+                    stream_msg = stream.next() => {
                         let Some(msg) = stream_msg else {
                             actor.finished(&mut self.ctx).await;
-                            break;
+                            continue;
                         };
                         log::trace!(name = A::NAME;  "received stream message");
                         if let Err(err) = timeout_fut(
@@ -226,5 +227,69 @@ where
             rx: self.rx,
             phantom: PhantomData,
         }
+    }
+}
+
+#[cfg(test)]
+mod test_event_loop {
+    #![allow(clippy::unwrap_used)]
+    use futures::stream;
+
+    use std::sync::{
+        Arc,
+        atomic::{AtomicBool, Ordering::SeqCst},
+    };
+
+    use super::*;
+    use crate::prelude::*;
+
+    struct StreamActor {
+        stopped: Arc<AtomicBool>,
+        finished: Option<futures::channel::oneshot::Sender<()>>,
+    }
+
+    impl Actor for StreamActor {
+        async fn stopped(&mut self, _ctx: &mut Context<Self>) {
+            self.stopped.store(true, SeqCst);
+        }
+    }
+
+    #[message(response = Echo)]
+    struct Echo;
+
+    impl Handler<Echo> for StreamActor {
+        async fn handle(&mut self, _ctx: &mut Context<Self>, msg: Echo) -> Echo {
+            msg
+        }
+    }
+
+    impl StreamHandler<i32> for StreamActor {
+        async fn handle(&mut self, _ctx: &mut Context<Self>, _msg: i32) {}
+
+        async fn finished(&mut self, _ctx: &mut Context<Self>) {
+            self.finished.take().unwrap().send(()).unwrap();
+            log::info!("StreamActor finished");
+        }
+    }
+
+    #[test_log::test(tokio::test)]
+    async fn finished_streams_notify_the_actor() {
+        let stopped = Arc::new(AtomicBool::new(false));
+        let (finished_sender, finished) = oneshot::channel::<()>();
+
+        let actor = StreamActor {
+            stopped: Arc::clone(&stopped),
+            finished: Some(finished_sender),
+        };
+
+        let num_stream = stream::iter(1..30).fuse();
+        let addr = crate::build(actor).on_stream(num_stream).spawn();
+
+        assert!(!stopped.load(SeqCst), "actor supposed to be running");
+
+        assert!(finished.await.is_ok(), "finished_called should be true");
+
+        assert!(!stopped.load(SeqCst), "actor supposed to be running");
+        assert!(addr.call(Echo).await.is_ok(), "actor supposed to respond");
     }
 }

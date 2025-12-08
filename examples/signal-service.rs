@@ -28,8 +28,9 @@ impl StreamHandler<i32> for SignalService {
         }
     }
 
-    async fn finished(&mut self, _ctx: &mut Context<Self>) {
+    async fn finished(&mut self, ctx: &mut Context<Self>) {
         println!("Received {:?} signals", self.sig_count);
+        ctx.stop().unwrap();
     }
 }
 
