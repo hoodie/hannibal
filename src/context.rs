@@ -6,7 +6,7 @@ use std::{
 use futures::channel::oneshot;
 
 use crate::{
-    Handler, Message, RestartableActor, Sender, WeakAddr,
+    Handler, Message, RestartableActor, WeakAddr,
     actor::Actor,
     channel::WeakTx,
     error::{
@@ -136,14 +136,15 @@ type AnyBox = Box<dyn Any + Send + Sync>;
 pub struct Context<A> {
     pub(crate) core: Core,
     pub(crate) weak_tx: WeakTx<A>,
-    pub(crate) children: HashMap<TypeId, Vec<AnyBox>>,
-    // TODO: make this a slab and use unique ids to address handles so that users can actually stop intervals again
+    pub(crate) children: children::Children,
+    // TODO: consider using a tokio::joinset/ futures::FuturesUnordered
     pub(crate) tasks: HashMap<TaskID, futures::future::AbortHandle>,
 }
 
 impl<A> Drop for Context<A> {
     fn drop(&mut self) {
         for (_, task) in self.tasks.drain() {
+            // TODO: use `AbortRegistration`
             task.abort();
         }
     }
@@ -168,10 +169,7 @@ impl<A: Actor> Context<A> {
     ///
     /// This child actor is held until this context is stopped.
     pub fn add_child(&mut self, child: impl Into<Sender<()>>) {
-        self.children
-            .entry(TypeId::of::<()>())
-            .or_default()
-            .push(Box::new(child.into()));
+        self.children.add(child)
     }
 
     /// Register a child actor by `Message` type.
@@ -179,41 +177,75 @@ impl<A: Actor> Context<A> {
     /// This actor will be held until this actor is stopped via a `Sender`.
     ///
     pub fn register_child<M: Message<Response = ()>>(&mut self, child: impl Into<Sender<M>>) {
-        self.children
-            .entry(TypeId::of::<M>())
-            .or_default()
-            .push(Box::new(child.into()));
+        self.children.register(child)
     }
 
     /// Send a message to all child actors registered with this message type.
-    pub fn send_to_children<M>(&mut self, message: M)
-    where
-        M: Message<Response = ()>,
-        M: Clone,
-    {
-        let key = TypeId::of::<M>();
-
-        if let Some(children) = self.children.get(&key) {
-            for child in children
-                .iter()
-                .filter_map(|child| child.downcast_ref::<Sender<M>>())
-            {
-                // TODO: force_send is not correct here, we should have a try_send mechanism instead
-                if let Err(error) = child.force_send(message.clone()) {
-                    log::error!("Failed to send message to child: {error}");
-                }
-            }
-        }
+    pub fn send_to_children<M: Message<Response = ()> + Clone>(&mut self, message: M) {
+        self.children.forward(message);
     }
 
-    /// Cleanup all child actors which are not running anymore
-    pub fn cleanup_children(&mut self) {
-        for children in self.children.values_mut() {
-            children.retain(|child| {
-                child
-                    .downcast_ref::<Sender<()>>()
-                    .is_some_and(Sender::running)
-            });
+    pub fn gc(&mut self) {
+        self.children.remove_stopped();
+        self.tasks = self
+            .tasks
+            .drain()
+            .filter(|(_id, handle)| !handle.is_aborted())
+            .filter(|(id, handle)| !handle.read) // TODO: how do I tell if the task is still running?
+            .collect();
+    }
+}
+
+mod children {
+    use std::{any::TypeId, collections::HashMap};
+
+    use crate::{Message, Sender, context::AnyBox};
+
+    pub struct Children {
+        pub(crate) children: HashMap<TypeId, Vec<AnyBox>>,
+    }
+    impl Children {
+        pub fn add(&mut self, child: impl Into<Sender<()>>) {
+            self.children
+                .entry(TypeId::of::<()>())
+                .or_default()
+                .push(Box::new(child.into()));
+        }
+        pub fn register<M: Message<Response = ()>>(&mut self, child: impl Into<Sender<M>>) {
+            self.children
+                .entry(TypeId::of::<M>())
+                .or_default()
+                .push(Box::new(child.into()));
+        }
+        pub fn remove_stopped(&mut self) {
+            for children in self.children.values_mut() {
+                children.retain(|child| {
+                    child
+                        .downcast_ref::<Sender<()>>()
+                        .is_some_and(Sender::running)
+                });
+            }
+        }
+
+        /// Send a message to all child actors registered with this message type.
+        pub fn forward<M>(&mut self, message: M)
+        where
+            M: Message<Response = ()>,
+            M: Clone,
+        {
+            let key = TypeId::of::<M>();
+
+            if let Some(children) = self.children.get(&key) {
+                for child in children
+                    .iter()
+                    .filter_map(|child| child.downcast_ref::<Sender<M>>())
+                {
+                    // TODO: force_send is not correct here, we should have a try_send mechanism instead
+                    if let Err(error) = child.force_send(message.clone()) {
+                        log::error!("Failed to send message to child: {error}");
+                    }
+                }
+            }
         }
     }
 }

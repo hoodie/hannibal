@@ -153,7 +153,7 @@ let addr = hannibal::build(FizzBuzzer::default())
 addr.await.unwrap();
 
 ```
-> see [stream.rs](examples/stream.rs)
+> see [streams.rs](examples/streams.rs)
 
 ### Services
 
@@ -294,29 +294,6 @@ This includes
 If you should need to retain the ownership to the instance of your actor object you can hold an `OwningAddr`.
 This yields the its content when stopped.
 If you find a good usecase for this outside of testing, feel free to drop me a message to let me know 😜.
-
-## New since 0.12
-
-Hannibal until v0.10 was a fork of [xactor](https://crates.io/crates/xactor).
-Since 0.12 it is a complete rewrite from scratch, indicated by skipping versions 0.11 entirely.
-The rewrite with the following features:
-
-- Modern Rust: no more async-trait, no more once_cell
-- simpler but more explicit errors
-  - no more anyhow, but more explicit reasons when the actor fails
-- Strong and Weak Senders and Callers (as in actix)
-  - weak and strong  callers and senders can be created from weak and strong addresses
-- Exchangeable Channel Implementation
-  - included: bounded and unbounded
-- Streams are Handled by launching an actor together with a stream.
-  - Avoids extra tasks and simplifies the logic.
-    The actor lives only as long as the stream.
-- Actor trait only brings methods that you should implement (better "implement missing members" behavior)
-- derive macros for `Actor`, `Service` and `Message`
-- Owning Addresses
-  - allows returning actor content after stop
-- Builder
-- Timeouts
 
 ## Contribution
 
