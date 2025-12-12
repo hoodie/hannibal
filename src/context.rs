@@ -237,10 +237,10 @@ impl<A: Actor> Context<A> {
     ///
     /// Every actor can publish messages to the broker
     /// which will be delivered to all actors that subscribe to the message.
-    pub async fn publish<M: crate::Message<Response = ()> + Clone>(&self, message: M) -> Result<()>
-    where
-        A: Handler<M>,
-    {
+    pub async fn publish<M: crate::Message<Response = ()> + Clone>(
+        &self,
+        message: M,
+    ) -> Result<()> {
         crate::Broker::publish(message).await
     }
 
