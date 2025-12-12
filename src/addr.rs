@@ -308,6 +308,17 @@ impl<A> DerefMut for OwningAddr<A> {
     }
 }
 
+impl<A: Actor> Future for OwningAddr<A> {
+    type Output = Result<A>;
+    fn poll(self: Pin<&mut Self>, cx: &mut std::task::Context<'_>) -> Poll<Self::Output> {
+        log::trace!("polling actor");
+        self.get_mut()
+            .join()
+            .poll_unpin(cx)
+            .map(|opt| opt.ok_or(crate::error::ActorError::AlreadyStopped))
+    }
+}
+
 #[cfg(test)]
 mod tests {
     #![allow(clippy::unwrap_used)]
