@@ -1,5 +1,29 @@
 # Changelog
 
+## [v0.15.0](https://github.com/hoodie/hannibal/compare/v0.14.2...v0.15.0) (2025-12-13)
+
+### ⚠ BREAKING CHANGE
+
+* from now on StreamHandling Actors do not automatically stop when the stream is finished
+
+If you want your Actor to stop when the attached stream is finished you need to call stop in the finished function:
+
+```rs
+impl StreamHandler<i32> for FizzBuzzer {
+    async fn finished(&mut self, ctx: &mut Context<Self>) {
+        ctx.stop().unwrap();
+    }
+}
+```
+
+
+### Fixes
+
+* unable to publish<M> from actor unless actor is also Handler<M>, not needed
+([67dbd4b](https://github.com/hoodie/hannibal/commit/67dbd4b0471ba95dd9aa2a7d9998b3b82bd21fdb))
+* correctly handle finished streams
+([9dbc19e](https://github.com/hoodie/hannibal/commit/9dbc19e2291668bdf309fd76d9af9040eb157c4d))
+
 ### [v0.14.2](https://github.com/hoodie/hannibal/compare/v0.14.1...v0.14.2) (2025-12-07)
 
 #### Features
