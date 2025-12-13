@@ -1,6 +1,6 @@
 [package]
 name = "hannibal-derive"
-version = "0.14.2"
+version = "0.15.0"
 authors = ["Hendrik Sollich <hendrik@hoodie.de>"]
 license = "MIT/Apache-2.0"
 
