@@ -125,14 +125,17 @@ Both of them have weak equivalents too.
 ### Handling Streams
 
 Often you need to handle streams of messages, e.g. from a TCP connections or websockets.
-Actors can be spawned "on a stream". This way their lifecycle is tied to the stream's lifecycle.
+Actors can be spawned "on a stream". This way they are tightly coupled to the stream and will be notified once the stream is exhausted.
+
+As of `v0.15.0` stream-handling actors **do not automatically stop when the stream is finished**.
+If you want the actor to stop once the attached stream is exhausted, call `ctx.stop()` in `finished()`.
 
 ```rust
 #[derive(Default, Actor)]
 struct FizzBuzzer(&'static str);
 
 impl StreamHandler<i32> for FizzBuzzer {
-    async fn handle(&mut self, _ctx: &mut Context<Self>, msg: i32)
+    async fn handle(&mut self, _ctx: &mut Context<Self>, msg: i32) {
         match (msg % 3 == 0, msg % 5 == 0) {
             (true, true) => self.0 = "fizzbuzz",
             (true, false) => self.0 = "fizz",
@@ -140,8 +143,11 @@ impl StreamHandler<i32> for FizzBuzzer {
             _ => {}
         }
     }
-}
 
+    async fn finished(&mut self, ctx: &mut Context<Self>) {
+        ctx.stop().unwrap();
+    }
+}
 
 // just imagine this is a websocket stream
 let num_stream = futures::stream::iter(1..30);
@@ -149,11 +155,11 @@ let addr = hannibal::build(FizzBuzzer::default())
     .on_stream(num_stream)
     .spawn();
 
-// The actor terminates once the stream is exhausted.
+// The actor terminates only if you stop it (e.g. in `finished()` above).
 addr.await.unwrap();
-
 ```
-> see [stream.rs](examples/stream.rs)
+
+> see [streams.rs](examples/streams.rs)
 
 ### Services
 
