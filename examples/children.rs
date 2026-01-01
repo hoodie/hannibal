@@ -23,6 +23,7 @@ impl Handler<Hello> for Child {
         println!("Hello I'm child {}", self.0);
     }
 }
+
 impl Handler<Hello> for Root {
     async fn handle(&mut self, ctx: &mut Context<Self>, msg: Hello) {
         println!("Greeting My Children");
@@ -33,6 +34,15 @@ impl Handler<Hello> for Root {
 impl Handler<()> for Child {
     async fn handle(&mut self, _: &mut Context<Self>, _: ()) {
         println!("{self:?} {:>width$}!", "x", width = (self.0 + 1) * 10);
+    }
+}
+
+#[derive(Clone, Message)]
+struct Gc;
+impl Handler<Gc> for Root {
+    async fn handle(&mut self, ctx: &mut Context<Self>, _: Gc) {
+        println!("Garbage Collecting");
+        ctx.gc();
     }
 }
 
@@ -50,6 +60,7 @@ impl Actor for Root {
         ctx.register_child::<Hello>(Child(5).spawn());
 
         ctx.interval_with(|| Hello, Duration::from_millis(500));
+        ctx.interval(Gc, Duration::from_millis(500));
 
         let mut me = ctx.weak_address();
         ctx.delayed_exec(

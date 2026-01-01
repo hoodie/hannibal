@@ -1,12 +1,9 @@
-use std::{
-    any::{Any, TypeId},
-    collections::HashMap,
-};
+use std::collections::HashMap;
 
 use futures::channel::oneshot;
 
 use crate::{
-    Handler, Message, RestartableActor, Sender, WeakAddr,
+    Handler, Message, RestartableActor, WeakAddr,
     actor::Actor,
     channel::WeakTx,
     error::{
@@ -26,6 +23,13 @@ mod test_interval_cleanup;
 
 pub(crate) use self::{context_id::ContextID, core::Core, task_id::TaskID};
 
+// Runtime-specific task handle type
+#[cfg(all(feature = "tokio_runtime", not(feature = "async_runtime")))]
+type TaskJoinHandle = tokio::task::JoinHandle<()>;
+
+#[cfg(all(not(feature = "tokio_runtime"), feature = "async_runtime"))]
+type TaskJoinHandle = async_global_executor::Task<()>;
+
 pub type RunningFuture = futures::future::Shared<oneshot::Receiver<()>>;
 pub struct StopNotifier(pub(crate) oneshot::Sender<()>);
 impl StopNotifier {
@@ -33,8 +37,6 @@ impl StopNotifier {
         self.0.send(()).ok();
     }
 }
-
-type AnyBox = Box<dyn Any + Send + Sync>;
 
 /// Available to the actor in every execution call.
 ///
@@ -44,15 +46,20 @@ type AnyBox = Box<dyn Any + Send + Sync>;
 pub struct Context<A> {
     pub(crate) core: Core,
     pub(crate) weak_tx: WeakTx<A>,
-    pub(crate) children: HashMap<TypeId, Vec<AnyBox>>,
-    // TODO: make this a slab and use unique ids to address handles so that users can actually stop intervals again
-    pub(crate) tasks: HashMap<TaskID, futures::future::AbortHandle>,
+    pub(crate) children: children::Children,
+    // TODO: consider using a tokio::joinset/ futures::FuturesUnordered
+    pub(crate) tasks: HashMap<TaskID, TaskJoinHandle>,
 }
 
 impl<A> Drop for Context<A> {
     fn drop(&mut self) {
         for (_, task) in self.tasks.drain() {
+            #[cfg(feature = "tokio_runtime")]
             task.abort();
+
+            // For async_runtime, dropping the Task handle cancels it automatically
+            #[cfg(not(feature = "tokio_runtime"))]
+            drop(task);
         }
     }
 }
@@ -76,10 +83,7 @@ impl<A: Actor> Context<A> {
     ///
     /// This child actor is held until this context is stopped.
     pub fn add_child(&mut self, child: impl Into<Sender<()>>) {
-        self.children
-            .entry(TypeId::of::<()>())
-            .or_default()
-            .push(Box::new(child.into()));
+        self.children.add(child)
     }
 
     /// Register a child actor by `Message` type.
@@ -87,41 +91,154 @@ impl<A: Actor> Context<A> {
     /// This actor will be held until this actor is stopped via a `Sender`.
     ///
     pub fn register_child<M: Message<Response = ()>>(&mut self, child: impl Into<Sender<M>>) {
-        self.children
-            .entry(TypeId::of::<M>())
-            .or_default()
-            .push(Box::new(child.into()));
+        self.children.register(child)
     }
 
     /// Send a message to all child actors registered with this message type.
-    pub fn send_to_children<M>(&mut self, message: M)
-    where
-        M: Message<Response = ()>,
-        M: Clone,
-    {
-        let key = TypeId::of::<M>();
+    pub fn send_to_children<M: Message<Response = ()> + Clone>(&mut self, message: M) {
+        self.children.forward(message);
+    }
 
-        if let Some(children) = self.children.get(&key) {
-            for child in children
-                .iter()
-                .filter_map(|child| child.downcast_ref::<Sender<M>>())
-            {
-                // TODO: force_send is not correct here, we should have a try_send mechanism instead
-                if let Err(error) = child.force_send(message.clone()) {
-                    log::error!("Failed to send message to child: {error}");
-                }
-            }
+    /// Perform context-local garbage collection.
+    ///
+    /// This method:
+    ///
+    /// - Removes child actors that have fully stopped.
+    /// - Drops join handles for background tasks that have already finished.
+    ///
+    /// Running tasks and live child actors are **not** affected: this method does
+    /// not cancel or stop anything that is still in progress. It only cleans up
+    /// bookkeeping for work that has already completed.
+    ///
+    /// # When to call this
+    ///
+    /// `gc` is **not** called automatically by the runtime. If your actor spawns
+    /// many short‑lived tasks or children, you should call `gc` periodically to
+    /// release their resources from the `Context`. A common pattern is to call it:
+    ///
+    /// - At the end of a message handler that may have spawned new tasks.
+    /// - On a timer or in response to a "maintenance" message.
+    ///
+    /// For actors that rarely spawn tasks or children, calling `gc` occasionally
+    /// (or not at all) may be sufficient.
+    ///
+    /// # Performance
+    ///
+    /// `gc` iterates over all tracked tasks and children to remove completed ones.
+    /// The cost is roughly proportional to the number of entries being tracked.
+    /// It is typically inexpensive for a modest number of tasks, but if your actor
+    /// tracks many thousands of tasks you may want to adjust how often you call
+    /// `gc` to balance cleanup latency against overhead.
+    ///
+    /// # Example
+    ///
+    /// ```ignore
+    /// impl Handler<MyMessage> for MyActor {
+    ///     type Response = ();
+    ///
+    ///     fn handle(&mut self, msg: MyMessage, ctx: &mut Context<Self>) {
+    ///         // Potentially spawn a new background task or child here...
+    ///
+    ///         // Periodically clean up finished tasks and stopped children.
+    ///         ctx.gc();
+    ///     }
+    /// }
+    /// ```
+    pub fn gc(&mut self) {
+        self.children.remove_stopped();
+        let initial_count = self.tasks.len();
+        self.tasks = self
+            .tasks
+            .drain()
+            .filter(|(_id, handle)| !handle.is_finished())
+            .collect();
+        let removed_count = initial_count - self.tasks.len();
+        if removed_count > 0 {
+            log::trace!(
+                "gc: removed {} finished task(s), {} remaining",
+                removed_count,
+                self.tasks.len()
+            );
+        }
+    }
+}
+
+mod children {
+    use std::{any::TypeId, collections::HashMap};
+
+    use crate::{Message, Sender};
+
+    /// Trait to check if something is still alive/running.
+    ///
+    /// This allows checking liveness of actors or senders regardless of their concrete type.
+    pub(crate) trait IsAlive: Send + Sync {
+        fn is_alive(&self) -> bool;
+        fn as_any(&self) -> &dyn std::any::Any;
+    }
+
+    impl<M: Message<Response = ()>> IsAlive for Sender<M> {
+        fn is_alive(&self) -> bool {
+            self.running()
+        }
+        fn as_any(&self) -> &dyn std::any::Any {
+            self
         }
     }
 
-    /// Cleanup all child actors which are not running anymore
-    pub fn cleanup_children(&mut self) {
-        for children in self.children.values_mut() {
-            children.retain(|child| {
-                child
-                    .downcast_ref::<Sender<()>>()
-                    .is_some_and(Sender::running)
-            });
+    type Child = Box<dyn IsAlive>;
+
+    #[derive(Default)]
+    pub struct Children {
+        pub(crate) children: HashMap<TypeId, Vec<Child>>,
+    }
+    impl Children {
+        pub fn add(&mut self, child: impl Into<Sender<()>>) {
+            self.children
+                .entry(TypeId::of::<()>())
+                .or_default()
+                .push(Box::new(child.into()));
+        }
+        pub fn register<M: Message<Response = ()>>(&mut self, child: impl Into<Sender<M>>) {
+            self.children
+                .entry(TypeId::of::<M>())
+                .or_default()
+                .push(Box::new(child.into()));
+        }
+
+        pub fn remove_stopped(&mut self) {
+            for children in self.children.values_mut() {
+                let initial_count = children.len();
+                children.retain(|child| child.is_alive());
+                let removed_count = initial_count - children.len();
+                if removed_count > 0 {
+                    log::trace!(
+                        "gc: removed {} stopped child(ren), {} remaining",
+                        removed_count,
+                        children.len()
+                    );
+                }
+            }
+        }
+
+        /// Send a message to all child actors registered with this message type.
+        pub fn forward<M>(&mut self, message: M)
+        where
+            M: Message<Response = ()>,
+            M: Clone,
+        {
+            let key = TypeId::of::<M>();
+
+            if let Some(children) = self.children.get(&key) {
+                for child in children
+                    .iter()
+                    .filter_map(|child| child.as_any().downcast_ref::<Sender<M>>())
+                {
+                    // TODO: force_send is not correct here, we should have a try_send mechanism instead
+                    if let Err(error) = child.force_send(message.clone()) {
+                        log::error!("Failed to send message to child: {error}");
+                    }
+                }
+            }
         }
     }
 }
@@ -201,15 +318,41 @@ impl<A: Actor> Context<A> {
     /// Spawn a task that will be executed in the background.
     ///
     /// The task will be aborted when the actor is stopped.
+    ///
+    /// Returns a [`TaskHandle`] that can be used to check if the task is finished
+    /// or to stop it manually using [`Context::stop_task`].
+    ///
+    /// # Example
+    ///
+    /// ```rust,ignore
+    /// impl Handler<StartWork> for MyActor {
+    ///     async fn handle(&mut self, ctx: &mut Context<Self>, _: StartWork) {
+    ///         let handle = ctx.spawn_task(async {
+    ///             // Long-running background work
+    ///             do_work().await;
+    ///         });
+    ///
+    ///         // Check if task is still running
+    ///         if let Some(false) = ctx.is_task_finished(&handle) {
+    ///             println!("Task is still running");
+    ///         }
+    ///
+    ///         // Optionally stop it later
+    ///         ctx.stop_task(handle);
+    ///     }
+    /// }
+    /// ```
     pub fn spawn_task(&mut self, task: impl Future<Output = ()> + Send + 'static) -> TaskHandle {
-        let (task, handle) = futures::future::abortable(task);
-
         let task_id = TaskHandle(TaskID::default());
-        self.tasks.insert(task_id.0, handle);
+
         #[cfg(feature = "tokio_runtime")]
-        tokio::spawn(task.map(|_| ()));
+        let handle = tokio::spawn(task);
+
         #[cfg(not(feature = "tokio_runtime"))]
-        async_global_executor::spawn(task.map(|_| ())).detach();
+        let handle = async_global_executor::spawn(task);
+
+        self.tasks.insert(task_id.0, handle);
+
         task_id
     }
 
@@ -329,10 +472,31 @@ impl<A: Actor> Context<A> {
         })
     }
 
-    /// Stop a very specific task.
+    /// Check if a task is finished.
+    ///
+    /// Returns `None` if the task handle is invalid (task was already removed).
+    pub fn is_task_finished(&self, handle: &TaskHandle) -> Option<bool> {
+        let task = self.tasks.get(&handle.0)?;
+
+        #[cfg(feature = "tokio_runtime")]
+        {
+            Some(task.is_finished())
+        }
+        #[cfg(not(feature = "tokio_runtime"))]
+        {
+            Some(task.is_finished())
+        }
+    }
+
+    /// Stop a specific task by aborting it and removing it from the task list.
     pub fn stop_task(&mut self, handle: TaskHandle) {
-        if let Some((_, task)) = self.tasks.remove_entry(&handle.0) {
+        if let Some(task) = self.tasks.remove(&handle.0) {
+            #[cfg(feature = "tokio_runtime")]
             task.abort();
+
+            // For async_runtime, dropping the Task handle cancels it automatically
+            #[cfg(feature = "async_runtime")]
+            drop(task);
         }
     }
 }
