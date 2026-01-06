@@ -1,0 +1,558 @@
+# Hannibal Actor Library - Agent Context Document
+
+**Version:** 0.15.0  
+**Edition:** Rust 2024  
+**MSRV:** 1.92  
+**License:** MIT/Apache-2.0
+
+## Project Overview
+
+Hannibal is a small, modern actor library for async Rust that simplifies concurrent programming by encapsulating state and communication patterns. It was completely rewritten from scratch in v0.12 (originally forked from xactor).
+
+### Key Motivation
+In async Rust, you often spawn tasks and create channels manually, which becomes cumbersome in larger projects. Hannibal provides:
+- Typed message handling with responses
+- Automatic lifecycle management
+- Multiple message type support per actor
+- Clean abstractions over channels and tasks
+
+### Repository Structure
+```
+hannibal/
+├── src/                    # Main library code
+│   ├── actor.rs           # Actor trait and core actor logic
+│   ├── addr.rs            # Address types for communicating with actors
+│   ├── handler.rs         # Handler and StreamHandler traits
+│   ├── context.rs         # Context API for actors
+│   ├── event_loop.rs      # Core event loop implementation
+│   ├── channel.rs         # Channel abstraction layer
+│   ├── broker.rs          # Pub/sub message broker
+│   ├── error.rs           # Error types
+│   └── runtime.rs         # Runtime abstractions
+├── hannibal-derive/       # Procedural macros (#[derive(Actor)], #[message], etc.)
+├── examples/              # 14 comprehensive examples
+├── tests/                 # Integration tests
+└── hannibal-examples/     # Separate examples workspace
+```
+
+## Core Concepts
+
+### The Actor Model
+
+An **Actor** is:
+- A struct that holds state
+- Runs in its own async task
+- Communicates exclusively through messages
+- Has lifecycle hooks (`started`, `stopped`, `cancelled`)
+
+### Central Architecture
+
+```
+┌─────────────┐
+│   Actor     │ ──── Your struct with state
+└─────────────┘
+       │
+       ↓
+┌─────────────┐
+│ EventLoop   │ ──── Owns actor, receives messages
+└─────────────┘
+       │
+       ↓
+┌─────────────┐
+│   Channel   │ ──── Message queue (bounded/unbounded)
+└─────────────┘
+       ↑
+       │
+┌─────────────┐
+│    Addr<A>  │ ──── Handle to send messages
+└─────────────┘
+```
+
+### Key Entities
+
+1. **Actor** - Trait implemented by your struct; defines lifecycle hooks
+2. **Context** - Passed to handlers; provides API for intervals, children, self-messaging, stopping
+3. **Addr<A>** - Strong address to an actor (keeps actor alive)
+4. **WeakAddr<A>** - Weak address (doesn't keep actor alive)
+5. **Sender<M>** - Send messages by message type (not actor type)
+6. **Caller<M>** - Call and get responses by message type
+7. **EventLoop** - Owns actor and receiver; dispatches messages
+8. **Payload** - Internal enum wrapping all messages and control signals
+9. **OwningAddr<A>** - Allows retrieving the actor after it stops
+
+## Core Traits and Types
+
+### Actor Trait
+```rust
+pub trait Actor: Sized + Send + 'static {
+    const NAME: &'static str = "hannibal::Actor";
+    
+    // Lifecycle hooks (all optional)
+    fn started(&mut self, ctx: &mut Context<Self>) -> impl Future<Output = DynResult> + Send;
+    fn stopped(&mut self, ctx: &mut Context<Self>) -> impl Future<Output = ()> + Send;
+    fn cancelled(&mut self, ctx: &mut Context<Self>) -> impl Future<Output = ()> + Send;
+}
+```
+
+### Message Trait
+```rust
+pub trait Message: 'static + Send {
+    type Response: 'static + Send;
+}
+```
+
+Use the `#[message]` or `#[message(response = T)]` attribute:
+```rust
+#[message]
+struct Greet(&'static str);  // Response = ()
+
+#[message(response = i32)]
+struct Add(i32, i32);  // Response = i32
+```
+
+### Handler Trait
+```rust
+pub trait Handler<M: Message>: Actor {
+    fn handle(
+        &mut self,
+        ctx: &mut Context<Self>,
+        msg: M,
+    ) -> impl Future<Output = M::Response> + Send;
+}
+```
+
+### StreamHandler Trait
+For actors that process streams:
+```rust
+pub trait StreamHandler<M: 'static>: Actor {
+    fn handle(&mut self, ctx: &mut Context<Self>, msg: M) 
+        -> impl Future<Output = ()> + Send;
+    fn finished(&mut self, ctx: &mut Context<Self>) 
+        -> impl Future<Output = ()> + Send;
+}
+```
+
+### Service Trait
+For globally accessible singleton actors:
+```rust
+pub trait Service: Actor + Default {
+    async fn from_registry() -> Addr<Self>;
+    fn try_from_registry() -> Option<Addr<Self>>;
+}
+```
+
+## Core APIs
+
+### Spawning Actors
+
+```rust
+// Simple spawn
+let addr = MyActor::default().spawn();
+
+// Owning spawn (get actor back after stop)
+let owning_addr = MyActor::default().spawn_owning();
+
+// Using builder for configuration
+let addr = hannibal::build(MyActor::default())
+    .bounded(10)                    // Bounded channel
+    .recreate_from_default()        // Auto-restart on failure
+    .spawn();
+
+// Spawn on a stream
+let addr = hannibal::build(MyActor::default())
+    .on_stream(my_stream)
+    .spawn();
+```
+
+### Sending Messages
+
+```rust
+// Fire-and-forget
+addr.send(Greet("Alice")).await?;
+
+// Call and await response
+let result = addr.call(Add(1, 2)).await?;
+
+// Try send (non-blocking)
+addr.try_send(Greet("Bob"))?;
+
+// Ping to check if alive
+addr.ping().await?;
+```
+
+### Using Senders and Callers
+
+```rust
+// Type-erased messaging (by message type, not actor type)
+let sender: Sender<Greet> = addr.sender();
+sender.send(Greet("Alice")).await?;
+
+let caller: Caller<Add> = addr.caller();
+let result = caller.call(Add(1, 2)).await?;
+
+// Weak variants (don't keep actor alive)
+let weak_sender = addr.weak_sender::<Greet>();
+let weak_caller = addr.weak_caller::<Add>();
+```
+
+### Context API
+
+Available in lifecycle hooks and handlers:
+
+```rust
+impl Handler<MyMessage> for MyActor {
+    async fn handle(&mut self, ctx: &mut Context<Self>, msg: MyMessage) {
+        // Lifecycle control
+        ctx.stop()?;
+        
+        // Intervals and timers
+        ctx.interval(PingMsg, Duration::from_secs(1));
+        ctx.delayed_send(|| StopMsg, Duration::from_secs(10));
+        ctx.delayed_exec(async { /* ... */ }, Duration::from_millis(500));
+        
+        // Child actors
+        ctx.add_child(child_addr);
+        ctx.register_child::<MyMsg>(child_addr);
+        ctx.send_to_children(BroadcastMsg);
+        
+        // Broker subscriptions
+        ctx.subscribe::<Topic>().await?;
+        ctx.unsubscribe::<Topic>().await?;
+        
+        // Self-addressing
+        let weak_addr = ctx.weak_address();
+        let addr = ctx.address();
+    }
+}
+```
+
+### Services and Broker
+
+```rust
+// Service: global singleton
+#[derive(Default, Actor, Service)]
+struct MyService { /* ... */ }
+
+let addr = MyService::from_registry().await;
+addr.call(GetData).await?;
+
+// Broker: pub/sub
+#[derive(Clone, Message)]
+struct Topic(String);
+
+// Subscribe in actor's started() hook
+ctx.subscribe::<Topic>().await?;
+
+// Publish from anywhere
+Broker::publish(Topic("hello".into())).await?;
+```
+
+## Features and Configuration
+
+### Cargo Features
+
+```toml
+[features]
+default = ["tokio_runtime"]
+
+# Runtimes
+tokio_runtime = ["runtime", "dep:tokio", "async-global-executor/tokio"]
+async_runtime = ["runtime", "dep:async-io", "dep:async-global-executor"]
+
+# Channel implementations
+async_channel = ["dep:async-channel"]  # Use async-channel instead of futures
+futures_channel = []                   # Use futures::channel (default)
+```
+
+### Channel Configuration
+
+```rust
+// Bounded channel (backpressure when full)
+let addr = hannibal::build(actor).bounded(100).spawn();
+
+// Unbounded channel (no backpressure)
+let addr = hannibal::build(actor).unbounded().spawn();
+
+// Default is unbounded
+let addr = actor.spawn();
+```
+
+### Restart Strategies
+
+```rust
+impl RestartableActor for MyActor {}
+
+let addr = hannibal::build(MyActor::default())
+    .recreate_from_default()  // Restart using Default::default()
+    .spawn();
+
+// Manually restart
+addr.restart()?;
+```
+
+### Timeouts
+
+```rust
+let addr = hannibal::build(actor)
+    .abort_after(Duration::from_secs(5))  // Timeout for message handling
+    .spawn();
+```
+
+## Common Patterns
+
+### Basic Actor with State
+
+```rust
+use hannibal::prelude::*;
+
+#[derive(Actor)]
+struct Counter(i32);
+
+#[message(response = i32)]
+struct Increment;
+
+impl Handler<Increment> for Counter {
+    async fn handle(&mut self, _ctx: &mut Context<Self>, _: Increment) -> i32 {
+        self.0 += 1;
+        self.0
+    }
+}
+
+let mut addr = Counter(0).spawn();
+let count = addr.call(Increment).await?;
+```
+
+### Actor with Initialization
+
+```rust
+impl Actor for MyActor {
+    async fn started(&mut self, ctx: &mut Context<Self>) -> DynResult<()> {
+        // Setup intervals, subscribe to topics, spawn children
+        ctx.interval(Tick, Duration::from_secs(1));
+        ctx.subscribe::<GlobalEvent>().await?;
+        Ok(())
+    }
+    
+    async fn stopped(&mut self, _ctx: &mut Context<Self>) {
+        // Cleanup resources
+        println!("Actor stopped");
+    }
+}
+```
+
+### Stream Processing
+
+```rust
+#[derive(Default, Actor)]
+struct StreamProcessor;
+
+impl StreamHandler<String> for StreamProcessor {
+    async fn handle(&mut self, _ctx: &mut Context<Self>, msg: String) {
+        println!("Received: {}", msg);
+    }
+    
+    async fn finished(&mut self, ctx: &mut Context<Self>) {
+        ctx.stop().unwrap();
+    }
+}
+
+let stream = futures::stream::iter(vec!["a", "b", "c"]);
+let addr = hannibal::build(StreamProcessor)
+    .on_stream(stream)
+    .spawn();
+addr.await?; // Waits for stream to finish
+```
+
+### Parent-Child Actor Hierarchies
+
+```rust
+impl Actor for Parent {
+    async fn started(&mut self, ctx: &mut Context<Self>) -> DynResult<()> {
+        // Children are stopped when parent stops
+        ctx.add_child(Child::default().spawn());
+        
+        // Register children by message type for broadcasting
+        ctx.register_child::<Update>(Child::default().spawn());
+        Ok(())
+    }
+}
+
+impl Handler<BroadcastUpdate> for Parent {
+    async fn handle(&mut self, ctx: &mut Context<Self>, msg: BroadcastUpdate) {
+        ctx.send_to_children(Update(msg.0));
+    }
+}
+```
+
+## Error Handling
+
+```rust
+pub enum ActorError {
+    AsyncSendError(futures::channel::mpsc::SendError),
+    Canceled(futures::channel::oneshot::Canceled),
+    AlreadyStopped,
+    ServiceStillRunning,
+    Timeout,
+}
+
+pub type Result<T> = std::result::Result<T, ActorError>;
+pub type DynResult<T = ()> = std::result::Result<T, Box<dyn std::error::Error + Send + Sync>>;
+```
+
+## Testing
+
+### Running Tests
+
+```bash
+# All tests with default features
+cargo test
+
+# Test with specific runtime
+cargo test --no-default-features --features tokio_runtime
+cargo test --no-default-features --features async_runtime
+
+# Use nextest (preferred for stress testing)
+just test
+```
+
+### Test Utilities
+
+```rust
+#[test_log::test(tokio::test)]
+async fn test_actor() {
+    let addr = MyActor::default().spawn();
+    let result = addr.call(MyMessage).await.unwrap();
+    assert_eq!(result, expected);
+}
+```
+
+## Development Guidelines
+
+### Code Quality
+
+The project enforces strict linting:
+```toml
+[lints.rust]
+unsafe_code = "forbid"
+trivial_numeric_casts = "forbid"
+unused_import_braces = "forbid"
+
+[lints.clippy]
+dbg_macro = "warn"
+expect_used = "warn"
+indexing_slicing = "warn"
+missing_panics_doc = "warn"
+```
+
+### No `unwrap()` in Library Code
+Use `?` or explicit error handling. Tests can use `unwrap()`.
+
+### Logging
+Uses the `log` crate with structured logging:
+```rust
+log::trace!("calling actor {}", std::any::type_name::<M>());
+log::debug!("received {}", msg.0);
+```
+
+### Conventions
+
+- **Commits:** Follow [Conventional Commits](https://www.conventionalcommits.org/)
+- **Versioning:** SemVer 2.0 with `cargo-semver-checks`
+- **Documentation:** All public APIs must have doc comments
+- **Examples:** Add examples for new features
+
+## CI Pipeline
+
+```bash
+just ci  # Runs full CI locally
+```
+
+The CI includes:
+1. Clippy with multiple feature combinations
+2. Tests with all runtime/channel combinations
+3. Doc tests
+4. Semver compatibility checks
+5. Example builds
+
+## Key Files
+
+- **`src/lib.rs`** - Public API and module structure
+- **`src/actor.rs`** - Actor trait and spawning logic
+- **`src/addr.rs`** - Address types and messaging
+- **`src/event_loop.rs`** - Core event loop
+- **`src/context.rs`** - Context API implementation
+- **`src/handler.rs`** - Handler traits
+- **`src/broker.rs`** - Broker implementation
+- **`examples/`** - Best learning resource (14 examples)
+- **`how_hannibal_works.md`** - Architecture deep-dive
+
+## Quick Reference
+
+### Import Pattern
+```rust
+use hannibal::prelude::*;
+```
+
+### Derive Macros
+```rust
+#[derive(Actor)]           // Implement Actor with defaults
+#[derive(Service)]         // Implement Service trait
+#[derive(Message)]         // Implement Message with Response = ()
+
+#[message]                 // Response = ()
+#[message(response = T)]   // Response = T
+
+#[hannibal::main]          // Main function macro (sets up runtime)
+```
+
+### Spawning Shortcuts
+```rust
+actor.spawn()              -> Addr<A>
+actor.spawn_owning()       -> OwningAddr<A>
+hannibal::build(actor)     -> Builder
+```
+
+### Address Types
+- `Addr<A>` - Strong, actor-typed
+- `WeakAddr<A>` - Weak, actor-typed
+- `OwningAddr<A>` - Strong, returns actor on stop
+- `Sender<M>` - Strong, message-typed
+- `WeakSender<M>` - Weak, message-typed
+- `Caller<M>` - Strong, message-typed (with response)
+- `WeakCaller<M>` - Weak, message-typed (with response)
+
+## Examples to Study
+
+1. **`examples/simple.rs`** - Basic actor, sending, calling
+2. **`examples/builder.rs`** - Builder configuration
+3. **`examples/streams.rs`** - Stream processing
+4. **`examples/broker.rs`** - Pub/sub patterns
+5. **`examples/children.rs`** - Actor hierarchies
+6. **`examples/intervals.rs`** - Timers and intervals
+7. **`examples/storage-service.rs`** - Service pattern
+8. **`examples/timeout.rs`** - Timeout handling
+9. **`examples/owning_addr.rs`** - Retrieving actor after stop
+
+## Architecture Notes
+
+- Actors run in separate tasks via `async-global-executor` or Tokio
+- Messages are sent through channels (futures::mpsc or async-channel)
+- The EventLoop owns the actor and processes Payload enums
+- Context provides actor self-reference and system interaction
+- Services use a global registry (type-keyed HashMap)
+- Broker uses weak senders to avoid keeping subscribers alive
+
+## When Adding Features
+
+1. Consider both `tokio_runtime` and `async_runtime` compatibility
+2. Add examples demonstrating the feature
+3. Update documentation and this agent.md
+4. Add tests for both bounded and unbounded channels
+5. Test with both channel implementations if relevant
+6. Update CHANGELOG.md following conventional commits
+
+## Known Limitations
+
+- Stream handlers cannot be restarted (tied to stream lifecycle)
+- Actors must be `Send + 'static`
+- Messages must be `Send + 'static`

@@ -1,12 +1,9 @@
-use std::{
-    any::{Any, TypeId},
-    collections::HashMap,
-};
+use std::collections::HashMap;
 
 use futures::channel::oneshot;
 
 use crate::{
-    Handler, Message, RestartableActor, Sender, WeakAddr,
+    Handler, Message, RestartableActor, WeakAddr,
     actor::Actor,
     channel::WeakTx,
     error::{
@@ -17,7 +14,21 @@ use crate::{
     runtime,
 };
 
+mod context_id;
+mod core;
+mod task_id;
+
+#[cfg(test)]
+mod test_interval_cleanup;
+
 pub(crate) use self::{context_id::ContextID, core::Core, task_id::TaskID};
+
+// Runtime-specific task handle type
+#[cfg(all(feature = "tokio_runtime", not(feature = "async_runtime")))]
+type TaskJoinHandle = tokio::task::JoinHandle<()>;
+
+#[cfg(all(not(feature = "tokio_runtime"), feature = "async_runtime"))]
+type TaskJoinHandle = async_global_executor::Task<()>;
 
 pub type RunningFuture = futures::future::Shared<oneshot::Receiver<()>>;
 pub struct StopNotifier(pub(crate) oneshot::Sender<()>);
@@ -27,107 +38,6 @@ impl StopNotifier {
     }
 }
 
-mod context_id {
-    use std::sync::{LazyLock, atomic::AtomicU64};
-
-    static CONTEXT_ID: LazyLock<AtomicU64> = LazyLock::new(|| AtomicU64::new(0));
-
-    #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
-    pub struct ContextID(u64);
-
-    impl Default for ContextID {
-        fn default() -> Self {
-            Self(CONTEXT_ID.fetch_add(1, std::sync::atomic::Ordering::Relaxed))
-        }
-    }
-
-    impl std::fmt::Display for ContextID {
-        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-            write!(f, "{}", self.0)
-        }
-    }
-
-    #[test]
-    fn ids_go_up() {
-        let id1 = ContextID::default();
-        let id2 = ContextID::default();
-        let id3 = ContextID::default();
-        assert!(id1 < id2);
-        assert!(id2 < id3);
-    }
-}
-
-mod task_id {
-    use std::sync::{LazyLock, atomic::AtomicU64};
-
-    static TASK_ID: LazyLock<AtomicU64> = LazyLock::new(|| AtomicU64::new(0));
-
-    #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
-    pub struct TaskID(u64);
-
-    impl Default for TaskID {
-        fn default() -> Self {
-            Self(TASK_ID.fetch_add(1, std::sync::atomic::Ordering::Relaxed))
-        }
-    }
-
-    #[test]
-    fn ids_go_up() {
-        let id1 = TaskID::default();
-        let id2 = TaskID::default();
-        let id3 = TaskID::default();
-        assert!(id1 < id2);
-        assert!(id2 < id3);
-    }
-}
-
-mod core {
-    use std::{pin::Pin, task::Poll};
-
-    use futures::FutureExt as _;
-
-    use super::{ContextID, RunningFuture};
-    use crate::error::Result;
-
-    #[derive(Clone)]
-    pub(crate) struct Core {
-        pub id: ContextID,
-        running: RunningFuture,
-    }
-
-    impl Core {
-        pub fn new(running: RunningFuture) -> Self {
-            Self {
-                id: ContextID::default(),
-                running,
-            }
-        }
-
-        /// Returns true if the actor is still running.
-        pub fn running(&self) -> bool {
-            self.running.peek().is_none()
-        }
-
-        /// Returns true if the actor has stopped.
-        pub fn stopped(&self) -> bool {
-            self.running.peek().is_some()
-        }
-    }
-
-    impl Future for Core {
-        type Output = Result<()>;
-        fn poll(self: Pin<&mut Self>, cx: &mut std::task::Context<'_>) -> Poll<Self::Output> {
-            log::trace!("polling core");
-            self.get_mut()
-                .running
-                .poll_unpin(cx)
-                .map(|p| p.map_err(Into::into))
-        }
-    }
-}
-
-type AnyBox = Box<dyn Any + Send + Sync>;
-
 /// Available to the actor in every execution call.
 ///
 /// The context is used to interact with the actor system.
@@ -136,15 +46,20 @@ type AnyBox = Box<dyn Any + Send + Sync>;
 pub struct Context<A> {
     pub(crate) core: Core,
     pub(crate) weak_tx: WeakTx<A>,
-    pub(crate) children: HashMap<TypeId, Vec<AnyBox>>,
-    // TODO: make this a slab and use unique ids to address handles so that users can actually stop intervals again
-    pub(crate) tasks: HashMap<TaskID, futures::future::AbortHandle>,
+    pub(crate) children: children::Children,
+    // TODO: consider using a tokio::joinset/ futures::FuturesUnordered
+    pub(crate) tasks: HashMap<TaskID, TaskJoinHandle>,
 }
 
 impl<A> Drop for Context<A> {
     fn drop(&mut self) {
         for (_, task) in self.tasks.drain() {
+            #[cfg(feature = "tokio_runtime")]
             task.abort();
+
+            // For async_runtime, dropping the Task handle cancels it automatically
+            #[cfg(not(feature = "tokio_runtime"))]
+            drop(task);
         }
     }
 }
@@ -168,10 +83,7 @@ impl<A: Actor> Context<A> {
     ///
     /// This child actor is held until this context is stopped.
     pub fn add_child(&mut self, child: impl Into<Sender<()>>) {
-        self.children
-            .entry(TypeId::of::<()>())
-            .or_default()
-            .push(Box::new(child.into()));
+        self.children.add(child)
     }
 
     /// Register a child actor by `Message` type.
@@ -179,28 +91,152 @@ impl<A: Actor> Context<A> {
     /// This actor will be held until this actor is stopped via a `Sender`.
     ///
     pub fn register_child<M: Message<Response = ()>>(&mut self, child: impl Into<Sender<M>>) {
-        self.children
-            .entry(TypeId::of::<M>())
-            .or_default()
-            .push(Box::new(child.into()));
+        self.children.register(child)
     }
 
     /// Send a message to all child actors registered with this message type.
-    pub fn send_to_children<M>(&mut self, message: M)
-    where
-        M: Message<Response = ()>,
-        M: Clone,
-    {
-        let key = TypeId::of::<M>();
+    pub fn send_to_children<M: Message<Response = ()> + Clone>(&mut self, message: M) {
+        self.children.forward(message);
+    }
 
-        if let Some(children) = self.children.get(&key) {
-            for child in children
-                .iter()
-                .filter_map(|child| child.downcast_ref::<Sender<M>>())
-            {
-                // TODO: force_send is not correct here, we should have a try_send mechanism instead
-                if let Err(error) = child.force_send(message.clone()) {
-                    log::error!("Failed to send message to child: {error}");
+    /// Perform context-local garbage collection.
+    ///
+    /// This method:
+    ///
+    /// - Removes child actors that have fully stopped.
+    /// - Drops join handles for background tasks that have already finished.
+    ///
+    /// Running tasks and live child actors are **not** affected: this method does
+    /// not cancel or stop anything that is still in progress. It only cleans up
+    /// bookkeeping for work that has already completed.
+    ///
+    /// # When to call this
+    ///
+    /// `gc` is **not** called automatically by the runtime. If your actor spawns
+    /// many short‑lived tasks or children, you should call `gc` periodically to
+    /// release their resources from the `Context`. A common pattern is to call it:
+    ///
+    /// - At the end of a message handler that may have spawned new tasks.
+    /// - On a timer or in response to a "maintenance" message.
+    ///
+    /// For actors that rarely spawn tasks or children, calling `gc` occasionally
+    /// (or not at all) may be sufficient.
+    ///
+    /// # Performance
+    ///
+    /// `gc` iterates over all tracked tasks and children to remove completed ones.
+    /// The cost is roughly proportional to the number of entries being tracked.
+    /// It is typically inexpensive for a modest number of tasks, but if your actor
+    /// tracks many thousands of tasks you may want to adjust how often you call
+    /// `gc` to balance cleanup latency against overhead.
+    ///
+    /// # Example
+    ///
+    /// ```ignore
+    /// impl Handler<MyMessage> for MyActor {
+    ///     type Response = ();
+    ///
+    ///     fn handle(&mut self, msg: MyMessage, ctx: &mut Context<Self>) {
+    ///         // Potentially spawn a new background task or child here...
+    ///
+    ///         // Periodically clean up finished tasks and stopped children.
+    ///         ctx.gc();
+    ///     }
+    /// }
+    /// ```
+    pub fn gc(&mut self) {
+        self.children.remove_stopped();
+        let initial_count = self.tasks.len();
+        self.tasks = self
+            .tasks
+            .drain()
+            .filter(|(_id, handle)| !handle.is_finished())
+            .collect();
+        let removed_count = initial_count - self.tasks.len();
+        if removed_count > 0 {
+            log::trace!(
+                "gc: removed {} finished task(s), {} remaining",
+                removed_count,
+                self.tasks.len()
+            );
+        }
+    }
+}
+
+mod children {
+    use std::{any::TypeId, collections::HashMap};
+
+    use crate::{Message, Sender};
+
+    /// Trait to check if something is still alive/running.
+    ///
+    /// This allows checking liveness of actors or senders regardless of their concrete type.
+    pub(crate) trait IsAlive: Send + Sync {
+        fn is_alive(&self) -> bool;
+        fn as_any(&self) -> &dyn std::any::Any;
+    }
+
+    impl<M: Message<Response = ()>> IsAlive for Sender<M> {
+        fn is_alive(&self) -> bool {
+            self.running()
+        }
+        fn as_any(&self) -> &dyn std::any::Any {
+            self
+        }
+    }
+
+    type Child = Box<dyn IsAlive>;
+
+    #[derive(Default)]
+    pub struct Children {
+        pub(crate) children: HashMap<TypeId, Vec<Child>>,
+    }
+    impl Children {
+        pub fn add(&mut self, child: impl Into<Sender<()>>) {
+            self.children
+                .entry(TypeId::of::<()>())
+                .or_default()
+                .push(Box::new(child.into()));
+        }
+        pub fn register<M: Message<Response = ()>>(&mut self, child: impl Into<Sender<M>>) {
+            self.children
+                .entry(TypeId::of::<M>())
+                .or_default()
+                .push(Box::new(child.into()));
+        }
+
+        pub fn remove_stopped(&mut self) {
+            for children in self.children.values_mut() {
+                let initial_count = children.len();
+                children.retain(|child| child.is_alive());
+                let removed_count = initial_count - children.len();
+                if removed_count > 0 {
+                    log::trace!(
+                        "gc: removed {} stopped child(ren), {} remaining",
+                        removed_count,
+                        children.len()
+                    );
+                }
+            }
+        }
+
+        /// Send a message to all child actors registered with this message type.
+        pub fn forward<M>(&mut self, message: M)
+        where
+            M: Message<Response = ()>,
+            M: Clone,
+        {
+            let key = TypeId::of::<M>();
+
+            if let Some(children) = self.children.get(&key) {
+                for child in children
+                    .iter()
+                    .filter_map(|child| child.as_any().downcast_ref::<Sender<M>>())
+                {
+                    // TODO: force_send is not correct here, we should have a try_send mechanism instead
+                    if let Err(error) = child.force_send(message.clone()) {
+                        log::error!("Failed to send message to child: {error}");
+                    }
                 }
             }
         }
@@ -258,6 +294,8 @@ impl<A: Actor> Context<A> {
 use futures::FutureExt;
 use std::{future::Future, time::Duration};
 
+use super::addr::sender::Sender;
+
 /// Represents a handle to a task that can be used to abort the task.
 #[derive(Copy, Clone)]
 pub struct TaskHandle(TaskID);
@@ -280,15 +318,41 @@ impl<A: Actor> Context<A> {
     /// Spawn a task that will be executed in the background.
     ///
     /// The task will be aborted when the actor is stopped.
+    ///
+    /// Returns a [`TaskHandle`] that can be used to check if the task is finished
+    /// or to stop it manually using [`Context::stop_task`].
+    ///
+    /// # Example
+    ///
+    /// ```rust,ignore
+    /// impl Handler<StartWork> for MyActor {
+    ///     async fn handle(&mut self, ctx: &mut Context<Self>, _: StartWork) {
+    ///         let handle = ctx.spawn_task(async {
+    ///             // Long-running background work
+    ///             do_work().await;
+    ///         });
+    ///
+    ///         // Check if task is still running
+    ///         if let Some(false) = ctx.is_task_finished(&handle) {
+    ///             println!("Task is still running");
+    ///         }
+    ///
+    ///         // Optionally stop it later
+    ///         ctx.stop_task(handle);
+    ///     }
+    /// }
+    /// ```
     pub fn spawn_task(&mut self, task: impl Future<Output = ()> + Send + 'static) -> TaskHandle {
-        let (task, handle) = futures::future::abortable(task);
-
         let task_id = TaskHandle(TaskID::default());
-        self.tasks.insert(task_id.0, handle);
+
         #[cfg(feature = "tokio_runtime")]
-        tokio::spawn(task.map(|_| ()));
+        let handle = tokio::spawn(task);
+
         #[cfg(not(feature = "tokio_runtime"))]
-        async_global_executor::spawn(task.map(|_| ())).detach();
+        let handle = async_global_executor::spawn(task);
+
+        self.tasks.insert(task_id.0, handle);
+
         task_id
     }
 
@@ -408,10 +472,31 @@ impl<A: Actor> Context<A> {
         })
     }
 
-    /// Stop a very specific task.
+    /// Check if a task is finished.
+    ///
+    /// Returns `None` if the task handle is invalid (task was already removed).
+    pub fn is_task_finished(&self, handle: &TaskHandle) -> Option<bool> {
+        let task = self.tasks.get(&handle.0)?;
+
+        #[cfg(feature = "tokio_runtime")]
+        {
+            Some(task.is_finished())
+        }
+        #[cfg(not(feature = "tokio_runtime"))]
+        {
+            Some(task.is_finished())
+        }
+    }
+
+    /// Stop a specific task by aborting it and removing it from the task list.
     pub fn stop_task(&mut self, handle: TaskHandle) {
-        if let Some((_, task)) = self.tasks.remove_entry(&handle.0) {
+        if let Some(task) = self.tasks.remove(&handle.0) {
+            #[cfg(feature = "tokio_runtime")]
             task.abort();
+
+            // For async_runtime, dropping the Task handle cancels it automatically
+            #[cfg(feature = "async_runtime")]
+            drop(task);
         }
     }
 }
@@ -432,256 +517,6 @@ impl<A: RestartableActor> Context<A> {
             Ok(())
         } else {
             Err(AlreadyStopped)
-        }
-    }
-}
-
-#[cfg(test)]
-#[allow(clippy::unwrap_used)]
-mod interval_cleanup {
-    use std::{
-        sync::{
-            Arc,
-            atomic::{AtomicBool, Ordering},
-        },
-        time::Duration,
-    };
-
-    use crate::runtime::sleep;
-
-    mod interval {
-        use super::*;
-        use crate::prelude::*;
-
-        #[derive(Debug)]
-        struct IntervalActor {
-            running: Arc<AtomicBool>,
-        }
-
-        impl Actor for IntervalActor {
-            async fn stopped(&mut self, _: &mut Context<Self>) {
-                self.running.store(false, Ordering::SeqCst);
-            }
-        }
-
-        impl Handler<()> for IntervalActor {
-            async fn handle(&mut self, _: &mut Context<Self>, _cmd: ()) {
-                self.running.store(true, Ordering::SeqCst);
-            }
-        }
-
-        #[tokio::test]
-        async fn stopped_when_actor_stopped() {
-            let flag = Arc::new(AtomicBool::new(false));
-            let addr = IntervalActor {
-                running: Arc::clone(&flag),
-            }
-            .spawn();
-            sleep(Duration::from_millis(300)).await;
-            addr.halt().await.unwrap();
-            sleep(Duration::from_millis(300)).await;
-            assert!(
-                !flag.load(Ordering::SeqCst),
-                "Handler should not be called after actor is stopped"
-            );
-        }
-    }
-
-    mod interval_order {
-        use super::*;
-        use crate::prelude::*;
-
-        #[test_log::test(tokio::test)]
-        async fn handlers_never_overlap() {
-            use std::sync::Arc;
-            use std::sync::atomic::{AtomicBool, AtomicU32};
-
-            let handler_running = Arc::new(AtomicBool::new(false));
-            let overlap_detected = Arc::new(AtomicBool::new(false));
-            let handler_count = Arc::new(AtomicU32::new(0));
-
-            struct NoOverlapActor {
-                handler_running: Arc<AtomicBool>,
-                overlap_detected: Arc<AtomicBool>,
-                handler_count: Arc<AtomicU32>,
-            }
-
-            #[derive(Clone)]
-            #[message]
-            struct SlowMessage;
-
-            impl Handler<SlowMessage> for NoOverlapActor {
-                async fn handle(&mut self, _ctx: &mut Context<Self>, _: SlowMessage) {
-                    let was_running = self.handler_running.swap(true, Ordering::SeqCst);
-
-                    if was_running {
-                        self.overlap_detected.store(true, Ordering::SeqCst);
-                        panic!(
-                            "Handler overlap detected! A handler started while another was still running."
-                        );
-                    }
-
-                    self.handler_count.fetch_add(1, Ordering::SeqCst);
-
-                    sleep(Duration::from_millis(100)).await;
-
-                    self.handler_running.store(false, Ordering::SeqCst);
-                }
-            }
-
-            impl Actor for NoOverlapActor {
-                async fn started(&mut self, ctx: &mut Context<Self>) -> DynResult<()> {
-                    ctx.interval_with(|| SlowMessage, Duration::from_millis(20));
-                    Ok(())
-                }
-            }
-
-            let addr = crate::build(NoOverlapActor {
-                handler_running: Arc::clone(&handler_running),
-                overlap_detected: Arc::clone(&overlap_detected),
-                handler_count: Arc::clone(&handler_count),
-            })
-            .bounded(10)
-            .spawn();
-
-            sleep(Duration::from_millis(300)).await;
-            addr.halt().await.unwrap();
-
-            assert!(
-                !overlap_detected.load(Ordering::SeqCst),
-                "Handlers should never overlap"
-            );
-
-            let count = handler_count.load(Ordering::SeqCst);
-            assert!(
-                count >= 2,
-                "At least 2 handlers should have executed (got {count})",
-            );
-
-            assert!(
-                !handler_running.load(Ordering::SeqCst),
-                "No handler should be running after halt"
-            );
-        }
-    }
-
-    mod interval_with {
-        use super::*;
-        use crate::{TaskHandle, actor::spawnable::Spawnable, prelude::*};
-
-        #[derive(Debug)]
-        struct IntervalWithActor {
-            running: Arc<AtomicBool>,
-            interval: Option<TaskHandle>,
-        }
-
-        impl Actor for IntervalWithActor {
-            async fn started(&mut self, ctx: &mut Context<Self>) -> DynResult<()> {
-                self.interval
-                    .replace(ctx.interval_with(|| (), Duration::from_millis(100)));
-                Ok(())
-            }
-            async fn stopped(&mut self, _: &mut Context<Self>) {
-                self.running.store(false, Ordering::SeqCst);
-            }
-        }
-
-        impl Handler<()> for IntervalWithActor {
-            async fn handle(&mut self, _: &mut Context<Self>, _: ()) {
-                self.running.store(true, Ordering::SeqCst);
-            }
-        }
-
-        #[tokio::test]
-        async fn stopped_by_task_handle() {
-            let running = Arc::new(AtomicBool::new(false));
-            let addr = IntervalWithActor {
-                running: Arc::clone(&running),
-                interval: None,
-            }
-            .spawn();
-            sleep(Duration::from_millis(300)).await;
-
-            #[derive(hannibal_derive::Message)]
-            struct StopInterval;
-            impl Handler<StopInterval> for IntervalWithActor {
-                async fn handle(
-                    &mut self,
-                    ctx: &mut Context<Self>,
-                    _msg: StopInterval,
-                ) -> <StopInterval as Message>::Response {
-                    self.running.store(false, Ordering::SeqCst);
-                    if let Some(interval) = self.interval {
-                        ctx.stop_task(interval)
-                    }
-                }
-            }
-
-            addr.send(StopInterval).await.unwrap();
-            sleep(Duration::from_millis(300)).await;
-            assert!(
-                !running.load(Ordering::SeqCst),
-                "Handler should not be called after actor is stopped"
-            );
-        }
-
-        #[tokio::test]
-        async fn stopped_when_actor_stopped() {
-            let running = Arc::new(AtomicBool::new(false));
-            let addr = IntervalWithActor {
-                running: Arc::clone(&running),
-                interval: None,
-            }
-            .spawn();
-            sleep(Duration::from_millis(300)).await;
-            addr.halt().await.unwrap();
-            sleep(Duration::from_millis(300)).await;
-            assert!(
-                !running.load(Ordering::SeqCst),
-                "Handler should not be called after actor is stopped"
-            );
-        }
-    }
-
-    mod delayed_send {
-        use super::*;
-        use crate::prelude::*;
-
-        #[derive(Debug)]
-        struct DelayedSendActor {
-            running: Arc<AtomicBool>,
-        }
-
-        impl Actor for DelayedSendActor {
-            async fn started(&mut self, ctx: &mut Context<Self>) -> DynResult<()> {
-                ctx.delayed_send(|| (), Duration::from_millis(100));
-                Ok(())
-            }
-            async fn stopped(&mut self, _: &mut Context<Self>) {
-                self.running.store(false, Ordering::SeqCst);
-            }
-        }
-
-        impl Handler<()> for DelayedSendActor {
-            async fn handle(&mut self, _: &mut Context<Self>, _: ()) {
-                self.running.store(true, Ordering::SeqCst);
-            }
-        }
-
-        #[tokio::test]
-        async fn stopped_when_actor_stopped() {
-            let running = Arc::new(AtomicBool::new(false));
-            let addr = DelayedSendActor {
-                running: Arc::clone(&running),
-            }
-            .spawn();
-            sleep(Duration::from_millis(300)).await;
-            addr.halt().await.unwrap();
-            sleep(Duration::from_millis(300)).await;
-            assert!(
-                !running.load(Ordering::SeqCst),
-                "Handler should not be called after actor is stopped"
-            );
         }
     }
 }

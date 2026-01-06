@@ -70,6 +70,12 @@
 #![warn(rustdoc::broken_intra_doc_links, missing_docs)]
 #![deny(clippy::unwrap_used)]
 
+// Runtime features are mutually exclusive
+#[cfg(all(feature = "tokio_runtime", feature = "async_runtime"))]
+compile_error!(
+    "Features `tokio_runtime` and `async_runtime` are mutually exclusive. Please enable only one."
+);
+
 mod actor;
 mod addr;
 mod channel;
