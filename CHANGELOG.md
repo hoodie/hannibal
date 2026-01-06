@@ -1,5 +1,14 @@
 # Changelog
 
+### [v0.15.1](https://github.com/hoodie/hannibal/compare/v0.15.0...v0.15.1) (2026-01-06)
+
+#### Features
+
+* enable sub-task garbage collection
+([1fdfef9](https://github.com/hoodie/hannibal/commit/1fdfef93584fe90a6477a5ec8a61adc673353081))
+* add cleanup_children method to Context
+([7e62ea5](https://github.com/hoodie/hannibal/commit/7e62ea5cccdea449f1d6169e15f82c92b40b7ea6))
+
 ## [v0.15.0](https://github.com/hoodie/hannibal/compare/v0.14.2...v0.15.0) (2025-12-13)
 
 ### ⚠ BREAKING CHANGE
