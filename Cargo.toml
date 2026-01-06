@@ -13,7 +13,7 @@ categories = ["asynchronous"]
 
 readme = "README.md"
 edition = "2024"
-rust-version = "1.89"
+rust-version = "1.92"
 
 [workspace]
 members = ["hannibal-derive"]

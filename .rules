@@ -1,8 +1,8 @@
 # Hannibal Actor Library - Agent Context Document
 
-**Version:** 0.14.2  
+**Version:** 0.15.0  
 **Edition:** Rust 2024  
-**MSRV:** 1.89  
+**MSRV:** 1.92  
 **License:** MIT/Apache-2.0
 
 ## Project Overview
