@@ -58,6 +58,18 @@ jobs:
           echo "This PR contains intentional breaking changes (detected as '${{ needs.check.outputs.release_type }}')" >> $GITHUB_STEP_SUMMARY
 
       - name: check semver
-        uses: obi1kenobi/cargo-semver-checks-action@v2.8
-        with:
-          release-type: ${{ needs.check.outputs.release_type  }}
+        if: needs.check.outputs.release_type != 'major' && needs.check.outputs.release_type != 'minor'
+        run: |
+          cargo install cargo-semver-checks
+          for features in \
+            tokio_runtime \
+            tokio_runtime,async_channel \
+            async_runtime \
+            async_runtime,tokio \
+            async_runtime,tokio,async_channel \
+            async_runtime,async_channel
+          do
+            echo "::group::Checking features: $features"
+            cargo semver-checks --only-explicit-features --features "$features" --release-type ${{ needs.check.outputs.release_type }}
+            echo "::endgroup::"
+          done
