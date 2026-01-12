@@ -58,7 +58,7 @@ impl StreamHandler<WsStreamMessage> for WebsocketConnector {
 pub async fn peer_connected(ws: WebSocketUpgrade) -> Response {
     ws.on_upgrade(|socket| async move {
         let (sender, messages) = socket.split();
-        hannibal::build(WebsocketConnector { sender })
+        hannibal::setup_actor(WebsocketConnector { sender })
             .on_stream(messages)
             .spawn()
             .await

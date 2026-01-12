@@ -58,35 +58,50 @@ impl RestartableActor for MyActor {}
 
 #[hannibal::main]
 async fn main() {
-    let addr = hannibal::build(MyActor("Caesar"))
+    // Basic spawn with bounded channel and restart strategy
+    let addr = hannibal::setup_actor(MyActor("Caesar"))
         .bounded(6)
         .recreate_from_default()
         .spawn();
     send_greet_and_stop(addr).await;
 
-    // register
-    hannibal::build(MyActor("Caesar"))
+    // Register as a service
+    hannibal::setup_actor(MyActor("Caesar"))
         .bounded(6)
         .recreate_from_default()
         .register()
         .await
         .unwrap();
 
-    let addr = hannibal::build(MyActor("Caesar"))
-        .unbounded()
-        .non_restartable()
-        .with_stream(stream::iter(17..19)) // this shouldn't work
+    let addr = MyActor("Caesar").spawn();
+    send_greet_and_stop(addr).await;
+
+    let addr = MyActor("Caesar")
+        .setup_actor()
+        .bounded(6)
+        .recreate_from_default()
         .spawn();
     send_greet_and_stop(addr).await;
 
-    let addr = hannibal::build(MyActor("Caesar"))
-        .bounded_on_stream(10, stream::iter(17..19)) // this shouldn't work
+    // Stream with on_stream first, then bounded
+    let addr = hannibal::setup_actor(MyActor("Caesar"))
+        .on_stream(stream::iter(17..19))
+        .bounded(10)
         .spawn();
     send_greet_and_stop(addr).await;
 
-    let addr = hannibal::build(MyActor("Caesar")).unbounded().spawn();
+    // Stream with bounded first, then on_stream
+    let addr = hannibal::setup_actor(MyActor("Caesar"))
+        .bounded(10)
+        .on_stream(stream::iter(17..19))
+        .spawn();
     send_greet_and_stop(addr).await;
 
+    // Simple unbounded spawn
+    let addr = MyActor("Caesar").setup_actor().unbounded().spawn();
+    send_greet_and_stop(addr).await;
+
+    // Direct spawn on actor (uses defaults)
     let addr = MyActor("Caesar").spawn();
     send_greet_and_stop(addr).await;
 }

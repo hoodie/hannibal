@@ -505,10 +505,24 @@ impl<A: Actor> Context<A> {
 impl<A: RestartableActor> Context<A> {
     /// Restart the actor.
     ///
-    /// Depending on the `RestartStrategy` of the particular [`Actor`] this will do either of two things:
+    /// The behavior depends on the restart strategy configured via the builder:
     ///
-    /// *`RestartOnly`*: call the [`Actor::stopped()`] and [`Actor::started()`] methods in order
-    /// *`RecreateFromDefault`*: create a new instance of the actor and start it.
+    /// ## `RestartOnly` (default)
+    ///
+    /// Calls [`Actor::stopped()`] then [`Actor::started()`] on the **same instance**.
+    /// The actor's state is preserved—only the lifecycle hooks are re-triggered.
+    /// This is the default when using [`hannibal::setup_actor()`](crate::build).
+    ///
+    /// ## `RecreateFromDefault`
+    ///
+    /// Calls [`Actor::stopped()`], creates a **new instance** via `Default::default()`,
+    /// then calls [`Actor::started()`]. All previous state is discarded.
+    /// Enable this with [`ActorBuilder::recreate_from_default()`](crate::builder::ActorBuilder::recreate_from_default).
+    ///
+    /// ## Note: Stream Actors
+    ///
+    /// Actors spawned with [`ActorBuilder::on_stream()`](crate::builder::ActorBuilder::on_stream)
+    /// cannot be restarted, as streams cannot be replayed.
     ///
     pub fn restart(&self) -> Result<()> {
         if let Some(tx) = self.weak_tx.upgrade() {

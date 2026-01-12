@@ -247,7 +247,7 @@ mod tests {
         struct Me;
         type Svc = TokioActor<Me>;
 
-        let (first_svc, replaced) = crate::build(Svc::new(1337))
+        let (first_svc, replaced) = crate::setup_actor(Svc::new(1337))
             .unbounded()
             .spawn()
             .register()

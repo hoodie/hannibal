@@ -39,7 +39,7 @@ pub trait Handler<M: Message>: Actor {
 /// # #[hannibal::main]
 /// # async fn main() {
 /// let num_stream = futures::stream::iter(1..30);
-/// let addr = hannibal::build(FizzBuzzer::default())
+/// let addr = hannibal::setup_actor(FizzBuzzer::default())
 ///     .on_stream(num_stream)
 ///     .spawn();
 ///

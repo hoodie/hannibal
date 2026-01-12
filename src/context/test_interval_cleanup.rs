@@ -93,7 +93,7 @@ mod interval_order {
             }
         }
 
-        let addr = crate::build(NoOverlapActor {
+        let addr = crate::setup_actor(NoOverlapActor {
             handler_running: Arc::clone(&handler_running),
             overlap_detected: Arc::clone(&overlap_detected),
             handler_count: Arc::clone(&handler_count),

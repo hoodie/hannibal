@@ -37,7 +37,8 @@ async fn main() {
 
     // normal case, tasks take long
     println!("SleepyActor 0 will take 1 second to complete");
-    let mut addr = hannibal::build(SleepyActor(0))
+    let mut addr = SleepyActor(0)
+        .setup_actor()
         .bounded(1)
         .recreate_from_default()
         .spawn();
@@ -47,7 +48,7 @@ async fn main() {
     // timeout and continue
     println!("SleepyActor 1 will be canceled after 1 second");
     println!("SleepyActor 1 still accepts messages after being canceled");
-    let mut addr = hannibal::build(SleepyActor(1))
+    let mut addr = hannibal::setup_actor(SleepyActor(1))
         .bounded(1)
         .timeout(Duration::from_millis(100))
         .fail_on_timeout(false)
@@ -70,7 +71,7 @@ async fn main() {
 
     // timeout and fail
     println!("SleepyActor 2 will be canceled after 1 second");
-    let mut addr = hannibal::build(SleepyActor(2))
+    let mut addr = hannibal::setup_actor(SleepyActor(2))
         .bounded(1)
         .timeout(Duration::from_millis(100))
         .fail_on_timeout(true)

@@ -1,14 +1,19 @@
-error[E0599]: no method named `with_stream` found for struct `ActorBuilderWithChannel<MyActor, hannibal::actor::restart_strategy::RecreateFromDefault>` in the current scope
+error[E0599]: no method named `on_stream` found for struct `ActorBuilder<MyActor, hannibal::actor::restart_strategy::RecreateFromDefault>` in the current scope
   --> tests/fails/builder_cant_recreate_streamhandler.rs:21:10
    |
-18 |       let addr = hannibal::build(MyActor("Caesar"))
+19 |       let addr = hannibal::setup_actor(MyActor("Caesar"))
    |  ________________-
-19 | |         .unbounded()
 20 | |         .recreate_from_default()
-21 | |         .with_stream(stream::iter(vec![17, 19])) // this shouldn't work
-   | |         -^^^^^^^^^^^ method not found in `ActorBuilderWithChannel<MyActor, hannibal::actor::restart_strategy::RecreateFromDefault>`
+21 | |         .on_stream(stream::iter(vec![17, 19]))
+   | |         -^^^^^^^^^ method not found in `ActorBuilder<MyActor, hannibal::actor::restart_strategy::RecreateFromDefault>`
    | |_________|
    |
    |
    = note: the method was found for
-           - `ActorBuilderWithChannel<A, hannibal::actor::restart_strategy::NonRestartable>`
+           - `ActorBuilder<A>`
+
+error[E0282]: type annotations needed
+  --> tests/fails/builder_cant_recreate_streamhandler.rs:23:5
+   |
+23 |     addr.await.unwrap();
+   |     ^^^^^^^^^^ cannot infer type
