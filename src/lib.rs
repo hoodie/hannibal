@@ -105,7 +105,7 @@ pub use self::{
     handler::{Handler, StreamHandler},
 };
 
-pub use actor::{builder, builder::build};
+pub use actor::{builder, builder::setup};
 
 pub use broker::Broker;
 
@@ -114,6 +114,7 @@ pub mod prelude {
     pub use crate::{
         actor::{Actor, DynResult, service::Service},
         addr::{Addr, Message, sender::Sender, weak_caller::WeakCaller, weak_sender::WeakSender},
+        builder::Configurable,
         context::Context,
         handler::{Handler, StreamHandler},
         main, message,

@@ -50,7 +50,7 @@ async fn bounded_mailbox_with_slow_handler_skips_ticks() {
     let received_ticks = Arc::new(Mutex::new(Vec::new()));
     let generated_count = Arc::new(AtomicU32::new(0));
 
-    let tick_tracker = hannibal::build(TickTrackingActor {
+    let tick_tracker = hannibal::setup(TickTrackingActor {
         received_ticks: Arc::clone(&received_ticks),
         generated_count: Arc::clone(&generated_count),
         processing_time: Duration::from_millis(250),
@@ -155,7 +155,7 @@ async fn fast_handler_keeps_up_with_bounded_mailbox() {
         processing_time: Duration::from_millis(10),
     };
 
-    let addr = hannibal::build(actor).bounded(3).spawn();
+    let addr = hannibal::setup(actor).bounded(3).spawn();
 
     // Run for 1 second
     sleep(Duration::from_secs(1)).await;
@@ -202,7 +202,7 @@ async fn extremely_slow_handler_skips_many_ticks() {
         processing_time: Duration::from_millis(400),
     };
 
-    let addr = hannibal::build(actor)
+    let addr = hannibal::setup(actor)
         .bounded(1) // Very small mailbox
         .spawn();
 
@@ -255,7 +255,7 @@ async fn demonstrates_generated_vs_received_with_sequence_numbers() {
         processing_time: Duration::from_millis(300),
     };
 
-    let addr = hannibal::build(actor).bounded(2).spawn();
+    let addr = hannibal::setup(actor).bounded(2).spawn();
 
     // Run for 2 seconds to allow clear pattern to emerge
     sleep(Duration::from_millis(2000)).await;
