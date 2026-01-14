@@ -10,6 +10,7 @@ pub type Result<T> = std::result::Result<T, ActorError>;
 
 /// Errors produced from within the actor event-loop.
 #[derive(Error, Debug, PartialEq)]
+#[non_exhaustive]
 pub enum ActorError {
     /// The sender failed to send a message on an internal channel.
     #[error("Failed to send message")]
