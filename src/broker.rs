@@ -191,10 +191,10 @@ mod subscribe_publish_unsubscribe {
 
     #[test_log::test(tokio::test)]
     async fn publish_different_ways() -> DynResult<()> {
-        let mut subscriber1 = Subscribing::default().spawn_owning();
+        let subscriber1 = Subscribing::default().spawn_owning();
         subscriber1.ping().await.unwrap();
 
-        let mut subscriber2 = Subscribing::default().spawn_owning();
+        let subscriber2 = Subscribing::default().spawn_owning();
         subscriber2.ping().await.unwrap();
 
         let ping_both = || join(subscriber1.ping(), subscriber2.ping());
@@ -206,8 +206,8 @@ mod subscribe_publish_unsubscribe {
 
         let _ = ping_both().await;
 
-        assert_eq!(subscriber1.join().await, Some(Subscribing(vec![42, 23])));
-        assert_eq!(subscriber2.join().await, Some(Subscribing(vec![42, 23])));
+        assert_eq!(subscriber1.consume().await, Ok(Subscribing(vec![42, 23])));
+        assert_eq!(subscriber2.consume().await, Ok(Subscribing(vec![42, 23])));
 
         Ok(())
     }
