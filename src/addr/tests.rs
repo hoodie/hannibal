@@ -1,7 +1,7 @@
 #![allow(clippy::unwrap_used)]
 use hannibal_derive::message;
 
-use crate::{Context, DynResult, event_loop::EventLoop};
+use crate::{Context, DynResult, event_loop::EventLoop, prelude::Spawnable, runtime};
 
 use super::*;
 use std::future::Future;
@@ -47,8 +47,7 @@ pub fn start<A: Actor>(actor: A) -> (impl Future<Output = DynResult<A>>, Addr<A>
 
 #[test_log::test(tokio::test)]
 async fn addr_call() {
-    let (event_loop, addr) = start(MyActor::default());
-    tokio::spawn(event_loop);
+    let addr = MyActor::default().spawn();
 
     let addition = addr.call(Add(1, 2)).await.unwrap();
     assert_eq!(addition, 3);
@@ -57,7 +56,7 @@ async fn addr_call() {
 #[test_log::test(tokio::test)]
 async fn addr_send() {
     let (event_loop, mut addr) = start(MyActor::default());
-    let task = tokio::spawn(event_loop);
+    let task = runtime::spawn(event_loop);
     addr.send(Store("password")).await.unwrap();
     addr.stop().unwrap();
     let actor = task.await.unwrap().unwrap();
@@ -66,8 +65,7 @@ async fn addr_send() {
 
 #[test_log::test(tokio::test)]
 async fn addr_send_err() {
-    let (event_loop, mut addr) = start(MyActor::default());
-    tokio::spawn(event_loop);
+    let mut addr = MyActor::default().spawn();
     let addr2 = addr.clone();
     addr.stop().unwrap();
     addr.await.unwrap();
@@ -76,8 +74,7 @@ async fn addr_send_err() {
 
 #[test_log::test(tokio::test)]
 async fn addr_stop() {
-    let (event_loop, mut addr) = start(MyActor::default());
-    tokio::spawn(event_loop);
+    let mut addr = MyActor::default().spawn();
 
     let addr2 = addr.clone();
     addr.stop().unwrap();
@@ -88,8 +85,7 @@ async fn addr_stop() {
 
 #[test_log::test(tokio::test)]
 async fn ctx_stop() {
-    let (event_loop, addr) = start(MyActor::default());
-    tokio::spawn(event_loop);
+    let addr = MyActor::default().spawn();
 
     let addr2 = addr.clone();
     addr.send(Stop).await.unwrap();
@@ -100,8 +96,7 @@ async fn ctx_stop() {
 
 #[test_log::test(tokio::test)]
 async fn addr_stopped_after_stop() {
-    let (event_loop, addr) = start(MyActor::default());
-    tokio::spawn(event_loop);
+    let addr = MyActor::default().spawn();
 
     let addr2 = addr.clone();
     assert!(!addr2.stopped(), "addr2 should not be stopped");
@@ -115,7 +110,7 @@ async fn addr_stopped_after_stop() {
 #[test_log::test(tokio::test)]
 async fn weak_addr_does_not_prolong_life() {
     let (event_loop, addr) = start(MyActor::default());
-    let actor = tokio::spawn(event_loop);
+    let actor = runtime::spawn(event_loop);
 
     let weak_addr = WeakAddr::from(&addr);
     let weak_addr2 = addr.downgrade();
@@ -132,7 +127,7 @@ async fn weak_addr_does_not_prolong_life() {
 #[test_log::test(tokio::test)]
 async fn weak_caller_does_not_prolong_life() {
     let (event_loop, addr) = start(MyActor::default());
-    let actor = tokio::spawn(event_loop);
+    let actor = runtime::spawn(event_loop);
 
     let weak_caller = addr.weak_caller::<Stop>();
     weak_caller.upgrade().unwrap();
@@ -149,7 +144,7 @@ async fn weak_caller_does_not_prolong_life() {
 #[test_log::test(tokio::test)]
 async fn weak_sender_does_not_prolong_life() {
     let (event_loop, addr) = start(MyActor::default());
-    let actor = tokio::spawn(event_loop);
+    let actor = runtime::spawn(event_loop);
 
     let weak_sender = addr.weak_sender::<Stop>();
     weak_sender.upgrade().unwrap();
@@ -161,4 +156,181 @@ async fn weak_sender_does_not_prolong_life() {
     assert!(weak_sender.upgrade().is_none());
     assert!(weak_sender2.upgrade().is_none());
     actor.await.unwrap().unwrap();
+}
+
+mod test_error_variants {
+    use std::time::Duration;
+
+    use super::*;
+    use crate::{error::ActorError, prelude::Spawnable};
+
+    #[test_log::test(tokio::test)]
+    async fn mailbox_closed_on_send() {
+        let mut addr = MyActor::default().spawn();
+        let addr2 = addr.clone();
+
+        addr.stop().unwrap();
+        addr.await.unwrap();
+
+        // Try to send a message - should fail with ChannelClosed
+        assert!(addr2.send(Store("test")).await.is_err());
+    }
+
+    #[test_log::test(tokio::test)]
+    async fn channel_closed_on_call() {
+        let mut addr = MyActor::default().spawn();
+        let addr2 = addr.clone();
+
+        addr.stop().unwrap();
+        addr.await.unwrap();
+
+        assert!(addr2.call(Add(1, 2)).await.is_err());
+    }
+
+    #[test_log::test(tokio::test)]
+    async fn channel_closed_on_try_send() {
+        let mut addr = MyActor::default().spawn();
+        let addr2 = addr.clone();
+
+        addr.stop().unwrap();
+        addr.await.unwrap();
+
+        assert!(addr2.try_send(Store("test")).is_err());
+    }
+
+    #[test_log::test(tokio::test)]
+    async fn channel_closed_on_ping() {
+        let mut addr = MyActor::default().spawn();
+        let addr2 = addr.clone();
+
+        addr.stop().unwrap();
+        addr.await.unwrap();
+
+        assert!(addr2.ping().await.is_err());
+    }
+
+    #[test_log::test(tokio::test)]
+    async fn channel_closed_via_sender() {
+        let mut addr = MyActor::default().spawn();
+        let sender = addr.sender::<Store>();
+
+        addr.stop().unwrap();
+        addr.await.unwrap();
+
+        let result = sender.send(Store("test")).await;
+        assert!(matches!(result, Err(ActorError::ChannelClosed)));
+    }
+
+    #[test_log::test(tokio::test)]
+    async fn channel_closed_via_caller() {
+        let mut addr = MyActor::default().spawn();
+        let caller = addr.caller::<Add>();
+
+        addr.stop().unwrap();
+        addr.await.unwrap();
+
+        let result = caller.call(Add(1, 2)).await;
+        assert!(matches!(result, Err(ActorError::ChannelClosed)));
+    }
+
+    #[test_log::test(tokio::test)]
+    async fn actor_already_stopped_on_stop() {
+        let mut addr = MyActor::default().spawn();
+        let mut addr2 = addr.clone();
+
+        addr.stop().unwrap();
+        addr.await.unwrap();
+
+        let result = addr2.stop();
+        assert!(matches!(result, Err(ActorError::AlreadyStopped)));
+    }
+
+    #[test_log::test(tokio::test)]
+    async fn actor_already_stopped_on_restart() {
+        use crate::RestartableActor;
+
+        #[derive(Default)]
+        struct RestartableMyActor;
+        impl Actor for RestartableMyActor {}
+        impl RestartableActor for RestartableMyActor {}
+
+        let mut addr = RestartableMyActor.spawn();
+
+        let mut addr2 = addr.clone();
+
+        addr.stop().unwrap();
+        addr.await.unwrap();
+
+        let result = addr2.restart();
+        assert!(matches!(result, Err(ActorError::AlreadyStopped)));
+    }
+
+    #[test_log::test(tokio::test)]
+    async fn actor_already_stopped_from_context() {
+        let addr = MyActor::default().spawn();
+        let weak_addr = addr.downgrade();
+
+        drop(addr);
+
+        runtime::sleep(Duration::from_millis(50)).await;
+
+        let mut weak_addr = weak_addr;
+        let result = weak_addr.try_stop();
+
+        assert!(matches!(result, Err(ActorError::ActorDropped)));
+    }
+
+    #[test_log::test(tokio::test)]
+    async fn actor_dropped_on_weak_sender_upgrade_and_send() {
+        let addr = MyActor::default().spawn();
+        let weak_sender = addr.weak_sender::<Store>();
+
+        drop(addr);
+
+        runtime::sleep(Duration::from_millis(50)).await;
+
+        let result = weak_sender.upgrade_and_send(Store("test")).await;
+        assert!(matches!(result, Err(ActorError::ActorDropped)));
+    }
+
+    #[test_log::test(tokio::test)]
+    async fn actor_dropped_on_weak_caller_upgrade_and_call() {
+        let addr = MyActor::default().spawn();
+        let weak_caller = addr.weak_caller::<Add>();
+
+        drop(addr);
+
+        runtime::sleep(Duration::from_millis(50)).await;
+
+        let result = weak_caller.upgrade_and_call(Add(1, 2)).await;
+        assert!(matches!(result, Err(ActorError::ActorDropped)));
+    }
+
+    #[test_log::test(tokio::test)]
+    async fn actor_dropped_on_weak_addr_try_stop() {
+        let addr = MyActor::default().spawn();
+        let weak_addr = addr.downgrade();
+
+        drop(addr);
+
+        runtime::sleep(Duration::from_millis(50)).await;
+
+        let mut weak_addr = weak_addr;
+        let result = weak_addr.try_stop();
+        assert!(matches!(result, Err(ActorError::ActorDropped)));
+    }
+
+    #[test_log::test(tokio::test)]
+    async fn actor_dropped_on_weak_addr_try_halt() {
+        let addr = MyActor::default().spawn();
+        let weak_addr = addr.downgrade();
+
+        drop(addr);
+
+        runtime::sleep(Duration::from_millis(50)).await;
+
+        let mut weak_addr = weak_addr;
+        let result = weak_addr.try_halt().await;
+        assert!(matches!(result, Err(ActorError::ActorDropped)));
+    }
 }

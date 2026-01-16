@@ -249,15 +249,20 @@ pub struct OwningAddr<A> {
     pub(crate) handle: ActorHandle<A>,
 }
 
+#[allow(deprecated)]
 impl<A: Actor> OwningAddr<A> {
     pub(crate) const fn new(addr: Addr<A>, handle: ActorHandle<A>) -> Self {
         OwningAddr { addr, handle }
     }
 
     /// Waits for the actor to stop and returns it.
-    pub fn join(&mut self) -> JoinFuture<A> {
+    ///
+    /// Comparable to [joining a thread](`std::thread::JoinHandle::join`).
+    ///
+    /// This does not stop the actor, for that use [`consume`](`OwningAddr::consume`).
+    pub async fn join(&mut self) -> Option<A> {
         log::trace!("joining actor");
-        self.handle.join()
+        self.handle.join().await
     }
 
     /// Stops the actor and returns it.
@@ -271,12 +276,12 @@ impl<A: Actor> OwningAddr<A> {
 
     /// Stops the actor and returns it.
     ///
-    /// In contrast to `halt()` if stop fails you will get an error before waiting for the actor to stop.
+    /// In contrast to `consume()` if stop fails you will get an error before waiting for the actor to stop.
     /// That does not mean that the join itself isn't still fallible.
     pub fn consume_sync(mut self) -> Result<JoinFuture<A>> {
         log::trace!("consuming actor synchronously");
         self.addr.stop()?;
-        Ok(self.join())
+        Ok(self.handle.join())
     }
 
     /// Give up ownership over the `Addr` and detach the underlying handle.
