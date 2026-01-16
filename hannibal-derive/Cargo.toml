@@ -7,6 +7,7 @@ license = "MIT/Apache-2.0"
 description = "A small actor library"
 documentation = "https://docs.rs/hannibal/"
 homepage = "https://github.com/hoodie/hannibal"
+repository = "https://github.com/hoodie/hannibal"
 keywords = ["actor", "derive"]
 
 
