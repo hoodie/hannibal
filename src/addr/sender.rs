@@ -56,7 +56,7 @@ impl<M: Message<Response = ()>> Sender<M> {
                             Box::pin(Handler::handle(&mut *actor, ctx, msg))
                         }))
                         .await
-                        .map_err(|_err| ActorError::AlreadyStopped)?;
+                        .map_err(|_err| ActorError::ChannelClosed)?;
                         Ok(())
                     })
                 },
@@ -69,7 +69,7 @@ impl<M: Message<Response = ()>> Sender<M> {
                 tx.try_send(Payload::task(move |actor, ctx| {
                     Box::pin(Handler::handle(&mut *actor, ctx, msg))
                 }))
-                .map_err(|_err| ActorError::AlreadyStopped)?;
+                .map_err(|_err| ActorError::ChannelClosed)?;
                 Ok(())
             })
         };
@@ -79,7 +79,7 @@ impl<M: Message<Response = ()>> Sender<M> {
                 tx.force_send(Payload::task(move |actor, ctx| {
                     Box::pin(Handler::handle(&mut *actor, ctx, msg))
                 }))
-                .map_err(|_err| ActorError::AlreadyStopped)?;
+                .map_err(|_err| ActorError::ChannelClosed)?;
                 Ok(())
             })
         };

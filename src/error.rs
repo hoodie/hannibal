@@ -21,9 +21,23 @@ pub enum ActorError {
     #[error("Call got canceled")]
     Canceled(#[from] futures::channel::oneshot::Canceled),
 
-    /// Indicates that the actor has already been stopped by the time the operation was attempted.
+    /// The actor's channel is closed, so the message could not be delivered.
+    /// This happens when the actor has stopped or is in the process of stopping.
+    #[error("Channel closed: message could not be delivered")]
+    ChannelClosed,
+
+    /// The control signal (stop/restart) could not be sent because the actor already stopped.
     #[error("Actor already stopped")]
     AlreadyStopped,
+
+    /// The weak reference could not be upgraded because the actor was dropped.
+    /// All strong references to this actor are gone.
+    #[error("Actor dropped: weak reference expired")]
+    ActorDropped,
+
+    /// Failed to join actor task
+    #[error("Failed to join actor task")]
+    FailedToJoin,
 
     /// Indicates that a services failed to be registered because an instance of the same type is already registered.
     #[error("Service already registered")]
