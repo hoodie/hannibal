@@ -192,7 +192,7 @@ where
         let try_send = Arc::new(move |event: Payload<A>| -> Result<()> {
             let mut tx = tx3.clone();
             tx.try_send(event)
-                .map_err(|_| crate::error::ActorError::AlreadyStopped)?;
+                .map_err(|_| crate::error::ActorError::ChannelClosed)?;
             Ok(())
         });
 
@@ -233,7 +233,7 @@ where
             let try_tx = tx3.clone();
             try_tx
                 .unbounded_send(event)
-                .map_err(|_| ActorError::AlreadyStopped)?;
+                .map_err(|_| ActorError::ChannelClosed)?;
             Ok(())
         });
 

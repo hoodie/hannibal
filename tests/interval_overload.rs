@@ -46,7 +46,7 @@ impl Handler<CountedTick> for TickTrackingActor {
 }
 
 #[test_log::test(tokio::test)]
-async fn bounded_mailbox_with_slow_handler_skips_ticks() {
+async fn bounded_channel_with_slow_handler_skips_ticks() {
     let received_ticks = Arc::new(Mutex::new(Vec::new()));
     let generated_count = Arc::new(AtomicU32::new(0));
 
@@ -66,7 +66,7 @@ async fn bounded_mailbox_with_slow_handler_skips_ticks() {
     let total_generated = generated_count.load(Ordering::SeqCst);
     let tick_count = ticks.len();
 
-    println!("\n=== Bounded Mailbox with Slow Handler ===");
+    println!("\n=== Bounded Channel with Slow Handler ===");
     println!(
         "Generated: {total_generated} | Received: {tick_count} | Skipped: {}",
         total_generated - tick_count as u32
@@ -94,10 +94,10 @@ async fn bounded_mailbox_with_slow_handler_skips_ticks() {
     );
 }
 
-/// With unbounded mailbox and reasonable processing speed,
+/// With unbounded channel and reasonable processing speed,
 /// all ticks should be queued and eventually processed
 #[test_log::test(tokio::test)]
-async fn unbounded_mailbox_processes_all_ticks() {
+async fn unbounded_channel_processes_all_ticks() {
     let received_ticks = Arc::new(Mutex::new(Vec::new()));
     let generated_count = Arc::new(AtomicU32::new(0));
 
@@ -107,7 +107,7 @@ async fn unbounded_mailbox_processes_all_ticks() {
         processing_time: Duration::from_millis(30),
     };
 
-    // Use default unbounded mailbox
+    // Use default unbounded channel
     let addr = actor.spawn();
 
     // Run for 1 second
@@ -118,13 +118,13 @@ async fn unbounded_mailbox_processes_all_ticks() {
     let ticks = received_ticks.lock().unwrap().clone();
     let tick_count = ticks.len();
 
-    println!("\n=== Unbounded Mailbox ===");
+    println!("\n=== Unbounded Channel ===");
     println!("Received: {tick_count} - Sequence: {ticks:?}");
 
-    // With unbounded mailbox, we should get most/all ticks
+    // With unbounded channel, we should get most/all ticks
     assert!(
         tick_count >= 8,
-        "With unbounded mailbox, expected at least 8 ticks, but got {tick_count}"
+        "With unbounded channel, expected at least 8 ticks, but got {tick_count}"
     );
 
     // Check for minimal gaps in sequence
@@ -139,11 +139,11 @@ async fn unbounded_mailbox_processes_all_ticks() {
     if !has_significant_gaps {
         println!("✓ No significant gaps in sequence");
     }
-    println!("✓ Unbounded mailbox working\n");
+    println!("✓ Unbounded channel working\n");
 }
 
 /// Fast processing (10ms) should keep up with 100ms interval
-/// even with a bounded mailbox
+/// even with a bounded channel
 #[test_log::test(tokio::test)]
 async fn fast_handler_keeps_up_with_bounded_mailbox() {
     let received_ticks = Arc::new(Mutex::new(Vec::new()));
@@ -166,7 +166,7 @@ async fn fast_handler_keeps_up_with_bounded_mailbox() {
     let total_generated = generated_count.load(Ordering::SeqCst);
     let tick_count = ticks.len();
 
-    println!("\n=== Fast Handler with Bounded Mailbox ===");
+    println!("\n=== Fast Handler with Bounded Channel ===");
     println!(
         "Generated: {total_generated} | Received: {tick_count} | Skipped: {}",
         total_generated - tick_count as u32
@@ -195,7 +195,7 @@ async fn extremely_slow_handler_skips_many_ticks() {
     let generated_count = Arc::new(AtomicU32::new(0));
 
     // Extremely slow processing (400ms) with fast interval (100ms)
-    // and tiny mailbox should skip most ticks
+    // and tiny channel should skip most ticks
     let actor = TickTrackingActor {
         received_ticks: Arc::clone(&received_ticks),
         generated_count: Arc::clone(&generated_count),
@@ -203,7 +203,7 @@ async fn extremely_slow_handler_skips_many_ticks() {
     };
 
     let addr = hannibal::build(actor)
-        .bounded(1) // Very small mailbox
+        .bounded(1) // Very small channel
         .spawn();
 
     // Run for 2.5 seconds

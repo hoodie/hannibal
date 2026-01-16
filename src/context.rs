@@ -7,7 +7,7 @@ use crate::{
     actor::Actor,
     channel::WeakTx,
     error::{
-        ActorError::{self, AlreadyStopped},
+        ActorError::{self, ActorDropped, AlreadyStopped},
         Result,
     },
     event_loop::Payload,
@@ -72,7 +72,7 @@ impl<A: Actor> Context<A> {
             tx.force_send(Payload::Stop).map_err(|_| AlreadyStopped)?;
             Ok(())
         } else {
-            Err(AlreadyStopped)
+            Err(ActorDropped)
         }
     }
 }
@@ -516,7 +516,7 @@ impl<A: RestartableActor> Context<A> {
                 .map_err(|_err| ActorError::AlreadyStopped)?;
             Ok(())
         } else {
-            Err(AlreadyStopped)
+            Err(ActorDropped)
         }
     }
 }

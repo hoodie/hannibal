@@ -1,5 +1,7 @@
 //! Runtime utilities.
 //!
+//! This module provides re-exports of `block_on`, `sleep`, and `spawn` functions from the runtime crates.
+//!
 //! This module provides re-exports of the `block_on` and `sleep` functions from the runtime crates.
 //!
 
@@ -19,6 +21,7 @@ where
     let rt = tokio::runtime::Runtime::new().unwrap();
     rt.block_on(future)
 }
+
 #[cfg(feature = "tokio_runtime")]
 pub use tokio::time::sleep;
 

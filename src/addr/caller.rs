@@ -49,7 +49,7 @@ impl<M: Message> Caller<M> {
                         })
                     }))
                     .await
-                    .map_err(|_err| ActorError::AlreadyStopped)?;
+                    .map_err(|_err| ActorError::ChannelClosed)?;
 
                     Ok(response.await?)
                 })

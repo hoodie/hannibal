@@ -18,12 +18,12 @@
 //! ```no_run
 //! # #[derive(hannibal_derive::Actor,hannibal_derive::RestartableActor, Default)]
 //! # struct MyActor;
-//! // start MyActor with a mailbox capacity of 6
+//! // start MyActor with a channel capacity of 6
 //! let addr_bounded = hannibal::build(MyActor)
 //!     .bounded(6)
 //!     .spawn();
 //!
-//! //  start MyActor with an infinite mailbox
+//! //  start MyActor with an unbounded channel
 //! let addr_unbounded = hannibal::build(MyActor)
 //!     .unbounded()
 //!     .spawn();
