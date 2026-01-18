@@ -18,11 +18,13 @@ NEXT_VERSION=`convco version --bump HEAD`
 cargo set-version $NEXT_VERSION
 cargo set-version $NEXT_VERSION --manifest-path hannibal-derive/Cargo.toml
 echo "now update the version of hannibal_derive in Cargo.toml"
-read
+
 git add Cargo.toml
 git add Cargo.lock
 git add hannibal-derive/Cargo.toml
 git add hannibal-derive/Cargo.lock
+git add hannibal-examples/Cargo.toml
+git add hannibal-examples/Cargo.lock
 
 git commit -m "chore: bump version to ${NEXT_VERSION}"
 git tag v${NEXT_VERSION}
