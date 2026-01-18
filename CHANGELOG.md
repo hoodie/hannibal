@@ -1,5 +1,12 @@
 # Changelog
 
+### [v0.16.1](https://github.com/hoodie/hannibal/compare/v0.16.0...v0.16.1) (2026-01-19)
+
+#### Fixes
+
+* reference correct new setup function
+([ca5c5b2](https://github.com/hoodie/hannibal/commit/ca5c5b25044a16ab99ebde1bb1879bd85c38417a))
+
 ## [v0.16.0](https://github.com/hoodie/hannibal/compare/v0.15.1...v0.16.0) (2026-01-19)
 
 ### ⚠ BREAKING CHANGE
