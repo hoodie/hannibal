@@ -1,5 +1,105 @@
 # Changelog
 
+## [v0.16.0](https://github.com/hoodie/hannibal/compare/v0.15.1...v0.16.0) (2026-01-19)
+
+### ⚠ BREAKING CHANGE
+
+* Builder interface simplified and renamed
+
+The builder API has been simplified and renamed for clarity and flexibility.
+Configuration methods can now be called in any order.
+
+Renamed:
+- `hannibal::build()` → `hannibal::setup()`
+- Added `.setup_actor()` method on all actors (via the `Configurable` trait)
+
+Removed methods and their replacements:
+
+1. `.with_stream(stream)` → use `.on_stream(stream)`
+
+   ❌ Before:
+   ```rust
+   hannibal::build(actor)
+       .unbounded()
+       .non_restartable()
+       .with_stream(stream)
+       .spawn()
+   ```
+
+   ✅ Now (any order works):
+   ```rust
+   hannibal::setup(actor)
+       .on_stream(stream)
+       .unbounded()
+       .spawn()
+
+   // or use the trait method
+   actor
+       .setup_actor()
+       .unbounded()
+       .on_stream(stream)
+       .spawn()
+   ```
+
+2. `.bounded_on_stream(capacity, stream)` → use `.bounded(capacity).on_stream(stream)`
+
+   ❌ Before:
+   ```rust
+   hannibal::build(actor)
+       .bounded_on_stream(10, stream)
+       .spawn()
+   ```
+
+   ✅ Now (any order works):
+   ```rust
+   hannibal::setup(actor)
+       .bounded(10)
+       .on_stream(stream)
+       .spawn()
+
+   // or
+   hannibal::setup(actor)
+       .on_stream(stream)
+       .bounded(10)
+       .spawn()
+   ```
+
+3. `.non_restartable()` → removed (no longer needed)
+
+   Stream-attached actors are automatically non-restartable.
+   For non-stream actors, simply don't call `.recreate_from_default()`.
+
+Migration:
+- Replace all `hannibal::build()` calls with `hannibal::setup()`
+- Or use the new `actor.setup_actor()` method
+- Remove `.with_stream()`, `.bounded_on_stream()`, and `.non_restartable()` calls
+- Use `.on_stream()` and other config methods in any order you prefer
+
+Benefits:
+- More flexible: configuration methods can be called in any order
+- Less API surface: fewer methods to remember
+- Clearer naming: `setup()` and `.setup_actor()` are consistent
+- More intuitive: `.on_stream()` is more descriptive than `.with_stream()`
+* this introduces new error variants
+* The `ActorError` enum is now marked as non-exhaustive.
+
+
+### Features
+
+* simplify builder
+([3f46d30](https://github.com/hoodie/hannibal/commit/3f46d303e2547ba3a4ff857a6d9415fe8f7dbb6a))
+* make error types a bit more distinct
+([059c732](https://github.com/hoodie/hannibal/commit/059c732e3cf40c2f4391e3cc232f95c7bdfde05e))
+
+### Fixes
+
+* avoid a few race conditions more
+([bb1ab20](https://github.com/hoodie/hannibal/commit/bb1ab2016e2a9f19e4b2eac2f66570440864fed9))
+* avoid a few race conditions
+([a5e72dc](https://github.com/hoodie/hannibal/commit/a5e72dcafbe6dc43ccd5909d7b0d16799f64c345))
+* mark error as non-exhaustive
+([1094fa8](https://github.com/hoodie/hannibal/commit/1094fa83f80bc5f51fe20cd7d34917378b9cfeea))
+
 ### [v0.15.1](https://github.com/hoodie/hannibal/compare/v0.15.0...v0.15.1) (2026-01-06)
 
 #### Features
