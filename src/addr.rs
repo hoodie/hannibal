@@ -89,6 +89,9 @@ impl<A: Actor> Clone for Addr<A> {
 impl<A: Actor> Addr<A> {
     /// Sends a stop signal to the actor.
     pub fn stop(&mut self) -> Result<()> {
+        if self.core.stopped() {
+            return Err(ActorError::AlreadyStopped);
+        }
         log::trace!("stopping actor");
         self.tx
             .force_send(Payload::Stop)
@@ -236,6 +239,9 @@ impl<A: RestartableActor> Addr<A> {
     ///
     /// [`StreamHandlers`](`crate::StreamHandler`) for example can't be restarted.
     pub fn restart(&mut self) -> Result<()> {
+        if self.core.stopped() {
+            return Err(ActorError::AlreadyStopped);
+        }
         self.tx
             .force_send(Payload::Restart)
             .map_err(|_err| ActorError::AlreadyStopped)?;
