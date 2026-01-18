@@ -51,6 +51,9 @@ jobs:
       - name: cargo-fmt
         run: cargo fmt --all --check
 
+      - name: cargo-doc
+        run: cargo doc --no-deps
+
   deny-check:
     name: cargo-deny check
     runs-on: ubuntu-latest
