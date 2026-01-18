@@ -118,6 +118,9 @@ impl<A: Actor> Addr<A> {
     where
         A: Handler<M>,
     {
+        if self.core.stopped() {
+            return Err(ActorError::AlreadyStopped);
+        }
         let (tx_response, response) = oneshot::channel();
         log::trace!("calling actor {}", std::any::type_name::<M>());
         self.tx
@@ -138,6 +141,9 @@ impl<A: Actor> Addr<A> {
 
     /// Pings the actor to check if it is already/still alive.
     pub async fn ping(&self) -> Result<()> {
+        if self.core.stopped() {
+            return Err(ActorError::AlreadyStopped);
+        }
         log::trace!("pinging actor");
         let (tx_response, response) = oneshot::channel();
         self.tx
@@ -156,6 +162,9 @@ impl<A: Actor> Addr<A> {
     where
         A: Handler<M>,
     {
+        if self.core.stopped() {
+            return Err(ActorError::AlreadyStopped);
+        }
         log::trace!("sending message to actor {}", std::any::type_name::<M>());
         self.tx
             .send(Payload::task(move |actor, ctx| {
@@ -171,6 +180,9 @@ impl<A: Actor> Addr<A> {
     where
         A: Handler<M>,
     {
+        if self.core.stopped() {
+            return Err(ActorError::AlreadyStopped);
+        }
         log::trace!("sending message to actor {}", std::any::type_name::<M>());
         self.tx
             .try_send(Payload::task(move |actor, ctx| {

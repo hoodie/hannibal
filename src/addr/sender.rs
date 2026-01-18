@@ -48,10 +48,15 @@ impl<M: Message<Response = ()>> Sender<M> {
 
         let send_fn: Box<dyn SenderFn<M>> = {
             let tx = tx.clone();
+            let core = core.clone();
             Box::new(
                 move |msg: M| -> Pin<Box<dyn Future<Output = Result<()>> + Send>> {
                     let tx = tx.clone();
+                    let core = core.clone();
                     Box::pin(async move {
+                        if core.stopped() {
+                            return Err(ActorError::ChannelClosed);
+                        }
                         tx.send(Payload::task(move |actor, ctx| {
                             Box::pin(Handler::handle(&mut *actor, ctx, msg))
                         }))
@@ -65,7 +70,11 @@ impl<M: Message<Response = ()>> Sender<M> {
 
         let try_send_fn: Box<dyn TrySenderFn<M>> = {
             let tx = tx.clone();
+            let core = core.clone();
             Box::new(move |msg: M| {
+                if core.stopped() {
+                    return Err(ActorError::ChannelClosed);
+                }
                 tx.try_send(Payload::task(move |actor, ctx| {
                     Box::pin(Handler::handle(&mut *actor, ctx, msg))
                 }))
@@ -75,7 +84,11 @@ impl<M: Message<Response = ()>> Sender<M> {
         };
 
         let force_send_fn: Box<dyn ForceSenderFn<M>> = {
+            let core = core.clone();
             Box::new(move |msg| {
+                if core.stopped() {
+                    return Err(ActorError::ChannelClosed);
+                }
                 tx.force_send(Payload::task(move |actor, ctx| {
                     Box::pin(Handler::handle(&mut *actor, ctx, msg))
                 }))
