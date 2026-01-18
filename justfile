@@ -31,6 +31,7 @@ doc_test:
     cargo test --workspace --doc --no-default-features --features tokio_runtime
     cargo test --workspace --doc --no-default-features --features async_runtime
     cargo test --workspace --doc --no-default-features --features async_runtime,tokio
+    cargo doc --no-deps
 
 install-deps:
     @cargo install cargo-nextest

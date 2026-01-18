@@ -511,7 +511,7 @@ impl<A: RestartableActor> Context<A> {
     ///
     /// Calls [`Actor::stopped()`] then [`Actor::started()`] on the **same instance**.
     /// The actor's state is preserved—only the lifecycle hooks are re-triggered.
-    /// This is the default when using [`hannibal::setup_actor()`](crate::build).
+    /// This is the default when using [`hannibal::setup_actor()`](crate::setup_actor).
     ///
     /// ## `RecreateFromDefault`
     ///

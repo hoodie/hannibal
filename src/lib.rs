@@ -67,8 +67,8 @@
 //! Take a look at [`hannibal::setup_actorer`](`builder`)
 //! to see how to configure an actor's runtime behavior and how to launch them on streams.
 
-#![warn(rustdoc::broken_intra_doc_links, missing_docs)]
-#![deny(clippy::unwrap_used)]
+#![warn(missing_docs)]
+#![deny(rustdoc::broken_intra_doc_links, clippy::unwrap_used)]
 
 // Runtime features are mutually exclusive
 #[cfg(all(feature = "tokio_runtime", feature = "async_runtime"))]
