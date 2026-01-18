@@ -36,25 +36,33 @@ impl<M: Message> Caller<M> {
     {
         let weak_tx = tx.downgrade();
 
-        let call_fn = Box::new(
-            move |msg| -> Pin<Box<dyn Future<Output = Result<M::Response>>>> {
-                let tx = tx.clone();
-                Box::pin(async move {
-                    let (response_tx, response) = oneshot::channel();
+        let call_fn = {
+            let core = core.clone();
+            Box::new(
+                move |msg| -> Pin<Box<dyn Future<Output = Result<M::Response>>>> {
+                    let tx = tx.clone();
+                    let core = core.clone();
+                    Box::pin(async move {
+                        if core.stopped() {
+                            return Err(ActorError::ChannelClosed);
+                        }
 
-                    tx.send(Payload::task(move |actor, ctx| {
-                        Box::pin(async move {
-                            let res = Handler::handle(&mut *actor, ctx, msg).await;
-                            let _ = response_tx.send(res);
-                        })
-                    }))
-                    .await
-                    .map_err(|_err| ActorError::AlreadyStopped)?;
+                        let (response_tx, response) = oneshot::channel();
 
-                    Ok(response.await?)
-                })
-            },
-        );
+                        tx.send(Payload::task(move |actor, ctx| {
+                            Box::pin(async move {
+                                let res = Handler::handle(&mut *actor, ctx, msg).await;
+                                let _ = response_tx.send(res);
+                            })
+                        }))
+                        .await
+                        .map_err(|_err| ActorError::ChannelClosed)?;
+
+                        Ok(response.await?)
+                    })
+                },
+            )
+        };
 
         let upgrade = {
             let core = core.clone();

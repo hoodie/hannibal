@@ -1,6 +1,6 @@
 use dyn_clone::DynClone;
 
-use crate::{Actor, Handler, channel, context::Core, error::ActorError::AlreadyStopped};
+use crate::{Actor, Handler, channel, context::Core, error::ActorError::ActorDropped};
 
 use super::{Addr, Message, Result, caller::Caller};
 
@@ -26,7 +26,7 @@ impl<M: Message> WeakCaller<M> {
         if let Some(caller) = self.upgrade.upgrade() {
             caller.call(msg).await
         } else {
-            Err(AlreadyStopped)
+            Err(ActorDropped)
         }
     }
 

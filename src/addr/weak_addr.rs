@@ -2,7 +2,7 @@ use crate::{
     Actor, Addr, Handler, Message, WeakCaller, WeakSender,
     channel::WeakTx,
     context::Core,
-    error::{ActorError::AlreadyStopped, Result},
+    error::{ActorError::ActorDropped, Result},
 };
 
 /// A weak reference to an actor.
@@ -40,7 +40,7 @@ impl<A: Actor> WeakAddr<A> {
         if let Some(mut addr) = self.upgrade() {
             addr.stop()
         } else {
-            Err(AlreadyStopped)
+            Err(ActorDropped)
         }
     }
 
@@ -52,7 +52,7 @@ impl<A: Actor> WeakAddr<A> {
             addr.stop()?;
             addr.await
         } else {
-            Err(AlreadyStopped)
+            Err(ActorDropped)
         }
     }
 
