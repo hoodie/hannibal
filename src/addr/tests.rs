@@ -156,7 +156,7 @@ mod test_error_variants {
     use crate::{error::ActorError, prelude::Spawnable};
 
     #[test_log::test(tokio::test)]
-    async fn mailbox_closed_on_send() {
+    async fn channel_closed_on_send() {
         let addr = MyActor::default().spawn();
         let addr2 = addr.clone();
         addr.halt().await.unwrap();

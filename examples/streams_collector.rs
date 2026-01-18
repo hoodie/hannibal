@@ -15,7 +15,7 @@ impl<T: Send> StreamHandler<T> for Collector<T> {
 #[hannibal::main]
 async fn main() {
     let num_stream = futures::stream::iter('a'..='z');
-    let mut addr = hannibal::build(Collector::default())
+    let mut addr = hannibal::setup_actor(Collector::default())
         .on_stream(num_stream)
         .spawn_owning();
 

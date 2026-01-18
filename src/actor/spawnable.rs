@@ -10,6 +10,9 @@ use super::{Actor, ActorHandle};
 /// Enables an actor to spawn itself.
 pub trait Spawnable: Actor {
     /// Spawns the actor and returns an `Addr` to it.
+    /// # Defaults
+    /// - `unbounded channel`
+    /// - `recreate_from_default`: `false`
     fn spawn(self) -> Addr<Self> {
         self.spawn_owning().detach()
     }

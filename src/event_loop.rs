@@ -283,7 +283,7 @@ mod test_event_loop {
         };
 
         let num_stream = stream::iter(1..30).fuse();
-        let addr = crate::build(actor).on_stream(num_stream).spawn();
+        let addr = crate::setup_actor(actor).on_stream(num_stream).spawn();
 
         assert!(!stopped.load(SeqCst), "actor supposed to be running");
 

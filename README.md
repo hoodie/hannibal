@@ -151,7 +151,7 @@ impl StreamHandler<i32> for FizzBuzzer {
 
 // just imagine this is a websocket stream
 let num_stream = futures::stream::iter(1..30);
-let addr = hannibal::build(FizzBuzzer::default())
+let addr = hannibal::setup_actor(FizzBuzzer::default())
     .on_stream(num_stream)
     .spawn();
 

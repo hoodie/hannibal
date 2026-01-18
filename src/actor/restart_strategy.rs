@@ -35,7 +35,7 @@ impl<A: Actor> RestartStrategy<A> for RestartOnly {
 pub struct RecreateFromDefault;
 impl<A: Actor + Default> RestartStrategy<A> for RecreateFromDefault {
     async fn refresh(mut actor: A, ctx: &mut Context<A>) -> DynResult<A> {
-        eprintln!("recreating refresh");
+        log::trace!("recreating refresh");
         actor.stopped(ctx).await;
         actor = A::default();
         actor.started(ctx).await?;

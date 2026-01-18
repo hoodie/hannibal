@@ -153,13 +153,13 @@ let addr = MyActor::default().spawn();
 let owning_addr = MyActor::default().spawn_owning();
 
 // Using builder for configuration
-let addr = hannibal::build(MyActor::default())
+let addr = hannibal::setup_actor(MyActor::default())
     .bounded(10)                    // Bounded channel
     .recreate_from_default()        // Auto-restart on failure
     .spawn();
 
 // Spawn on a stream
-let addr = hannibal::build(MyActor::default())
+let addr = hannibal::setup_actor(MyActor::default())
     .on_stream(my_stream)
     .spawn();
 ```
@@ -268,10 +268,10 @@ futures_channel = []                   # Use futures::channel (default)
 
 ```rust
 // Bounded channel (backpressure when full)
-let addr = hannibal::build(actor).bounded(100).spawn();
+let addr = hannibal::setup_actor(actor).bounded(100).spawn();
 
 // Unbounded channel (no backpressure)
-let addr = hannibal::build(actor).unbounded().spawn();
+let addr = hannibal::setup_actor(actor).unbounded().spawn();
 
 // Default is unbounded
 let addr = actor.spawn();
@@ -282,7 +282,7 @@ let addr = actor.spawn();
 ```rust
 impl RestartableActor for MyActor {}
 
-let addr = hannibal::build(MyActor::default())
+let addr = hannibal::setup_actor(MyActor::default())
     .recreate_from_default()  // Restart using Default::default()
     .spawn();
 
@@ -293,7 +293,7 @@ addr.restart()?;
 ### Timeouts
 
 ```rust
-let addr = hannibal::build(actor)
+let addr = hannibal::setup_actor(actor)
     .abort_after(Duration::from_secs(5))  // Timeout for message handling
     .spawn();
 ```
@@ -357,7 +357,7 @@ impl StreamHandler<String> for StreamProcessor {
 }
 
 let stream = futures::stream::iter(vec!["a", "b", "c"]);
-let addr = hannibal::build(StreamProcessor)
+let addr = hannibal::setup_actor(StreamProcessor)
     .on_stream(stream)
     .spawn();
 addr.await?; // Waits for stream to finish
@@ -509,7 +509,7 @@ use hannibal::prelude::*;
 ```rust
 actor.spawn()              -> Addr<A>
 actor.spawn_owning()       -> OwningAddr<A>
-hannibal::build(actor)     -> Builder
+hannibal::setup_actor(actor)     -> Builder
 ```
 
 ### Address Types

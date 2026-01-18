@@ -1,5 +1,5 @@
 use futures::stream;
-use hannibal::{prelude::*, RestartableActor};
+use hannibal::{RestartableActor, prelude::*};
 
 #[derive(Default)]
 struct MyActor(&'static str);
@@ -10,15 +10,15 @@ impl StreamHandler<i32> for MyActor {
         println!("[Actor {}] Received: {}", self.0, msg);
     }
 }
-// TODO: can we encode the restart strategy in an associated type or as a trait function?
+
 impl RestartableActor for MyActor {}
 
 #[tokio::main]
 async fn main() {
-    let addr = hannibal::build(MyActor("Caesar"))
-        .unbounded()
+    // This should fail to compile: on_stream is not available after recreate_from_default
+    let addr = hannibal::setup_actor(MyActor("Caesar"))
         .recreate_from_default()
-        .with_stream(stream::iter(vec![17, 19])) // this shouldn't work
+        .on_stream(stream::iter(vec![17, 19]))
         .spawn();
-    addr.await
+    addr.await.unwrap();
 }

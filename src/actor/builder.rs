@@ -19,15 +19,16 @@
 //! # #[derive(hannibal_derive::Actor,hannibal_derive::RestartableActor, Default)]
 //! # struct MyActor;
 //! // start MyActor with a channel capacity of 6
-//! let addr_bounded = hannibal::build(MyActor)
+//! let addr_bounded = hannibal::setup_actor(MyActor)
 //!     .bounded(6)
 //!     .spawn();
 //!
 //! //  start MyActor with an unbounded channel
-//! let addr_unbounded = hannibal::build(MyActor)
+//! let addr_unbounded = hannibal::setup_actor(MyActor)
 //!     .unbounded()
 //!     .spawn();
 //! ```
+//!
 //! ## 2. Should the actor create a fresh object on restart?
 //! If you restart the actor its [`started()`](`Actor::started`) method will be called.
 //! You don't need to clean up and reset the actor's state if you configure it to be recreated from `Default` at spawn-time.
@@ -40,7 +41,7 @@
 //! #[derive(Actor, RestartableActor, Default)]
 //! struct Counter(usize);
 //!
-//! let addr = hannibal::build(Counter(0))
+//! let addr = hannibal::setup_actor(Counter(0))
 //!     .bounded(6)
 //!     .recreate_from_default()
 //!     .spawn();
@@ -52,10 +53,10 @@
 //! This meant two tasks and twice the amount of sending.
 //! Since 0.12 hannibal can start the actor's event loop tightly coupled to the stream.
 //!
-//! ### Example: Attache to stream
+//! ### Example: Attach to stream
 //! Here we tie the lifetime of the actor to the stream.
 //! There is no extra task or messaging between them,
-//! the actor owns the stream now and polls it in its own event loop
+//! the actor owns the stream now and polls it in its own event loop.
 //!
 //! ```no_run
 //! # use hannibal::{Context, StreamHandler, Handler, Actor};
@@ -71,26 +72,12 @@
 //!
 //! let the_stream = futures::stream::iter(0..19);
 //!
-//! let addr = hannibal::build(Connector)
-//!         .unbounded()
-//!         .non_restartable()
-//!         .with_stream(the_stream)
-//!         .spawn();
-//!
-//! # let the_stream = futures::stream::iter(0..19);
-//!
-//! // you can also express this shorter
-//! let addr = hannibal::build(Connector)
+//! let addr = hannibal::setup_actor(Connector)
+//!         .bounded(10)
 //!         .on_stream(the_stream)
 //!         .spawn();
-//!
-//! # let the_stream = futures::stream::iter(0..19);
-//!
-//! // you can also have bounded channels
-//! let addr = hannibal::build(Connector)
-//!         .bounded_on_stream(10, the_stream)
-//!         .spawn();
 //! ```
+//!
 //! ## 4. Timeouts
 //!
 //! One problem that you have to address when handling messages is that you can't wait forever.
@@ -102,7 +89,7 @@
 //! # use std::time::Duration;
 //! # #[derive(Debug, Default, hannibal_derive::Actor)]
 //! # struct SleepyActor(u8);
-//! let mut addr = hannibal::build(SleepyActor(1))
+//! let mut addr = hannibal::setup_actor(SleepyActor(1))
 //!         .bounded(1)
 //!         .timeout(Duration::from_millis(100))
 //!         .spawn();
@@ -113,10 +100,10 @@
 //! # use std::time::Duration;
 //! # #[derive(Debug, Default, hannibal_derive::Actor)]
 //! # struct SleepyActor(u8);
-//! let mut addr = hannibal::build(SleepyActor(1))
-//!         .bounded(1)
+//! let mut addr = hannibal::setup_actor(SleepyActor(1))
 //!         .timeout(Duration::from_millis(100))
 //!         .fail_on_timeout(true)
+//!         .bounded(1)
 //!         .spawn_owning();
 //! ```
 //! In this particular example we want to hold an [`OwningAddr`](`crate::OwningAddr`) to the actor to receive the result of the actor's event loop.
@@ -135,7 +122,7 @@
 //! impl hannibal::Service for Counter {}
 //!
 //! # async move {
-//! let addr = hannibal::build(Counter(0))
+//! let addr = hannibal::setup_actor(Counter(0))
 //!     .bounded(6)
 //!     .recreate_from_default()
 //!     .register()
@@ -160,69 +147,70 @@ use super::{
     handle::ActorHandle,
     restart_strategy::{NonRestartable, RecreateFromDefault, RestartOnly, RestartStrategy},
 };
+
 /// Start constructing an actor.
 ///
 /// Find out more in the [module level documentation](`crate::builder`).
-pub fn build<A: Actor>(actor: A) -> BaseActorBuilder<A> {
-    BaseActorBuilder::new(actor)
+pub fn setup_actor<A: Actor>(actor: A) -> ActorBuilder<A> {
+    ActorBuilder::new(actor)
 }
 
-/// Base builder for launching an actor.
-#[derive(Default)]
-pub struct BaseActorBuilder<A>
-where
-    A: Actor,
-{
+/// Trait for building actors.
+pub trait Configurable<A: Actor> {
+    /// Build the actor.
+    fn setup_actor(self) -> ActorBuilder<A>;
+}
+
+impl<A: Actor> Configurable<A> for A {
+    fn setup_actor(self) -> ActorBuilder<A> {
+        setup_actor(self)
+    }
+}
+
+/// Builder for configuring and spawning an actor.
+pub struct ActorBuilder<A: Actor, R: RestartStrategy<A> = RestartOnly> {
     actor: A,
     config: EventLoopConfig,
+    channel: Option<Channel<A>>,
+    _restart: PhantomData<R>,
 }
 
-/// Builder stage to configure the channel used in the runtime of this actor instance.
-pub struct ActorBuilderWithChannel<A: Actor, R: RestartStrategy<A>>
-where
-    A: Actor,
-{
-    base: BaseActorBuilder<A>,
-    channel: Channel<A>,
-    restart: PhantomData<R>,
-}
-
-/// Builder for launching an actor connected to a stream.
-pub struct StreamActorBuilder<A, S>
-where
-    S: futures::Stream + Unpin + Send + 'static,
-    S::Item: 'static + Send,
-    A: StreamHandler<S::Item>,
-{
-    with_channel: ActorBuilderWithChannel<A, NonRestartable>,
-    stream: S,
-}
-
-/// add channel
-impl<A> BaseActorBuilder<A>
-where
-    A: Actor,
-{
-    pub(crate) fn new(actor: A) -> Self {
+impl<A: Actor> ActorBuilder<A, RestartOnly> {
+    fn new(actor: A) -> Self {
         Self {
             actor,
-            config: Default::default(),
+            config: EventLoopConfig::default(),
+            channel: None,
+            _restart: PhantomData,
         }
     }
+}
 
-    /// Define the kind of channel
-    const fn with_channel(self, channel: Channel<A>) -> ActorBuilderWithChannel<A, RestartOnly> {
-        ActorBuilderWithChannel {
-            base: self,
-            restart: PhantomData,
-            channel,
-        }
+// Configuration methods available for all restart strategies
+impl<A: Actor, R: RestartStrategy<A> + 'static> ActorBuilder<A, R> {
+    /// Use a bounded channel for message passing.
+    ///
+    /// A bounded channel provides backpressure when the channel is full.
+    #[must_use]
+    pub fn bounded(mut self, capacity: usize) -> Self {
+        self.channel = Some(Channel::bounded(capacity));
+        self
+    }
+
+    /// Use an unbounded channel for message passing.
+    ///
+    /// This is the default. An unbounded channel will never block senders.
+    #[must_use]
+    pub fn unbounded(mut self) -> Self {
+        self.channel = Some(Channel::unbounded());
+        self
     }
 
     /// Define a timeout for handling messages.
     ///
-    /// To avoid blocking the actor, a timeout can be set.
-    /// If the timeout is reached, the message handling will either be aborted or the entire actor will be terminated.
+    /// If a message handler takes longer than this duration, it will be aborted
+    /// (or the actor will fail, if `fail_on_timeout` is set).
+    #[must_use]
     pub const fn timeout(mut self, timeout: Duration) -> Self {
         self.config.timeout = Some(timeout);
         self
@@ -230,126 +218,29 @@ where
 
     /// Define whether the actor should fail on timeout.
     ///
-    /// If the timeout is reached the entire actor will be terminated.
+    /// If `true`, the actor will terminate when a timeout is exceeded.
+    /// If `false` (default), the handler is aborted but the actor continues.
+    #[must_use]
     pub const fn fail_on_timeout(mut self, fail: bool) -> Self {
         self.config.fail_on_timeout = fail;
         self
     }
 
-    /// Use a bounded channel for message passing.
-    pub fn bounded(self, capacity: usize) -> ActorBuilderWithChannel<A, RestartOnly> {
-        self.with_channel(Channel::bounded(capacity))
+    fn resolve_channel(self) -> (A, EventLoopConfig, Channel<A>) {
+        let channel = self.channel.unwrap_or_else(Channel::unbounded);
+        (self.actor, self.config, channel)
     }
 
-    /// Use an unbounded channel for message passing.
-    pub fn unbounded(self) -> ActorBuilderWithChannel<A, RestartOnly> {
-        self.with_channel(Channel::unbounded())
+    /// Spawn the actor and return an address.
+    pub fn spawn(self) -> Addr<A> {
+        self.spawn_owning().detach()
     }
 
-    /// Create a non-restartable on that stream
-    pub fn bounded_on_stream<S>(self, capacity: usize, stream: S) -> StreamActorBuilder<A, S>
-    where
-        S: futures::Stream + Unpin + Send + 'static,
-        S::Item: 'static + Send,
-        A: StreamHandler<S::Item>,
-    {
-        self.with_channel(Channel::bounded(capacity))
-            .non_restartable()
-            .with_stream(stream)
-    }
-
-    /// Create a non-restartable on that stream
-    pub fn on_stream<S>(self, stream: S) -> StreamActorBuilder<A, S>
-    where
-        S: futures::Stream + Unpin + Send + 'static,
-        S::Item: 'static + Send,
-        A: StreamHandler<S::Item>,
-    {
-        self.with_channel(Channel::unbounded())
-            .non_restartable()
-            .with_stream(stream)
-    }
-}
-
-/// add stream
-impl<A> ActorBuilderWithChannel<A, NonRestartable>
-where
-    A: Actor,
-{
-    /// Construct an actor using an existing stream.
-    pub fn with_stream<S>(self, stream: S) -> StreamActorBuilder<A, S>
-    where
-        S: futures::Stream + Unpin + Send + 'static,
-        S::Item: 'static + Send,
-        A: StreamHandler<S::Item>,
-    {
-        StreamActorBuilder {
-            with_channel: self.non_restartable(),
-            stream,
-        }
-    }
-}
-
-/// make non restartable
-impl<A, R> ActorBuilderWithChannel<A, R>
-where
-    A: Actor,
-    R: RestartStrategy<A> + 'static,
-{
-    /// Build a non-restartable Actor.
-    ///
-    /// Only non-restartable actors can handle streams.
-    pub fn non_restartable(self) -> ActorBuilderWithChannel<A, NonRestartable> {
-        ActorBuilderWithChannel {
-            base: self.base,
-            channel: self.channel,
-            restart: PhantomData,
-        }
-    }
-
-    /// Set a maximum time that a handler can take to
-    pub const fn timeout(mut self, timeout: Duration) -> Self {
-        self.base.config.timeout = Some(timeout);
-        self
-    }
-
-    /// Terminate the actor if a timeout is exceeded.
-    /// TODO: add a `.restart_on_timeout()` method
-    pub const fn fail_on_timeout(mut self, fail: bool) -> Self {
-        self.base.config.fail_on_timeout = fail;
-        self
-    }
-}
-
-/// make recreate from `Default` on restart
-impl<A, R> ActorBuilderWithChannel<A, R>
-where
-    A: RestartableActor + Default,
-    R: RestartStrategy<A> + 'static,
-{
-    /// Configure the actor to construct a new instance from `Default::default()` when restarting.
-    pub fn recreate_from_default(self) -> ActorBuilderWithChannel<A, RecreateFromDefault> {
-        ActorBuilderWithChannel {
-            base: self.base,
-            channel: self.channel,
-            restart: PhantomData,
-        }
-    }
-}
-
-/// spawn actor
-impl<A, R> ActorBuilderWithChannel<A, R>
-where
-    A: Actor,
-    R: RestartStrategy<A> + 'static,
-{
     /// Spawn the actor and return an owning address.
+    ///
+    /// An owning address allows retrieving the actor after it stops.
     pub fn spawn_owning(self) -> OwningAddr<A> {
-        let ActorBuilderWithChannel {
-            base: BaseActorBuilder { actor, config, .. },
-            channel,
-            ..
-        } = self;
+        let (actor, config, channel) = self.resolve_channel();
 
         let (event_loop, addr) = EventLoop::<A, R>::from_channel(channel)
             .with_config(config)
@@ -357,75 +248,138 @@ where
         let handle = ActorHandle::spawn(event_loop);
         OwningAddr { addr, handle }
     }
+}
 
-    /// Spawn the actor.
-    pub fn spawn(self) -> Addr<A> {
-        let ActorBuilderWithChannel {
-            base: BaseActorBuilder { actor, config, .. },
-            channel,
-            ..
-        } = self;
-
-        let (event_loop, addr) = EventLoop::<A, R>::from_channel(channel)
-            .with_config(config)
-            .create(actor);
-        ActorHandle::spawn(event_loop).detach();
-        addr
+// Stream attachment - only available for RestartOnly (default) strategy
+impl<A: Actor> ActorBuilder<A, RestartOnly> {
+    /// Attach a stream to this actor.
+    ///
+    /// The actor will process messages from the stream alongside regular messages.
+    /// Stream-attached actors cannot be restarted.
+    pub fn on_stream<S>(self, stream: S) -> StreamActorBuilder<A, S>
+    where
+        S: futures::Stream + Unpin + Send + 'static,
+        S::Item: 'static + Send,
+        A: StreamHandler<S::Item>,
+    {
+        StreamActorBuilder {
+            actor: self.actor,
+            config: self.config,
+            channel: self.channel,
+            stream,
+        }
     }
 }
 
-/// register service
-impl<A, R> ActorBuilderWithChannel<A, R>
+// Restart strategy transitions
+impl<A, R> ActorBuilder<A, R>
+where
+    A: RestartableActor + Default,
+    R: RestartStrategy<A> + 'static,
+{
+    /// Configure the actor to construct a new instance from `Default::default()` when restarting.
+    ///
+    /// This is useful when you want a clean slate on restart rather than just
+    /// calling the lifecycle hooks on the existing instance.
+    #[must_use]
+    pub fn recreate_from_default(self) -> ActorBuilder<A, RecreateFromDefault> {
+        ActorBuilder {
+            actor: self.actor,
+            config: self.config,
+            channel: self.channel,
+            _restart: PhantomData,
+        }
+    }
+}
+
+// Service registration
+impl<A, R> ActorBuilder<A, R>
 where
     A: Actor + Service,
     R: RestartStrategy<A> + 'static,
 {
     /// Register an actor as a service.
     ///
-    /// see [`crate::Addr::register`]
+    /// The actor can then be accessed globally via [`Service::from_registry()`].
     pub async fn register(self) -> crate::error::Result<(Addr<A>, Option<Addr<A>>)> {
         self.spawn().register().await
     }
 }
 
-/// spawn actor on stream, non restartable
-impl<A, S> StreamActorBuilder<A, S>
+/// Builder for an actor attached to a stream.
+///
+/// Stream-attached actors cannot be restarted.
+pub struct StreamActorBuilder<A, S>
 where
+    A: Actor + StreamHandler<S::Item>,
     S: futures::Stream + Unpin + Send + 'static,
     S::Item: 'static + Send,
-    A: StreamHandler<S::Item>,
-    A: Actor,
 {
-    /// Spawn the actor.
-    pub fn spawn(self) -> Addr<A> {
-        let Self {
-            with_channel:
-                ActorBuilderWithChannel {
-                    base: BaseActorBuilder { actor, config, .. },
-                    channel,
-                    ..
-                },
-            stream,
-        } = self;
+    actor: A,
+    config: EventLoopConfig,
+    channel: Option<Channel<A>>,
+    stream: S,
+}
 
-        let (event_loop, addr) = EventLoop::<A, NonRestartable>::from_channel(channel)
-            .with_config(config)
-            .create_on_stream(actor, stream);
-        ActorHandle::spawn(event_loop).detach();
-        addr
+impl<A, S> StreamActorBuilder<A, S>
+where
+    A: Actor + StreamHandler<S::Item>,
+    S: futures::Stream + Unpin + Send + 'static,
+    S::Item: 'static + Send,
+{
+    /// Use a bounded channel for message passing.
+    ///
+    /// A bounded channel provides backpressure when the channel is full.
+    #[must_use]
+    pub fn bounded(mut self, capacity: usize) -> Self {
+        self.channel = Some(Channel::bounded(capacity));
+        self
+    }
+
+    /// Use an unbounded channel for message passing.
+    ///
+    /// This is the default. An unbounded channel will never block senders.
+    #[must_use]
+    pub fn unbounded(mut self) -> Self {
+        self.channel = Some(Channel::unbounded());
+        self
+    }
+
+    /// Define a timeout for handling messages.
+    ///
+    /// If a message handler takes longer than this duration, it will be aborted
+    /// (or the actor will fail, if `fail_on_timeout` is set).
+    #[must_use]
+    pub const fn timeout(mut self, timeout: Duration) -> Self {
+        self.config.timeout = Some(timeout);
+        self
+    }
+
+    /// Define whether the actor should fail on timeout.
+    ///
+    /// If `true`, the actor will terminate when a timeout is exceeded.
+    /// If `false` (default), the handler is aborted but the actor continues.
+    #[must_use]
+    pub const fn fail_on_timeout(mut self, fail: bool) -> Self {
+        self.config.fail_on_timeout = fail;
+        self
+    }
+
+    fn resolve_channel(self) -> (A, EventLoopConfig, Channel<A>, S) {
+        let channel = self.channel.unwrap_or_else(Channel::unbounded);
+        (self.actor, self.config, channel, self.stream)
+    }
+
+    /// Spawn the actor and return an address.
+    pub fn spawn(self) -> Addr<A> {
+        self.spawn_owning().detach()
     }
 
     /// Spawn the actor and return an owning address.
+    ///
+    /// An owning address allows retrieving the actor after it stops.
     pub fn spawn_owning(self) -> OwningAddr<A> {
-        let Self {
-            with_channel:
-                ActorBuilderWithChannel {
-                    base: BaseActorBuilder { actor, config, .. },
-                    channel,
-                    ..
-                },
-            stream,
-        } = self;
+        let (actor, config, channel, stream) = self.resolve_channel();
 
         let (event_loop, addr) = EventLoop::<A, NonRestartable>::from_channel(channel)
             .with_config(config)
