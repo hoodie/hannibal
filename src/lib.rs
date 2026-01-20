@@ -88,6 +88,7 @@ pub use hannibal_derive::{main, message};
 mod broker;
 mod handler;
 
+pub mod messages;
 pub mod runtime;
 
 // TODO: flatten module structure

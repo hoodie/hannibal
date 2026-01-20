@@ -1,4 +1,4 @@
-use hannibal::prelude::*;
+use hannibal::{messages::Ping, prelude::*};
 
 struct MyActor;
 
@@ -38,6 +38,9 @@ async fn main() {
 
     let addition = addr.call(Add(5, 6)).await;
     println!("The Actor Calculated: {addition:?}");
+
+    let pong = addr.call(Ping::default()).await.unwrap();
+    println!("The Actor Ponged: {:?}", pong.0);
 
     addr.stop().unwrap();
     // addr.consume().await.unwrap();

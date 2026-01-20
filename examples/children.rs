@@ -37,14 +37,14 @@ impl Handler<()> for Child {
     }
 }
 
-#[derive(Clone, Message)]
-struct Gc;
-impl Handler<Gc> for Root {
-    async fn handle(&mut self, ctx: &mut Context<Self>, _: Gc) {
-        println!("Garbage Collecting");
-        ctx.gc();
-    }
-}
+// #[derive(Clone, Message)]
+// struct Gc;
+// impl Handler<Gc> for Root {
+//     async fn handle(&mut self, ctx: &mut Context<Self>, _: Gc) {
+//         println!("Garbage Collecting");
+//         ctx.gc();
+//     }
+// }
 
 #[derive(Debug)]
 struct Root;
@@ -60,7 +60,7 @@ impl Actor for Root {
         ctx.register_child::<Hello>(Child(5).spawn());
 
         ctx.interval_with(|| Hello, Duration::from_millis(500));
-        ctx.interval(Gc, Duration::from_millis(500));
+        ctx.interval(hannibal::messages::Gc, Duration::from_millis(500));
 
         let mut me = ctx.weak_address();
         ctx.delayed_exec(
