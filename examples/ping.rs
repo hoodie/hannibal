@@ -39,8 +39,10 @@ async fn main() {
     let addition = addr.call(Add(5, 6)).await;
     println!("The Actor Calculated: {addition:?}");
 
-    let pong = addr.call(Ping::default()).await.unwrap();
-    println!("The Actor Ponged: {:?}", pong.0);
+    println!(
+        "The Actor Ponged: {:?}",
+        addr.call(Ping::default()).await.unwrap()
+    );
 
     addr.stop().unwrap();
     // addr.consume().await.unwrap();

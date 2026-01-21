@@ -60,7 +60,7 @@ impl Actor for Root {
         ctx.register_child::<Hello>(Child(5).spawn());
 
         ctx.interval_with(|| Hello, Duration::from_millis(500));
-        ctx.interval(hannibal::messages::Gc, Duration::from_millis(500));
+        ctx.interval(hannibal::messages::GC, Duration::from_millis(500));
 
         let mut me = ctx.weak_address();
         ctx.delayed_exec(

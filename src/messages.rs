@@ -7,11 +7,11 @@ use std::time::{Duration, Instant};
 
 use super::{Actor, Handler, Message};
 
-/// **Message** Ping message containing the time it was sent.
+/// Ping the actor and receive the round-trip duration.
 #[derive(Debug, Clone, Copy)]
 pub struct Ping(Instant);
 impl Message for Ping {
-    type Response = Pong;
+    type Response = Duration;
 }
 
 impl Default for Ping {
@@ -20,27 +20,23 @@ impl Default for Ping {
     }
 }
 
-/// **Response** Response to a Ping message containing the duration since the ping was sent.
-#[derive(Debug, Clone, Copy)]
-pub struct Pong(pub Duration);
-
 impl<A: Actor> Handler<Ping> for A {
-    async fn handle(&mut self, _ctx: &mut crate::Context<Self>, Ping(sent_time): Ping) -> Pong {
-        Pong(std::time::Instant::now() - sent_time)
+    async fn handle(&mut self, _ctx: &mut crate::Context<Self>, Ping(sent_time): Ping) -> Duration {
+        Instant::now() - sent_time
     }
 }
 
-/// **Message** Garbage Collect message.
+/// Cause the Actor's Context to garbage-collect.
 ///
-/// This message can be used to trigger garbage collection within an actor.
+/// see [`Context::gc`](`crate::Context::gc`) for more information.
 #[derive(Debug, Clone, Copy)]
-pub struct Gc;
-impl Message for Gc {
+pub struct GC;
+impl Message for GC {
     type Response = ();
 }
 
-impl<A: Actor> Handler<Gc> for A {
-    async fn handle(&mut self, ctx: &mut crate::Context<Self>, _: Gc) {
+impl<A: Actor> Handler<GC> for A {
+    async fn handle(&mut self, ctx: &mut crate::Context<Self>, _: GC) {
         log::trace!("Garbage Collecting");
         ctx.gc();
     }
