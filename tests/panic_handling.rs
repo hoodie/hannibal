@@ -14,7 +14,7 @@ struct Echo(String);
 
 impl Handler<PanicNow> for PanickingActor {
     async fn handle(&mut self, _ctx: &mut Context<Self>, _: PanicNow) {
-        panic!("ooops");
+        panic!("ooops, but this is not the cause of the failed test!");
     }
 }
 
@@ -22,6 +22,27 @@ impl Handler<Echo> for PanickingActor {
     async fn handle(&mut self, _ctx: &mut Context<Self>, msg: Echo) -> String {
         msg.0
     }
+}
+
+/// Helper to wait for actor to be marked as stopped.
+///
+/// This is necessary because different runtimes have different task cleanup timing:
+/// - tokio: Cleanup is synchronous when a task panics, flag is set immediately
+/// - async-global-executor: Uses thread pool, cleanup happens on worker thread with slight delay
+async fn wait_for_stopped<A: Actor>(addr: &Addr<A>) {
+    for i in 0..100 {
+        if addr.stopped() {
+            eprintln!("saw stopped after {i} sleeps");
+            return;
+        }
+        // Small yield to let runtime complete cleanup
+        #[cfg(feature = "tokio_runtime")]
+        tokio::task::yield_now().await;
+
+        #[cfg(not(feature = "tokio_runtime"))]
+        async_io::Timer::after(std::time::Duration::from_micros(100 + i * 10)).await;
+    }
+    panic!("Actor never stopped");
 }
 
 #[test_log::test(tokio::test)]
@@ -36,7 +57,7 @@ async fn running_returns_false_after_panic() {
 
     assert!(addr.call(PanicNow).await.is_err());
 
-    assert!(addr.stopped());
+    wait_for_stopped(&addr).await;
     assert!(addr.ping().await.is_err());
     assert!(addr.stopped());
 
@@ -50,7 +71,7 @@ async fn running_returns_false_after_normal_stop() {
 
     addr.clone().halt().await.unwrap();
 
-    assert!(addr.stopped());
+    wait_for_stopped(&addr).await;
     assert!(addr.ping().await.is_err());
 }
 
@@ -66,6 +87,7 @@ async fn multiple_addresses_see_consistent_state() {
 
     addr1.call(PanicNow).await.unwrap_err();
 
+    wait_for_stopped(&addr1).await;
     assert!(addr1.stopped());
     assert!(addr2.stopped());
     assert!(addr3.stopped());
@@ -83,6 +105,6 @@ async fn running_with_fire_and_forget_send() {
 
     addr.send(PanicNow).await.unwrap();
 
+    wait_for_stopped(&addr).await;
     assert!(addr.ping().await.is_err());
-    assert!(addr.stopped());
 }
