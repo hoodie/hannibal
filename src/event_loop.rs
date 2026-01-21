@@ -1,4 +1,10 @@
-use std::{future::Future, marker::PhantomData, pin::pin, time::Duration};
+use std::{
+    future::Future,
+    marker::PhantomData,
+    pin::pin,
+    sync::{Arc, atomic::AtomicBool},
+    time::Duration,
+};
 
 use futures::{FutureExt, Stream, StreamExt as _, channel::oneshot};
 
@@ -33,15 +39,16 @@ pub struct EventLoop<A: Actor, R: RestartStrategy<A> = RestartOnly> {
 impl<A: Actor, R: RestartStrategy<A>> EventLoop<A, R> {
     pub(crate) fn from_channel(channel: Channel<A>) -> Self {
         let (tx_running, rx_running) = oneshot::channel::<()>();
+        let running_flag = Arc::new(AtomicBool::new(true));
         let (tx, rx) = channel.break_up();
         let weak_tx = tx.downgrade();
         let ctx = Context {
             weak_tx,
-            core: Core::new(rx_running.shared()),
+            core: Core::new(Arc::clone(&running_flag), rx_running.shared()),
             children: Default::default(),
             tasks: Default::default(),
         };
-        let stop = StopNotifier(tx_running);
+        let stop = StopNotifier::new(running_flag, tx_running);
 
         let addr = Addr {
             tx,

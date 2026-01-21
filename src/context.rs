@@ -1,7 +1,5 @@
 use std::collections::HashMap;
 
-use futures::channel::oneshot;
-
 use crate::{
     Handler, Message, RestartableActor, WeakAddr,
     actor::Actor,
@@ -21,7 +19,11 @@ mod task_id;
 #[cfg(test)]
 mod test_interval_cleanup;
 
-pub(crate) use self::{context_id::ContextID, core::Core, task_id::TaskID};
+pub(crate) use self::{
+    context_id::ContextID,
+    core::{Core, StopNotifier},
+    task_id::TaskID,
+};
 
 // Runtime-specific task handle type
 #[cfg(all(feature = "tokio_runtime", not(feature = "async_runtime")))]
@@ -29,14 +31,6 @@ type TaskJoinHandle = tokio::task::JoinHandle<()>;
 
 #[cfg(all(not(feature = "tokio_runtime"), feature = "async_runtime"))]
 type TaskJoinHandle = async_global_executor::Task<()>;
-
-pub type RunningFuture = futures::future::Shared<oneshot::Receiver<()>>;
-pub struct StopNotifier(pub(crate) oneshot::Sender<()>);
-impl StopNotifier {
-    pub fn notify(self) {
-        self.0.send(()).ok();
-    }
-}
 
 /// Available to the actor in every execution call.
 ///
