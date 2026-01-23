@@ -258,12 +258,10 @@ mod tests {
         assert_eq!(first_svc.call(Identify).await, Ok(1337));
 
         // stop the service
-        let mut first_svc_again = Svc::from_registry().await;
+        let first_svc_again = Svc::from_registry().await;
         assert_eq!(first_svc_again.call(Identify).await, Ok(1337));
 
-        first_svc_again.stop().unwrap();
-        assert!(!first_svc_again.stopped());
-        first_svc_again.await.unwrap();
+        first_svc_again.halt().await.unwrap();
 
         // register a new service instance
         let (second_svc, replaced_first) = Svc::new(1338).spawn().register().await.unwrap();
