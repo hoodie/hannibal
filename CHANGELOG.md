@@ -1,5 +1,12 @@
 # Changelog
 
+### [v0.16.2](https://github.com/hoodie/hannibal/compare/v0.16.1...v0.16.2) (2026-01-24)
+
+#### Fixes
+
+* notify addr of stop when handler panics
+([1cbad97](https://github.com/hoodie/hannibal/commit/1cbad973e29b3d48f1deb9ee22b1e365fb1030fe))
+
 ### [v0.16.1](https://github.com/hoodie/hannibal/compare/v0.16.0...v0.16.1) (2026-01-19)
 
 #### Fixes
