@@ -1,6 +1,9 @@
-on: [push, pull_request]
-
 name: Build and Lint
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
 
 jobs:
   check:
@@ -37,16 +40,12 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: clippy, rustfmt
-      - uses: Swatinem/rust-cache@v2
 
       - name: clippy
         run: cargo clippy --workspace --all-targets -- -D warnings
 
       - name: clippy ${{matrix.runtimes}},${{matrix.channels}}
-        run: cargo clippy --workspace --no-default-features --features ${{matrix.runtimes}},${{matrix.channels}}
-
-      - name: cargo-clippy
-        run: cargo clippy --workspace --all-targets -- -D warnings
+        run: cargo clippy --workspace --all-targets --no-default-features --features ${{matrix.runtimes}},${{matrix.channels}}
 
       - name: cargo-fmt
         run: cargo fmt --all --check

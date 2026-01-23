@@ -1,0 +1,5 @@
+[profile.ci]
+fail-fast = false
+status-level="slow"
+failure-output="final"
+final-status-level="slow"

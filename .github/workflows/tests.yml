@@ -1,5 +1,8 @@
+name: Tests
+
 on:
   push:
+    branches: [main]
   pull_request:
   workflow_dispatch:
     inputs:
@@ -7,8 +10,6 @@ on:
         description: 'Number of times to run stress tests'
         required: false
         default: '10'
-
-name: Tests
 
 jobs:
   test:
@@ -20,6 +21,7 @@ jobs:
       RUST_LOG: trace
       STRESS_COUNT: ${{ github.event.inputs.stress_count || 1 }}
     strategy:
+      fail-fast: false
       matrix:
         rust: [stable, beta, nightly]
         runtimes: ["tokio_runtime", "async_runtime", "async_runtime,tokio"]
@@ -31,13 +33,13 @@ jobs:
       - uses: taiki-e/install-action@nextest
 
       - name: workspace
-        run: cargo nextest run --workspace --all-targets --stress-count $STRESS_COUNT
+        run: cargo nextest run --profile ci --workspace --all-targets --stress-count $STRESS_COUNT
 
       - name: test (most)
-        run: cargo nextest run --workspace --all-targets --no-default-features --features ${{matrix.runtimes}},${{matrix.channels}} --stress-count $STRESS_COUNT
+        run: cargo nextest run --profile ci --workspace --all-targets --no-default-features --features ${{matrix.runtimes}},${{matrix.channels}} --stress-count $STRESS_COUNT
 
       - name: lib test ${{matrix.runtimes}},${{matrix.channels}}
-        run: cargo nextest run --workspace --lib --no-default-features --features ${{matrix.runtimes}},${{matrix.channels}} --stress-count $STRESS_COUNT
+        run: cargo nextest run --profile ci --workspace --lib --no-default-features --features ${{matrix.runtimes}},${{matrix.channels}} --stress-count $STRESS_COUNT
 
       - name: doc test (default)
         run: cargo test --doc --workspace
