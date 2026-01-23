@@ -20,6 +20,7 @@ jobs:
       RUST_LOG: trace
       STRESS_COUNT: ${{ github.event.inputs.stress_count || 1 }}
     strategy:
+      fail-fast: false
       matrix:
         rust: [stable, beta, nightly]
         runtimes: ["tokio_runtime", "async_runtime", "async_runtime,tokio"]
