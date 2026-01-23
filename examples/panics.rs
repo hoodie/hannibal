@@ -34,6 +34,8 @@ async fn main() -> DynResult<()> {
 
     _ = hitchhiker.send(Boo).await;
 
+    hitchhiker.clone().await.unwrap();
+
     assert!(hitchhiker.stopped());
     assert!(hitchhiker.ping().await.is_err());
 
