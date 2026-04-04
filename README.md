@@ -1,16 +1,17 @@
-<!-- <div align="center"> -->
+<div align="center">
 
 # Hannibal
 
-<!-- Crates version -->
+[![build](https://img.shields.io/github/actions/workflow/status/hoodie/hannibal/ci.yml?branch=main)](https://github.com/hoodie/hannibal/actions?query=workflow%3A"Continuous+Integration")
+[![Crates.io](https://img.shields.io/crates/d/hannibal)](https://crates.io/crates/hannibal)
+[![contributors](https://img.shields.io/github/contributors/hoodie/hannibal)](https://github.com/hoodie/hannibal/graphs/contributors)
+![maintenance](https://img.shields.io/maintenance/yes/2027)
 
-[![Continuous Integration](https://github.com/hoodie/hannibal/actions/workflows/ci.yml/badge.svg)](https://github.com/hoodie/hannibal/actions/workflows/ci.yml)
 [![version](https://img.shields.io/crates/v/hannibal)](https://crates.io/crates/hannibal/)
-[![downloads](https://img.shields.io/crates/d/hannibal.svg?style=flat-square)](https://crates.io/crates/hannibal)
-[![docs.rs docs](https://img.shields.io/badge/docs-latest-blue.svg?style=flat-square)](https://docs.rs/hannibal)
-![maintenance](https://img.shields.io/maintenance/yes/2026)
+[![documentation](https://img.shields.io/badge/docs-latest-blue.svg)](https://docs.rs/hannibal/)
+[![license](https://img.shields.io/crates/l/hannibal.svg?style=flat)](https://crates.io/crates/hannibal/)
 
-a small actor library
+A small actor library for async Rust.
 
 </div>
 
@@ -20,6 +21,7 @@ In async Rust you find yourself often spawning tasks and instantiating channels 
 This can be cumbersome in larger projects and become complicated once you want to support multiple message types.
 You also end up handling the lifecycle of your tasks and channels manually again and again.
 See [simple-channels-only.rs](examples/simple-channels-only.rs).
+
 
 An actor is a task that encapsulates its own state and can receive messages.
 You can pass around strong and weak Addresses to the concret actor type.
@@ -35,7 +37,9 @@ You can pass around strong and weak Addresses to the concret actor type.
 - actor hierarchies with children
 - configurable channels
 
-## Examples
+## Usage & Documentation
+
+Please see the [documentation](https://docs.rs/hannibal/) for current examples.
 
 ### Addresses
 
@@ -243,7 +247,7 @@ println!("Subscriber 2 received: {:?}", value2);
 In order to do execute actions regularly or after a certain period of time,
 actors can start intervals that send themselves messages.
 
-```rs
+```rust
 struct MyActor(u8);
 
 #[message]
@@ -301,7 +305,7 @@ If you should need to retain the ownership to the instance of your actor object 
 This yields the its content when stopped.
 If you find a good usecase for this outside of testing, feel free to drop me a message to let me know 😜.
 
-## Contribution
+## Contributing
 
 Any help in form of descriptive and friendly [issues](https://github.com/hoodie/hannibal/issues) or comprehensive pull requests are welcome!
 
@@ -309,4 +313,19 @@ Unless you explicitly state otherwise, any contribution intentionally submitted 
 
 ### Conventions
 
-The Changelog of this library is generated from its commit log, there any commit message must conform with [https://www.conventionalcommits.org/en/v1.0.0/]. For simplicity you could make your commits with [convco](https://crates.io/crates/convco).
+The Changelog of this library is generated from its commit log, there any commit message must conform with https://www.conventionalcommits.org/en/v1.0.0/. For simplicity you could make your commits with [convco](https://crates.io/crates/convco).
+
+### License
+
+<sup>
+`hannibal` is licensed under either of <a href="LICENSE-APACHE">Apache License, Version
+2.0</a> or <a href="LICENSE-MIT">MIT license</a> at your option.
+</sup>
+
+<br>
+
+<sub>
+Unless you explicitly state otherwise, any contribution intentionally submitted
+for inclusion in this crate by you, as defined in the Apache-2.0 license, shall
+be dual licensed as above, without any additional terms or conditions.
+</sub>
