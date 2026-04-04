@@ -481,7 +481,7 @@ checksum = "0cc23270f6e1808e30a928bdc84dea0b9b4136a8bc82338574f23baf47bbd280"
 
 [[package]]
 name = "hannibal"
-version = "0.16.2"
+version = "0.16.3"
 dependencies = [
  "assert_matches",
  "async-channel",
@@ -504,7 +504,7 @@ dependencies = [
 
 [[package]]
 name = "hannibal-derive"
-version = "0.16.2"
+version = "0.16.3"
 dependencies = [
  "proc-macro-crate",
  "proc-macro2",
