@@ -1,5 +1,12 @@
 # Changelog
 
+### [v0.16.3](https://github.com/hoodie/hannibal/compare/v0.16.2...v0.16.3) (2026-04-04)
+
+#### Fixes
+
+* update maintenance state and formatting in README
+([f6af212](https://github.com/hoodie/hannibal/commit/f6af212c2c2a8ea98cca75d25da1a9c1050f765e))
+
 ### [v0.16.2](https://github.com/hoodie/hannibal/compare/v0.16.1...v0.16.2) (2026-01-24)
 
 #### Fixes
