@@ -13,7 +13,6 @@ jobs:
       matrix:
         rust: [stable, beta, nightly]
         runtimes: ["tokio_runtime", "async_runtime", "async_runtime,tokio"]
-        channels: [async_channel, futures_channel] # futures_channel is default
     steps:
       - uses: actions/checkout@v4
       - uses: Swatinem/rust-cache@v2
@@ -24,8 +23,8 @@ jobs:
       - name: check
         run: cargo check --all-targets
 
-      - name: check ${{matrix.runtimes}},${{matrix.channels}}
-        run: cargo check --all-targets --no-default-features --features ${{matrix.runtimes}},${{matrix.channels}}
+      - name: check ${{matrix.runtimes}}
+        run: cargo check --all-targets --no-default-features --features ${{matrix.runtimes}}
 
   fmtclippy:
     runs-on: ubuntu-latest
@@ -33,7 +32,6 @@ jobs:
       matrix:
         rust: [stable, beta]
         runtimes: ["tokio_runtime", "async_runtime", "async_runtime,tokio"]
-        channels: [async_channel, futures_channel] # futures_channel is default
     steps:
       - uses: actions/checkout@v4
       - uses: Swatinem/rust-cache@v2
@@ -44,8 +42,8 @@ jobs:
       - name: clippy
         run: cargo clippy --workspace --all-targets -- -D warnings
 
-      - name: clippy ${{matrix.runtimes}},${{matrix.channels}}
-        run: cargo clippy --workspace --all-targets --no-default-features --features ${{matrix.runtimes}},${{matrix.channels}}
+      - name: clippy ${{matrix.runtimes}}
+        run: cargo clippy --workspace --all-targets --no-default-features --features ${{matrix.runtimes}}
 
       - name: cargo-fmt
         run: cargo fmt --all --check
