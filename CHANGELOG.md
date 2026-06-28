@@ -1,5 +1,17 @@
 # Changelog
 
+## [v0.17.0](https://github.com/hoodie/hannibal/compare/v0.16.3...v0.17.0) (2026-06-28)
+
+### Features
+
+* default to async-channel entirely
+([62c313c](https://github.com/hoodie/hannibal/commit/62c313c910d7f1b95101cb9f3e19dbd031769d26))
+
+### Fixes
+
+* do not return Results form infallible functions
+([279a85c](https://github.com/hoodie/hannibal/commit/279a85ccc3ad95311c167c88e77e98cf8bd6ef20))
+
 ### [v0.16.3](https://github.com/hoodie/hannibal/compare/v0.16.2...v0.16.3) (2026-04-04)
 
 #### Fixes
