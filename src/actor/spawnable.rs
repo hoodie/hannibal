@@ -41,32 +41,32 @@ where
     Self: StreamHandler<T::Item>,
 {
     /// Spawns the actor on the provided stream and returns an `Addr` handle.
-    fn spawn_on_stream(self, stream: T) -> crate::error::Result<Addr<Self>> {
-        Ok(self.spawn_owning_on_stream(stream)?.detach())
+    fn spawn_on_stream(self, stream: T) -> Addr<Self> {
+        self.spawn_owning_on_stream(stream).detach()
     }
 
     /// Spawns the actor on the provided stream and returns an `OwningAddr` handle.
-    fn spawn_owning_on_stream(self, stream: T) -> crate::error::Result<OwningAddr<Self>> {
+    fn spawn_owning_on_stream(self, stream: T) -> OwningAddr<Self> {
         log::trace!("spawn on stream {}", type_name::<Self>());
         let (event_loop, addr) = EventLoop::unbounded().create_on_stream(self, stream);
         let handle = ActorHandle::spawn(event_loop);
-        Ok(OwningAddr::new(addr, handle))
+        OwningAddr::new(addr, handle)
     }
 }
 
 /// An Actor that implements [`Default`].
 pub trait DefaultSpawnable: Actor + Default {
     /// Spawns a new actor with default configuration.
-    fn spawn_default() -> crate::error::Result<Addr<Self>> {
-        Ok(Self::spawn_default_owning()?.detach())
+    fn spawn_default() -> Addr<Self> {
+        Self::spawn_default_owning().detach()
     }
 
     /// Spawns a new actor with default configuration.
-    fn spawn_default_owning() -> crate::error::Result<OwningAddr<Self>> {
+    fn spawn_default_owning() -> OwningAddr<Self> {
         log::trace!("spawn defauwning {}", type_name::<Self>());
         let (event_loop, addr) = EventLoop::unbounded().create(Self::default());
         let handle = ActorHandle::spawn(event_loop);
-        Ok(OwningAddr::new(addr, handle))
+        OwningAddr::new(addr, handle)
     }
 }
 
@@ -107,7 +107,7 @@ mod tests {
 
         #[tokio::test]
         async fn spawn_default() {
-            let mut addr = TokioActor::<()>::spawn_default().unwrap();
+            let mut addr = TokioActor::<()>::spawn_default();
             assert!(!addr.stopped());
 
             addr.call(Ping).await.unwrap();
