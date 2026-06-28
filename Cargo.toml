@@ -120,6 +120,11 @@ name = "signal-service"
 path = "examples/signal-service.rs"
 required-features = ["runtime"]
 
+[[example]]
+name = "stop"
+path = "examples/stop.rs"
+required-features = ["runtime"]
+
 [lints.rust]
 unsafe_code = "forbid"
 trivial_numeric_casts = "forbid"

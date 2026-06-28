@@ -1,5 +1,35 @@
 use crate::{Actor, Context, Message};
 
+/// A built-in message that stops any actor when sent.
+///
+/// All actors handle `Stop` automatically — no [`Handler`] impl required.
+///
+/// # Example
+/// ```rust
+/// # use hannibal::prelude::*;
+/// # use hannibal::Stop;
+/// #[derive(Actor)]
+/// struct MyActor;
+///
+/// # #[hannibal::main]
+/// # async fn main() {
+/// let mut addr = MyActor.spawn();
+/// addr.send(Stop).await.unwrap();
+/// # }
+/// ```
+#[derive(Debug, Clone, Copy, Default)]
+pub struct Stop;
+
+impl Message for Stop {
+    type Response = ();
+}
+
+impl<A: Actor> Handler<Stop> for A {
+    async fn handle(&mut self, ctx: &mut Context<Self>, _msg: Stop) {
+        let _ = ctx.stop();
+    }
+}
+
 /// An actor should implement this trait if it wants to handle messages.
 pub trait Handler<M: Message>: Actor {
     /// Handle a message.

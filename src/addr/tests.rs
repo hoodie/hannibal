@@ -1,7 +1,7 @@
 #![allow(clippy::unwrap_used)]
 use hannibal_derive::message;
 
-use crate::{Context, DynResult, event_loop::EventLoop, prelude::Spawnable};
+use crate::{Context, DynResult, Stop, event_loop::EventLoop, prelude::Spawnable};
 
 use super::*;
 use std::future::Future;
@@ -10,23 +10,12 @@ use std::future::Future;
 pub struct MyActor(pub Option<&'static str>);
 
 #[message]
-pub struct Stop;
-
-#[message]
 pub struct Store(pub &'static str);
 
 #[message(response=i32)]
 pub struct Add(pub i32, pub i32);
 
 impl Actor for MyActor {}
-
-impl Handler<Stop> for MyActor {
-    async fn handle(&mut self, ctx: &mut Context<Self>, _: Stop) {
-        if let Err(error) = ctx.stop() {
-            eprintln!("{error}");
-        }
-    }
-}
 
 impl Handler<Store> for MyActor {
     async fn handle(&mut self, _ctx: &mut Context<Self>, msg: Store) {
@@ -149,6 +138,42 @@ async fn weak_sender_does_not_prolong_life() {
 
     assert!(weak_sender.upgrade().is_none());
     assert!(weak_sender2.upgrade().is_none());
+}
+
+mod test_stop_message {
+    use std::sync::{Arc, atomic::{AtomicBool, Ordering::SeqCst}};
+
+    use super::*;
+    use crate::prelude::*;
+
+    #[derive(Default, Actor)]
+    struct Bare;
+
+    struct Watched(Arc<AtomicBool>);
+
+    impl Actor for Watched {
+        async fn stopped(&mut self, _ctx: &mut Context<Self>) {
+            self.0.store(true, SeqCst);
+        }
+    }
+
+    #[test_log::test(tokio::test)]
+    async fn stop_message_stops_any_actor() {
+        let addr = Bare.spawn();
+        addr.send(Stop).await.unwrap();
+        addr.await.unwrap();
+    }
+
+    #[test_log::test(tokio::test)]
+    async fn stopped_hook_is_called_on_stop_message() {
+        let flag = Arc::new(AtomicBool::new(false));
+
+        let addr = Watched(Arc::clone(&flag)).spawn();
+        addr.send(Stop).await.unwrap();
+        addr.await.unwrap();
+
+        assert!(flag.load(SeqCst));
+    }
 }
 
 mod test_error_variants {

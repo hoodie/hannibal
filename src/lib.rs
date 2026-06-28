@@ -102,7 +102,7 @@ pub use self::{
         weak_caller::WeakCaller, weak_sender::WeakSender,
     },
     context::{Context, TaskHandle},
-    handler::{Handler, StreamHandler},
+    handler::{Handler, Stop, StreamHandler},
 };
 
 pub use actor::{builder, builder::setup_actor};
@@ -116,7 +116,7 @@ pub mod prelude {
         addr::{Addr, Message, sender::Sender, weak_caller::WeakCaller, weak_sender::WeakSender},
         builder::Configurable,
         context::Context,
-        handler::{Handler, StreamHandler},
+        handler::{Handler, Stop, StreamHandler},
         main, message,
         spawnable::{DefaultSpawnable, Spawnable, StreamSpawnable},
     };
