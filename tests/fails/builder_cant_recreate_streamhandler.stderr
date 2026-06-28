@@ -9,11 +9,4 @@ error[E0599]: no method named `on_stream` found for struct `ActorBuilder<MyActor
    | |_________|
    |
    |
-   = note: the method was found for
-           - `ActorBuilder<A>`
-
-error[E0282]: type annotations needed
-  --> tests/fails/builder_cant_recreate_streamhandler.rs:23:5
-   |
-23 |     addr.await.unwrap();
-   |     ^^^^^^^^^^ cannot infer type
+   = note: the method was found for `ActorBuilder<A>`
