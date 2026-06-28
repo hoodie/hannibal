@@ -11,7 +11,7 @@ impl Service for SignalService {
         let signals = Signals::new([libc::SIGINT])?;
 
         SignalService::default()
-            .spawn_on_stream(signals)?
+            .spawn_on_stream(signals)
             .register()
             .await?;
         Ok(())
