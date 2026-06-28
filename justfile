@@ -27,7 +27,7 @@ doc_test:
     cargo doc --no-deps
 
 install-deps:
-    @cargo install cargo-nextest
+    @cargo install cargo-nextest --locked
     @cargo install cargo-semver-checks
 
 semver-checks:
