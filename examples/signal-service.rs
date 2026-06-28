@@ -1,47 +1,33 @@
-use async_signals::Signals;
-use hannibal::prelude::*;
+use hannibal::{Signal, broadcast_signals, prelude::*};
 
-#[derive(Actor, Debug, Default)]
-struct SignalService {
-    sig_count: u8,
+#[derive(Default)]
+struct MyActor {
+    count: u8,
 }
 
-impl Service for SignalService {
-    async fn setup() -> DynResult<()> {
-        let signals = Signals::new([libc::SIGINT])?;
-
-        SignalService::default()
-            .spawn_on_stream(signals)
-            .register()
-            .await?;
+impl Actor for MyActor {
+    async fn started(&mut self, ctx: &mut Context<Self>) -> DynResult<()> {
+        ctx.subscribe::<Signal>().await?;
         Ok(())
     }
 }
 
-impl StreamHandler<i32> for SignalService {
-    async fn handle(&mut self, ctx: &mut Context<Self>, signal: i32) {
+impl Handler<Signal> for MyActor {
+    async fn handle(&mut self, ctx: &mut Context<Self>, _msg: Signal) {
         let limit = 3;
-        self.sig_count += 1;
-        println!("Received signal {signal:?}: {}/{limit}", self.sig_count);
-        if self.sig_count == limit {
+        self.count += 1;
+        if self.count == limit {
             ctx.stop().unwrap();
         }
-    }
-
-    async fn finished(&mut self, ctx: &mut Context<Self>) {
-        println!("Received {:?} signals", self.sig_count);
-        ctx.stop().unwrap();
     }
 }
 
 #[hannibal::main(flavor = "current_thread")]
-async fn main() {
-    env_logger::init();
-    SignalService::setup().await.unwrap();
-
-    let addr = SignalService::from_registry().await;
+async fn main() -> DynResult<()> {
+    broadcast_signals().await?;
 
     println!("kill me with Ctrl-C three times to stop the actor");
 
-    addr.await.unwrap();
+    MyActor::default().spawn().await?;
+    Ok(())
 }
