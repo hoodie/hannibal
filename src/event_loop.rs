@@ -113,7 +113,6 @@ impl<A: Actor, R: RestartStrategy<A>> EventLoop<A, R> {
             actor.started(&mut self.ctx).await?;
 
             let timeout = self.config.timeout;
-            #[cfg(feature = "async_channel")]
             log::trace!(actor=A::NAME, id:% =self.ctx.core.id; "still waiting for {} events", self.rx.len());
             let mut payload_rx = pin!(self.rx);
             while let Some(event) = payload_rx.next().await {

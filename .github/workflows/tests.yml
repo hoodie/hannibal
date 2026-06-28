@@ -7,9 +7,9 @@ on:
   workflow_dispatch:
     inputs:
       stress_count:
-        description: 'Number of times to run stress tests'
+        description: "Number of times to run stress tests"
         required: false
-        default: '10'
+        default: "10"
 
 jobs:
   test:
@@ -25,7 +25,6 @@ jobs:
       matrix:
         rust: [stable, beta, nightly]
         runtimes: ["tokio_runtime", "async_runtime", "async_runtime,tokio"]
-        channels: [async_channel, futures_channel] # futures_channel is default
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
@@ -36,13 +35,13 @@ jobs:
         run: cargo nextest run --profile ci --workspace --all-targets --stress-count $STRESS_COUNT
 
       - name: test (most)
-        run: cargo nextest run --profile ci --workspace --all-targets --no-default-features --features ${{matrix.runtimes}},${{matrix.channels}} --stress-count $STRESS_COUNT
+        run: cargo nextest run --profile ci --workspace --all-targets --no-default-features --features ${{matrix.runtimes}} --stress-count $STRESS_COUNT
 
-      - name: lib test ${{matrix.runtimes}},${{matrix.channels}}
-        run: cargo nextest run --profile ci --workspace --lib --no-default-features --features ${{matrix.runtimes}},${{matrix.channels}} --stress-count $STRESS_COUNT
+      - name: lib test ${{matrix.runtimes}}
+        run: cargo nextest run --profile ci --workspace --lib --no-default-features --features ${{matrix.runtimes}} --stress-count $STRESS_COUNT
 
       - name: doc test (default)
         run: cargo test --doc --workspace
 
-      - name: doc test ${{matrix.runtimes}},${{matrix.channels}}
-        run: cargo test --doc --workspace --no-default-features --features ${{matrix.runtimes}},${{matrix.channels}}
+      - name: doc test ${{matrix.runtimes}}
+        run: cargo test --doc --workspace --no-default-features --features ${{matrix.runtimes}}
