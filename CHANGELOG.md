@@ -1,5 +1,12 @@
 # Changelog
 
+### [v0.17.1](https://github.com/hoodie/hannibal/compare/v0.17.0...v0.17.1) (2026-06-29)
+
+#### Features
+
+* add SignalService
+([8f1a33d](https://github.com/hoodie/hannibal/commit/8f1a33dc0370a51707ff9ccb55ee8ace08d7dce7))
+
 ## [v0.17.0](https://github.com/hoodie/hannibal/compare/v0.16.3...v0.17.0) (2026-06-28)
 
 ### Features
