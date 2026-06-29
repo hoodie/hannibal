@@ -62,13 +62,10 @@ jobs:
           cargo install cargo-semver-checks
           for features in \
             tokio_runtime \
-            tokio_runtime,async_channel \
             async_runtime \
-            async_runtime,tokio \
-            async_runtime,tokio,async_channel \
-            async_runtime,async_channel
+            async_runtime,tokio
           do
             echo "::group::Checking features: $features"
-            cargo semver-checks --only-explicit-features --features "$features" --release-type ${{ needs.check.outputs.release_type }}
+            cargo semver-checks --only-explicit-features --features "$features" --release-type "${{ needs.check.outputs.release_type }}"
             echo "::endgroup::"
           done

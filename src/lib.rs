@@ -89,6 +89,11 @@ mod broker;
 mod handler;
 
 pub mod runtime;
+#[cfg(feature = "signals")]
+pub mod signals;
+
+#[cfg(feature = "signals")]
+pub use signals::{Signal, broadcast_signals, broadcast_signals_custom};
 
 // TODO: flatten module structure
 pub use self::{
