@@ -121,6 +121,11 @@ name = "signal-service"
 path = "examples/signal-service.rs"
 required-features = ["runtime", "signals"]
 
+[[example]]
+name = "signal_deadlock"
+path = "examples/signal_deadlock.rs"
+required-features = ["runtime", "signals"]
+
 [lints.rust]
 unsafe_code = "forbid"
 trivial_numeric_casts = "forbid"

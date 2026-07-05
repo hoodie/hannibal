@@ -208,6 +208,7 @@ pub(crate) trait SpawnableService: Service {
                 let handle = ActorHandle::spawn(event_loop);
                 handle.detach();
                 registry.insert(key, Box::new(addr.clone()));
+                drop(registry);
                 debug_assert!(addr.ping().await.is_ok(), "service failed ping");
                 addr
             }
