@@ -1,5 +1,12 @@
 # Changelog
 
+### [v0.17.2](https://github.com/hoodie/hannibal/compare/v0.17.1...v0.17.2) (2026-07-05)
+
+#### Fixes
+
+* release registry write lock before awaiting ping in from_registry_and_spawn
+([2712e16](https://github.com/hoodie/hannibal/commit/2712e16caa7c36962f189f30b44c4abc997de50f))
+
 ### [v0.17.1](https://github.com/hoodie/hannibal/compare/v0.17.0...v0.17.1) (2026-06-29)
 
 #### Features
