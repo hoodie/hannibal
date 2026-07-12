@@ -273,7 +273,7 @@ impl<A: Actor> OwningAddr<A> {
         OwningAddr { addr, handle }
     }
 
-    /// Waits for the actor to stop and returns it.
+    /// Waits for the actor to finish and returns it.
     ///
     /// Comparable to [joining a thread](`std::thread::JoinHandle::join`).
     ///
@@ -283,7 +283,9 @@ impl<A: Actor> OwningAddr<A> {
         self.handle.join().await
     }
 
-    /// Stops the actor and returns it.
+    /// Stops the actor, waits for it to finish, and returns it.
+    ///
+    /// This calls [`stop`](`Addr::stop`) and then waits for the actor to finish via [`join`](`OwningAddr::join`).
     pub async fn consume(mut self) -> Result<A> {
         log::trace!("consuming actor");
         self.addr.stop()?;
