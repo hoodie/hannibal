@@ -112,7 +112,7 @@ pub use self::{
 
 pub use actor::{builder, builder::setup_actor};
 
-pub use broker::Broker;
+pub use broker::{Broker, subscribe_to, subscribe_unbounded_to};
 
 pub mod prelude {
     //! Re-exports the most commonly used traits and types.
