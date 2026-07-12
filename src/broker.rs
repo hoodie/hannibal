@@ -50,6 +50,7 @@ use crate::{Actor, Addr, Context, Handler, Message, Service, WeakSender, context
 /// ```
 pub struct Broker<T: Message<Response = ()>> {
     subscribers: HashMap<ContextID, WeakSender<T>>,
+    external_senders: Vec<async_channel::Sender<T>>,
 }
 
 impl<T: Message<Response = ()> + Clone> Broker<T> {
@@ -77,6 +78,7 @@ impl<T: Message<Response = ()>> Default for Broker<T> {
     fn default() -> Self {
         Broker {
             subscribers: Default::default(),
+            external_senders: Default::default(),
         }
     }
 }
@@ -92,30 +94,46 @@ impl<T: Message> Message for Publish<T> {
 
 impl<T: Message<Response = ()> + Clone> Handler<Publish<T>> for Broker<T> {
     async fn handle(&mut self, _ctx: &mut Context<Self>, msg: Publish<T>) {
+        self.subscribers
+            .retain(|_, sender| sender.upgrade().is_some());
+
         let live_subscribers = self
             .subscribers
             .values()
             .filter_map(WeakSender::upgrade)
             .collect::<Vec<_>>();
+
         for subscriber in &live_subscribers {
             if let Err(_error) = subscriber.send(msg.0.clone()).await {
                 // log::warn!("Failed to send message to subscriber: {:?}", error)
             }
         }
+
+        for external_sender in &self.external_senders {
+            if let Err(_error) = external_sender.send(msg.0.clone()).await {
+                // log::warn!("Failed to send message to external sender: {:?}", error)
+            }
+        }
+
+        self.external_senders.retain(|sender| !sender.is_closed());
+
         log::trace!(
             "published to {} subscribers, topic {:?}",
             live_subscribers.len(),
             std::any::type_name::<T>()
         );
-
-        self.subscribers
-            .retain(|_, sender| sender.upgrade().is_some());
     }
 }
 
 struct Subscribe<T: Message<Response = ()>>(WeakSender<T>);
 
 impl<T: Message<Response = ()>> Message for Subscribe<T> {
+    type Response = ();
+}
+
+struct SubscribeExternal<T: Message<Response = ()>>(async_channel::Sender<T>);
+
+impl<T: Message<Response = ()>> Message for SubscribeExternal<T> {
     type Response = ();
 }
 
@@ -129,6 +147,20 @@ impl<T: Message<Response = ()> + Clone> Handler<Subscribe<T>> for Broker<T> {
     async fn handle(&mut self, _ctx: &mut Context<Self>, Subscribe(sender): Subscribe<T>) {
         self.subscribers.insert(sender.core.id, sender);
         log::trace!("subscribed to topic {:?}", std::any::type_name::<T>());
+    }
+}
+
+impl<T: Message<Response = ()> + Clone> Handler<SubscribeExternal<T>> for Broker<T> {
+    async fn handle(
+        &mut self,
+        _ctx: &mut Context<Self>,
+        SubscribeExternal(sender): SubscribeExternal<T>,
+    ) {
+        self.external_senders.push(sender);
+        log::trace!(
+            "subscribed to external topic {:?}",
+            std::any::type_name::<T>()
+        );
     }
 }
 
@@ -156,6 +188,35 @@ impl<T: Message<Response = ()> + Clone> Addr<Broker<T>> {
     pub async fn unsubscribe(&self, sender: WeakSender<T>) -> crate::error::Result<()> {
         self.send(Unsubscribe(sender)).await
     }
+}
+
+/// Subscribes to messages of the given type using a bounded channel.
+pub async fn subscribe_to<T>(capacity: usize) -> crate::error::Result<async_channel::Receiver<T>>
+where
+    T: Message<Response = ()> + Clone,
+{
+    let (tx, rx) = async_channel::bounded(capacity);
+
+    Broker::from_registry()
+        .await
+        .send(SubscribeExternal(tx))
+        .await?;
+
+    Ok(rx)
+}
+
+/// Subscribes to messages of the given type using an unbounded channel.
+pub async fn subscribe_unbounded_to<T>() -> crate::error::Result<async_channel::Receiver<T>>
+where
+    T: Message<Response = ()> + Clone,
+{
+    let (tx, rx) = async_channel::unbounded();
+    Broker::from_registry()
+        .await
+        .send(SubscribeExternal(tx))
+        .await?;
+
+    Ok(rx)
 }
 
 #[cfg(test)]
@@ -208,6 +269,21 @@ mod subscribe_publish_unsubscribe {
 
         assert_eq!(subscriber1.join().await, Some(Subscribing(vec![42, 23])));
         assert_eq!(subscriber2.join().await, Some(Subscribing(vec![42, 23])));
+
+        Ok(())
+    }
+
+    #[test_log::test(tokio::test)]
+    async fn external_subscriber_receives_published_messages() -> DynResult<()> {
+        let rx = crate::subscribe_to::<Topic1>(10).await?;
+
+        Broker::publish(Topic1(1)).await?;
+        Broker::publish(Topic1(2)).await?;
+        Broker::publish(Topic1(3)).await?;
+
+        assert_eq!(rx.recv().await.unwrap().0, 1);
+        assert_eq!(rx.recv().await.unwrap().0, 2);
+        assert_eq!(rx.recv().await.unwrap().0, 3);
 
         Ok(())
     }
