@@ -4,6 +4,7 @@ use std::{
     ops::{Deref, DerefMut},
     pin::Pin,
     task::Poll,
+    time::{Duration, Instant},
 };
 use weak_addr::WeakAddr;
 
@@ -143,7 +144,8 @@ impl<A: Actor> Addr<A> {
     }
 
     /// Pings the actor to check if it is already/still alive.
-    pub async fn ping(&self) -> Result<()> {
+    pub async fn ping(&self) -> Result<Duration> {
+        let initial = Instant::now();
         if self.core.stopped() {
             return Err(ActorError::AlreadyStopped);
         }
@@ -156,8 +158,8 @@ impl<A: Actor> Addr<A> {
                 })
             }))
             .map_err(|_err| ActorError::AlreadyStopped)?;
-
-        Ok(response.await?)
+        response.await?;
+        Ok(Instant::now() - initial)
     }
 
     /// Sends a fire-and-forget message to the actor.
