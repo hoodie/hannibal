@@ -1,5 +1,16 @@
 # Changelog
 
+### [v0.17.3](https://github.com/hoodie/hannibal/compare/v0.17.2...v0.17.3) (2026-07-24)
+
+#### Features
+
+* make ping actually return a turn around time
+([138d8d9](https://github.com/hoodie/hannibal/commit/138d8d9cc21e6313099f5b1b31c674db7125e735))
+* add built-in messages that every actor handles
+([5ff5e2e](https://github.com/hoodie/hannibal/commit/5ff5e2e70598df0f90eb08a5f36273c99035b67a))
+* allow non-actors to subscribe to brokers
+([e4c75eb](https://github.com/hoodie/hannibal/commit/e4c75eb331fa299fefcb8b6d0da412f6655fd814))
+
 ### [v0.17.2](https://github.com/hoodie/hannibal/compare/v0.17.1...v0.17.2) (2026-07-05)
 
 #### Fixes
